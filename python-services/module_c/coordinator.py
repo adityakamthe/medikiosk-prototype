@@ -20,19 +20,34 @@ try:
     from .engine.dual_coder import dual_coder
     from .fhir.dual_coded_bundle import dual_coded_fhir_builder
 except (ImportError, ValueError):
-    from schemas.ingestion_schemas import PatientRecordPayload
-    from schemas.synthesis_schemas import (
-        ClinicalSynthesisResponse,
-        Standard8PartSummary,
-        DashavidhaReport,
-        DualCodingEntry,
-        ContradictionItem
-    )
-    from engine.contradiction_engine import contradiction_engine
-    from engine.sbar_synthesizer import sbar_synthesizer
-    from engine.ayush_synthesizer import ayush_synthesizer
-    from engine.dual_coder import dual_coder
-    from fhir.dual_coded_bundle import dual_coded_fhir_builder
+    try:
+        from module_c.schemas.ingestion_schemas import PatientRecordPayload
+        from module_c.schemas.synthesis_schemas import (
+            ClinicalSynthesisResponse,
+            Standard8PartSummary,
+            DashavidhaReport,
+            DualCodingEntry,
+            ContradictionItem
+        )
+        from module_c.engine.contradiction_engine import contradiction_engine
+        from module_c.engine.sbar_synthesizer import sbar_synthesizer
+        from module_c.engine.ayush_synthesizer import ayush_synthesizer
+        from module_c.engine.dual_coder import dual_coder
+        from module_c.fhir.dual_coded_bundle import dual_coded_fhir_builder
+    except (ImportError, ValueError):
+        from schemas.ingestion_schemas import PatientRecordPayload
+        from schemas.synthesis_schemas import (
+            ClinicalSynthesisResponse,
+            Standard8PartSummary,
+            DashavidhaReport,
+            DualCodingEntry,
+            ContradictionItem
+        )
+        from engine.contradiction_engine import contradiction_engine
+        from engine.sbar_synthesizer import sbar_synthesizer
+        from engine.ayush_synthesizer import ayush_synthesizer
+        from engine.dual_coder import dual_coder
+        from fhir.dual_coded_bundle import dual_coded_fhir_builder
 
 
 class ModuleCCoordinator:

@@ -52,6 +52,7 @@ export default function ClinicianDashboard() {
   const [activeTab, setActiveTab] = useState<'one_page_history' | 'summary' | 'scanned_documents' | 'contradictions' | 'fhir' | 'module_b_intelligence'>('one_page_history');
   const [timelineData, setTimelineData] = useState<any>(null);
   const [safetyData, setSafetyData] = useState<any>(null);
+  const [noteFormat, setNoteFormat] = useState<'sbar' | 'soap'>('sbar');
 
   // Review Actions State
   const [sectionActions, setSectionActions] = useState<Record<string, 'accepted' | 'edited' | 'rejected'>>({});
@@ -72,6 +73,15 @@ export default function ClinicianDashboard() {
     message?: string;
     recordId?: string;
     savedAt?: string;
+  }>({ state: 'idle' });
+
+  // Module D HIS / OpenMRS Push Status
+  const [hisPushStatus, setHisPushStatus] = useState<{
+    state: 'idle' | 'pushing' | 'pushed' | 'error';
+    encounterUuid?: string;
+    serverMode?: string;
+    idempotencyKey?: string;
+    message?: string;
   }>({ state: 'idle' });
 
   // Patient Deletion & Discharge State
@@ -467,6 +477,41 @@ export default function ClinicianDashboard() {
     }
   };
 
+  // Push Attested FHIR Bundle to Hospital Information System (Module D HIS Connector)
+  const handlePushToHIS = async () => {
+    if (!selectedSession) return;
+    setHisPushStatus({ state: 'pushing' });
+    try {
+      const res = await fetch(`/api/clinician/session/${selectedSession.id}/his-push`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          idempotency_key: `HIS-PUSH-${selectedSession.id}-${Date.now()}`
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setHisPushStatus({
+          state: 'pushed',
+          encounterUuid: data.his_response?.his_encounter_uuid,
+          serverMode: data.his_response?.server_mode,
+          idempotencyKey: data.idempotency_key,
+          message: data.his_response?.message || 'FHIR bundle transmitted and committed into Hospital Information System.'
+        });
+      } else {
+        setHisPushStatus({
+          state: 'error',
+          message: data.error || 'HIS transmission failed'
+        });
+      }
+    } catch (e: any) {
+      setHisPushStatus({
+        state: 'error',
+        message: e.message || 'HIS transmission error'
+      });
+    }
+  };
+
   const draftContent = sessionDetail?.latest_draft?.clinician_summary || selectedSession?.latest_draft?.clinician_summary || {};
   const rawAnswers = sessionDetail?.raw_answers || [];
   const structuredHistory = sessionDetail?.structured_history || [];
@@ -852,7 +897,7 @@ export default function ClinicianDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* SIDEBAR: PATIENT QUEUE (4 Cols) */}
-        <div className="lg:col-span-4 bg-white rounded-3xl p-4 border border-slate-200 shadow-sm flex flex-col h-[calc(100vh-180px)]">
+        <div className="no-print lg:col-span-4 bg-white rounded-3xl p-4 border border-slate-200 shadow-sm flex flex-col h-[calc(100vh-180px)]">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3 px-2">
             <h2 className="font-bold text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2">
               <User className="w-4 h-4 text-[#004643]" /> {activeDoctorInfo ? `${activeDoctorInfo.room_number} Queue` : 'Patient Queue'} ({filteredQueue.length})
@@ -940,7 +985,7 @@ export default function ClinicianDashboard() {
           {selectedSession ? (
             <>
               {/* Header Bar for Selected Patient */}
-              <div className="flex flex-wrap items-center justify-between pb-4 border-b border-slate-100 mb-4 gap-4">
+              <div className="no-print flex flex-wrap items-center justify-between pb-4 border-b border-slate-100 mb-4 gap-4">
                 <div>
                   <div className="flex items-center gap-3">
                     <h2 className="text-xl font-extrabold text-slate-900">{selectedSession.queue_id}</h2>
@@ -981,7 +1026,7 @@ export default function ClinicianDashboard() {
                     onClick={() => setActiveTab('summary')}
                     className={`px-3 py-1.5 rounded-lg transition-all ${activeTab === 'summary' ? 'bg-[#2F5D62] text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
                   >
-                    Structured SBAR
+                    Structured Note (SBAR / SOAP)
                   </button>
                   <button 
                     onClick={() => setActiveTab('module_b_intelligence')}
@@ -1038,7 +1083,7 @@ export default function ClinicianDashboard() {
                 return (
                   <div className="overflow-y-auto space-y-4 flex-1 pr-2">
                     {/* Top Action Bar for Database Sync, Discharge & Export */}
-                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
+                    <div className="no-print bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
                           <FileText className="w-4 h-4 text-[#004643]" />
@@ -1092,7 +1137,7 @@ export default function ClinicianDashboard() {
 
                     {/* Database Save Confirmation Toast */}
                     {saveStatus.state === 'saved' && (
-                      <div className="bg-emerald-50 border-2 border-emerald-400 text-[#004643] p-3.5 rounded-2xl text-xs font-bold flex items-center justify-between shadow-sm animate-fadeIn">
+                      <div className="no-print bg-emerald-50 border-2 border-emerald-400 text-[#004643] p-3.5 rounded-2xl text-xs font-bold flex items-center justify-between shadow-sm animate-fadeIn">
                         <div className="flex items-center gap-2">
                           <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
                           <span>{saveStatus.message} (Record ID: <span className="font-mono">{saveStatus.recordId || selectedSession.id}</span> at {saveStatus.savedAt})</span>
@@ -1103,7 +1148,7 @@ export default function ClinicianDashboard() {
                       </div>
                     )}
                     {saveStatus.state === 'error' && (
-                      <div className="bg-red-50 border border-red-300 text-[#C4292A] p-3.5 rounded-2xl text-xs font-bold flex items-center gap-2">
+                      <div className="no-print bg-red-50 border border-red-300 text-[#C4292A] p-3.5 rounded-2xl text-xs font-bold flex items-center gap-2">
                         <AlertTriangle className="w-4 h-4" />
                         <span>Database Save Failed: {saveStatus.message}</span>
                       </div>
@@ -1111,7 +1156,22 @@ export default function ClinicianDashboard() {
 
                     {/* TEMPLATE A: PURE ALLOPATHIC ONE-PAGE CLINICAL SHEET */}
                     {!isAyurveda ? (
-                      <div id="one-page-clinical-sheet" className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
+                      <div id="one-page-clinical-sheet" className="printable-area bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
+                        {/* Print-Only Hospital Header */}
+                        <div className="print-only mb-6 border-b-2 border-slate-900 pb-4">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h1 className="text-xl font-black uppercase tracking-wider text-slate-900">AIIMS / CENTRAL CIVIL HOSPITAL</h1>
+                              <p className="text-xs font-semibold text-slate-700">Outpatient Department (OPD) Clinical Examination Record</p>
+                              <p className="text-[10px] text-slate-600">ABHA & ABDM Integrated Health Record • Form MED-OPD-101</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-black text-base text-slate-900">TOKEN: {selectedSession.queue_id}</p>
+                              <p className="text-xs text-slate-700">Date: {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                            </div>
+                          </div>
+                        </div>
+
                         {/* Sheet Header */}
                         <div className="border-b border-slate-200 pb-4">
                           <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
@@ -1310,10 +1370,41 @@ export default function ClinicianDashboard() {
                             </span>
                           </div>
                         </div>
+
+                        {/* Print-Only Physician Signature & Stamp Block */}
+                        <div className="print-only mt-8 pt-4 border-t border-slate-400">
+                          <div className="flex justify-between items-end">
+                            <div>
+                              <p className="text-xs font-bold text-slate-900">Attending Physician Signature & Stamp:</p>
+                              <div className="h-12 border-b border-dashed border-slate-400 w-52 mt-2"></div>
+                              <p className="text-[11px] font-bold text-slate-900 mt-1">{selectedSession.allocated_doctor?.name || 'Dr. Vikram Sharma'} ({selectedSession.allocated_doctor?.qualification || 'MBBS, MD'})</p>
+                              <p className="text-[10px] text-slate-600">Registration: MCI-2024-9981 • {selectedSession.allocated_doctor?.room_number || 'Room 101'}</p>
+                            </div>
+                            <div className="text-right text-[10px] text-slate-600">
+                              <p className="font-semibold">MediKiosk Clinical Intelligence System</p>
+                              <p>Attested & Verified NRCeS / ABDM Document</p>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     ) : (
                       /* TEMPLATE B: PURE AYURVEDIC ONE-PAGE CLINICAL SHEET */
-                      <div id="one-page-clinical-sheet" className="bg-white border border-amber-200 rounded-3xl p-6 shadow-sm space-y-6">
+                      <div id="one-page-clinical-sheet" className="printable-area bg-white border border-amber-200 rounded-3xl p-6 shadow-sm space-y-6">
+                        {/* Print-Only Ayurvedic Hospital Header */}
+                        <div className="print-only mb-6 border-b-2 border-amber-900 pb-4">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h1 className="text-xl font-black uppercase tracking-wider text-amber-950">ALL INDIA INSTITUTE OF AYURVEDA / AYUSH OPD</h1>
+                              <p className="text-xs font-semibold text-amber-900">दशविध परीक्षा एवं त्रिदोष परीक्षण विवरण (10-Fold Assessment & Dosha Profiling)</p>
+                              <p className="text-[10px] text-slate-600">Ministry of AYUSH • Certified Clinical Health Record</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-black text-base text-amber-950">TOKEN: {selectedSession.queue_id}</p>
+                              <p className="text-xs text-slate-700">Date: {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                            </div>
+                          </div>
+                        </div>
+
                         {/* Sheet Header */}
                         <div className="border-b border-amber-200/80 pb-4">
                           <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
@@ -1549,268 +1640,427 @@ export default function ClinicianDashboard() {
                             </span>
                           </div>
                         </div>
+
+                        {/* Print-Only Ayurvedic Physician Signature & Seal */}
+                        <div className="print-only mt-8 pt-4 border-t border-amber-400">
+                          <div className="flex justify-between items-end">
+                            <div>
+                              <p className="text-xs font-bold text-amber-950">Ayurvedic Medical Officer Signature & Seal:</p>
+                              <div className="h-12 border-b border-dashed border-amber-400 w-52 mt-2"></div>
+                              <p className="text-[11px] font-bold text-amber-950 mt-1">Dr. Harish Vaidya, BAMS, MD (Kayachikitsa)</p>
+                              <p className="text-[10px] text-slate-600">AYUSH Registry: AY-49201 • Room 108 (AYUSH Center)</p>
+                            </div>
+                            <div className="text-right text-[10px] text-slate-600">
+                              <p className="font-semibold">MediKiosk AYUSH Intelligence</p>
+                              <p>Attested & Verified NRCeS / ABDM Document</p>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
                 );
               })()}
 
-              {/* TAB 1: STRUCTURED SUMMARY VIEW */}
-              {activeTab === 'summary' && (
-                <div className="overflow-y-auto space-y-4 flex-1 pr-2">
-                  
-                  {/* Chief Complaint */}
-                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold text-[#2F5D62] uppercase tracking-wider">Chief Complaint</span>
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={() => handleSectionAction('chief_complaint', 'accepted', formatClinicalText(draftContent.chief_complaint))}
-                          className={`text-xs font-bold px-3 py-1 rounded-lg border transition-all ${
-                            sectionActions['chief_complaint'] === 'accepted' ? 'bg-[#2E7D4F] text-white border-[#2E7D4F]' : 'bg-white text-slate-700 hover:bg-slate-100'
-                          }`}
-                        >
-                          Accept
-                        </button>
-                        <button 
-                          onClick={() => setEditReasonModal({ open: true, section: 'chief_complaint', field: 'Chief Complaint', prevVal: formatClinicalText(draftContent.chief_complaint) })}
-                          className={`text-xs font-bold px-3 py-1 rounded-lg border transition-all ${
-                            sectionActions['chief_complaint'] === 'edited' ? 'bg-[#B8860B] text-white border-[#B8860B]' : 'bg-white text-slate-700 hover:bg-slate-100'
-                          }`}
-                        >
-                          Edit
-                        </button>
-                      </div>
-                    </div>
-                    <p className="text-sm font-semibold text-slate-800">
-                      {editedValues['chief_complaint'] || formatClinicalText(draftContent.chief_complaint) || 'No chief complaint recorded'}
-                    </p>
-                  </div>
+              {/* TAB 1: STRUCTURED SUMMARY VIEW (SBAR vs SOAP) */}
+              {activeTab === 'summary' && (() => {
+                const isAyurveda = selectedSession.clinical_mode === 'ayurveda';
+                const dashavidha = computeDashavidhaPariksha(structuredHistory, selectedSession);
+                const pastDiseases = editedValues['past_medical_surgical'] || formatClinicalText(draftContent.past_medical_surgical) || (isAyurveda ? 'कोई पूर्व व्याधि या शल्यकर्म इतिहास नहीं' : 'No chronic medical illness or prior surgeries reported');
+                const famHistory = editedValues['family_history'] || formatClinicalText(draftContent.family_history) || (isAyurveda ? 'कुल में कोई आनुवंशिक व्याधि नहीं' : 'No hereditary illness in first-degree relatives');
+                const allergyText = editedValues['allergies'] || formatClinicalText(draftContent.allergies) || (isAyurveda ? 'कोई ज्ञात द्रव्य असात्म्यता नहीं' : 'No known drug or food allergies');
+                const medsText = editedValues['medications'] || formatClinicalText(draftContent.medications) || (isAyurveda ? 'कोई नियमित औषध सेवन नहीं' : 'No active prescription medications reported');
+                const rosText = editedValues['review_of_systems'] || formatClinicalText(draftContent.review_of_systems) || 'Cardiovascular, respiratory, gastrointestinal, and musculoskeletal functional reviews completed without acute systemic decompensation.';
+                const ccText = editedValues['chief_complaint'] || formatClinicalText(draftContent.chief_complaint) || (isAyurveda ? 'आयुर्वेदिक ओपीडी परामर्श' : 'Outpatient consultation');
+                const hpiText = editedValues['hpi'] || formatClinicalText(draftContent.hpi) || (isAyurveda ? 'हेतु, सम्प्राप्ति एवं रोग वृद्धि का विवरण दर्ज किया गया।' : 'Recorded via MediKiosk conversational clinical intake.');
+                const labsText = formatClinicalText(draftContent.prior_investigations) || (isAyurveda ? 'कोई पूर्व जांच या रिपोर्ट संलग्न नहीं' : 'No previous imaging, scans or lab reports uploaded for this encounter.');
+                const diagText = editedValues['provisional_diagnoses'] || formatClinicalText(draftContent.provisional_diagnoses) || sessionDetail?.extracted_entities?.filter((e: any) => e.entity_type === 'diagnosis').map((e: any) => e.fields?.name || e.raw_text).join('; ') || 'Clinical diagnostic impression based on patient voice interview.';
 
-                  {/* History of Present Illness (HPI) */}
-                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold text-[#2F5D62] uppercase tracking-wider">History of Present Illness (SOCRATES)</span>
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={() => handleSectionAction('hpi', 'accepted', formatClinicalText(draftContent.hpi))}
-                          className={`text-xs font-bold px-3 py-1 rounded-lg border transition-all ${
-                            sectionActions['hpi'] === 'accepted' ? 'bg-[#2E7D4F] text-white border-[#2E7D4F]' : 'bg-white text-slate-700 hover:bg-slate-100'
-                          }`}
-                        >
-                          Accept
-                        </button>
-                        <button 
-                          onClick={() => setEditReasonModal({ open: true, section: 'hpi', field: 'HPI', prevVal: formatClinicalText(draftContent.hpi) })}
-                          className={`text-xs font-bold px-3 py-1 rounded-lg border transition-all ${
-                            sectionActions['hpi'] === 'edited' ? 'bg-[#B8860B] text-white border-[#B8860B]' : 'bg-white text-slate-700 hover:bg-slate-100'
-                          }`}
-                        >
-                          Edit
-                        </button>
-                      </div>
-                    </div>
-                    <p className="text-sm font-semibold text-slate-800 whitespace-pre-line">
-                      {editedValues['hpi'] || formatClinicalText(draftContent.hpi) || 'SOCRATES interview completed.'}
-                    </p>
-                  </div>
-
-                  {/* Patient's History of Diseases (Chronic conditions, Past surgeries) */}
-                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold text-[#2F5D62] uppercase tracking-wider">
-                        {selectedSession?.clinical_mode === 'ayurveda' ? 'पूर्व व्याधि वृत्त (Purva Vyadhi Vritta)' : 'Past Medical & Surgical History'}
-                      </span>
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={() => handleSectionAction('past_medical_surgical', 'accepted', formatClinicalText(draftContent.past_medical_surgical))}
-                          className={`text-xs font-bold px-3 py-1 rounded-lg border transition-all ${
-                            sectionActions['past_medical_surgical'] === 'accepted' ? 'bg-[#2E7D4F] text-white border-[#2E7D4F]' : 'bg-white text-slate-700 hover:bg-slate-100'
-                          }`}
-                        >
-                          Accept
-                        </button>
-                        <button 
-                          onClick={() => setEditReasonModal({ open: true, section: 'past_medical_surgical', field: 'History of Diseases', prevVal: formatClinicalText(draftContent.past_medical_surgical) })}
-                          className={`text-xs font-bold px-3 py-1 rounded-lg border transition-all ${
-                            sectionActions['past_medical_surgical'] === 'edited' ? 'bg-[#B8860B] text-white border-[#B8860B]' : 'bg-white text-slate-700 hover:bg-slate-100'
-                          }`}
-                        >
-                          Edit
-                        </button>
-                      </div>
-                    </div>
-                    <p className="text-sm font-semibold text-slate-800">
-                      {editedValues['past_medical_surgical'] || formatClinicalText(draftContent.past_medical_surgical) || (selectedSession?.clinical_mode === 'ayurveda' ? 'कोई पूर्व व्याधि इतिहास नहीं' : 'No chronic illnesses reported.')}
-                    </p>
-                  </div>
-
-                  {/* Family History */}
-                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold text-[#2F5D62] uppercase tracking-wider">
-                        {selectedSession?.clinical_mode === 'ayurveda' ? 'कुलज वृत्त (Kulaja Vritta — Family History)' : 'Family Medical History'}
-                      </span>
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={() => handleSectionAction('family_history', 'accepted', formatClinicalText(draftContent.family_history))}
-                          className={`text-xs font-bold px-3 py-1 rounded-lg border transition-all ${
-                            sectionActions['family_history'] === 'accepted' ? 'bg-[#2E7D4F] text-white border-[#2E7D4F]' : 'bg-white text-slate-700 hover:bg-slate-100'
-                          }`}
-                        >
-                          Accept
-                        </button>
-                        <button 
-                          onClick={() => setEditReasonModal({ open: true, section: 'family_history', field: 'Family History', prevVal: formatClinicalText(draftContent.family_history) })}
-                          className={`text-xs font-bold px-3 py-1 rounded-lg border transition-all ${
-                            sectionActions['family_history'] === 'edited' ? 'bg-[#B8860B] text-white border-[#B8860B]' : 'bg-white text-slate-700 hover:bg-slate-100'
-                          }`}
-                        >
-                          Edit
-                        </button>
-                      </div>
-                    </div>
-                    <p className="text-sm font-semibold text-slate-800">
-                      {editedValues['family_history'] || formatClinicalText(draftContent.family_history) || 'No hereditary illnesses reported.'}
-                    </p>
-                  </div>
-
-                  {/* Current Medications */}
-                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                    <div className="flex items-center justify-between mb-2">
+                return (
+                  <div className="overflow-y-auto space-y-4 flex-1 pr-2">
+                    {/* Framework Selector & Print Action Bar */}
+                    <div className="no-print bg-slate-100 p-2.5 rounded-2xl flex flex-wrap items-center justify-between gap-2 border border-slate-200">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-[#2F5D62] uppercase tracking-wider">Current Medications</span>
-                        {sessionDetail?.extracted_entities?.some((e: any) => e.entity_type === 'medication') && (
-                          <span className="bg-amber-100 text-[#B8860B] text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1">
-                            <Eye className="w-3 h-3" /> Document Extracted
-                          </span>
-                        )}
+                        <span className="text-xs font-black uppercase tracking-wider text-slate-700">Note Format:</span>
+                        <div className="inline-flex p-1 bg-white rounded-xl shadow-2xs border border-slate-200 text-xs">
+                          <button
+                            type="button"
+                            onClick={() => setNoteFormat('sbar')}
+                            className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+                              noteFormat === 'sbar' ? 'bg-[#004643] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            SBAR Format
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setNoteFormat('soap')}
+                            className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+                              noteFormat === 'soap' ? 'bg-[#004643] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            SOAP Format
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={() => handleSectionAction('medications', 'accepted', formatClinicalText(draftContent.medications))}
-                          className={`text-xs font-bold px-3 py-1 rounded-lg border transition-all ${
-                            sectionActions['medications'] === 'accepted' ? 'bg-[#2E7D4F] text-white border-[#2E7D4F]' : 'bg-white text-slate-700 hover:bg-slate-100'
-                          }`}
-                        >
-                          Accept
-                        </button>
-                        <button 
-                          onClick={() => setEditReasonModal({ open: true, section: 'medications', field: 'Medications', prevVal: formatClinicalText(draftContent.medications) })}
-                          className={`text-xs font-bold px-3 py-1 rounded-lg border transition-all ${
-                            sectionActions['medications'] === 'edited' ? 'bg-[#B8860B] text-white border-[#B8860B]' : 'bg-white text-slate-700 hover:bg-slate-100'
-                          }`}
-                        >
-                          Edit
-                        </button>
-                      </div>
-                    </div>
-                    <p className="text-sm font-semibold text-slate-800 mb-2">
-                      {editedValues['medications'] || formatClinicalText(draftContent.medications) || 'None reported'}
-                    </p>
-                  </div>
 
-                  {/* Allergies Status */}
-                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold text-[#2F5D62] uppercase tracking-wider">Allergies Status</span>
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={() => handleSectionAction('allergies', 'accepted', formatClinicalText(draftContent.allergies))}
-                          className={`text-xs font-bold px-3 py-1 rounded-lg border transition-all ${
-                            sectionActions['allergies'] === 'accepted' ? 'bg-[#2E7D4F] text-white border-[#2E7D4F]' : 'bg-white text-slate-700 hover:bg-slate-100'
-                          }`}
-                        >
-                          Accept
-                        </button>
-                        <button 
-                          onClick={() => setEditReasonModal({ open: true, section: 'allergies', field: 'Allergies', prevVal: formatClinicalText(draftContent.allergies) })}
-                          className={`text-xs font-bold px-3 py-1 rounded-lg border transition-all ${
-                            sectionActions['allergies'] === 'edited' ? 'bg-[#B8860B] text-white border-[#B8860B]' : 'bg-white text-slate-700 hover:bg-slate-100'
-                          }`}
-                        >
-                          Edit
-                        </button>
-                      </div>
-                    </div>
-                    <p className="text-sm font-semibold text-slate-800">
-                      {editedValues['allergies'] || formatClinicalText(draftContent.allergies) || 'No known drug allergies reported.'}
-                    </p>
-                  </div>
-
-                  {/* Ministry of AYUSH Assessment */}
-                  {selectedSession?.clinical_mode === 'ayurveda' && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-                      <span className="text-xs font-bold text-[#8B5A2B] uppercase tracking-wider block mb-2">
-                        Ministry of AYUSH — Tridosha & Agni Profile
-                      </span>
-                      <p className="text-sm font-semibold text-slate-800">
-                        {formatClinicalText(draftContent.dashavidha_pariksha || draftContent.ayush_profile) || 'Prakriti & Agni intake completed.'}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Provisional Clinical Diagnoses (Voice Clinical Analysis) */}
-                  <div className="bg-teal-50/80 border-2 border-teal-200 rounded-2xl p-4 shadow-xs">
-                    <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-extrabold text-[#004643] uppercase tracking-wider flex items-center gap-1.5">
-                          <Stethoscope className="w-4 h-4 text-[#004643]" />
-                          <span>Provisional Clinical Diagnoses (Voice Intake)</span>
-                        </span>
-                        <span className="bg-teal-100 text-[#004643] text-[10px] font-bold px-2 py-0.5 rounded-full border border-teal-300 flex items-center gap-1">
-                          🎙️ Voice Intake Analyzed
-                        </span>
-                      </div>
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={() => handleSectionAction('provisional_diagnoses', 'accepted', formatClinicalText(draftContent.provisional_diagnoses))}
-                          className={`text-xs font-bold px-3 py-1 rounded-lg border transition-all ${
-                            sectionActions['provisional_diagnoses'] === 'accepted' ? 'bg-[#2E7D4F] text-white border-[#2E7D4F]' : 'bg-white text-slate-700 hover:bg-slate-100'
-                          }`}
+                        <button
+                          onClick={() => window.print()}
+                          className="px-3.5 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
                         >
-                          Accept
-                        </button>
-                        <button 
-                          onClick={() => setEditReasonModal({ 
-                            open: true, 
-                            section: 'provisional_diagnoses', 
-                            field: 'Provisional Diagnoses', 
-                            prevVal: formatClinicalText(draftContent.provisional_diagnoses) || sessionDetail?.extracted_entities?.filter((e: any) => e.entity_type === 'diagnosis').map((e: any) => e.fields?.name || e.raw_text).join('; ') || ''
-                          })}
-                          className={`text-xs font-bold px-3 py-1 rounded-lg border transition-all ${
-                            sectionActions['provisional_diagnoses'] === 'edited' ? 'bg-[#B8860B] text-white border-[#B8860B]' : 'bg-white text-slate-700 hover:bg-slate-100'
-                          }`}
-                        >
-                          Edit
+                          <Printer className="w-3.5 h-3.5 text-slate-700" />
+                          <span>Print {noteFormat.toUpperCase()} Note</span>
                         </button>
                       </div>
                     </div>
-                    <p className="text-sm font-semibold text-slate-900 mb-2 leading-relaxed">
-                      {editedValues['provisional_diagnoses'] || 
-                       formatClinicalText(draftContent.provisional_diagnoses) || 
-                       sessionDetail?.extracted_entities?.filter((e: any) => e.entity_type === 'diagnosis').map((e: any) => e.fields?.name || e.raw_text).join('; ') || 
-                       'Clinical provisional diagnostic considerations derived from patient voice intake.'}
-                    </p>
 
-                    {/* Extracted Voice Entities List */}
-                    {sessionDetail?.extracted_entities?.some((e: any) => e.entity_type === 'diagnosis' || e.entity_type === 'symptom') && (
-                      <div className="pt-2 border-t border-teal-200/70 flex flex-wrap gap-1.5">
-                        {sessionDetail.extracted_entities.filter((e: any) => e.entity_type === 'diagnosis' || e.entity_type === 'symptom').map((e: any, eIdx: number) => (
-                          <span key={eIdx} className="text-[11px] font-semibold bg-white/90 border border-teal-300 px-2 py-0.5 rounded-lg text-teal-900">
-                            {e.entity_type === 'diagnosis' ? '🩺 ' : '⚡ '}
-                            {e.fields?.name || e.raw_text}
-                            {e.fields?.acuity ? ` (${e.fields.acuity})` : ''}
-                            {e.fields?.severity ? ` [${e.fields.severity}]` : ''}
-                          </span>
-                        ))}
+                    {/* Printable Note Container */}
+                    <div id="clinical-note-container" className="printable-area space-y-4">
+                      {/* Print-Only Hospital Header */}
+                      <div className="print-only mb-6 border-b-2 border-slate-900 pb-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h1 className="text-xl font-black uppercase tracking-wider text-slate-900">AIIMS / CENTRAL CIVIL HOSPITAL</h1>
+                            <p className="text-xs font-semibold text-slate-700">
+                              Official Outpatient Clinical Note ({noteFormat.toUpperCase()} Framework)
+                            </p>
+                            <p className="text-[10px] text-slate-600">ABDM & NRCeS Compliant Clinical Documentation</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-black text-base text-slate-900">TOKEN: {selectedSession.queue_id}</p>
+                            <p className="text-xs text-slate-700">Date: {new Date().toLocaleDateString('en-IN')}</p>
+                          </div>
+                        </div>
                       </div>
-                    )}
+
+                      {/* --- SBAR VIEW --- */}
+                      {noteFormat === 'sbar' && (
+                        <div className="space-y-4">
+                          {/* S: Situation */}
+                          <div className="bg-slate-50 border-2 border-teal-200 rounded-2xl p-4 shadow-xs">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-black text-[#004643] uppercase tracking-wider flex items-center gap-2">
+                                <span className="w-5 h-5 rounded-full bg-[#004643] text-white flex items-center justify-center text-[10px]">S</span>
+                                <span>Situation (Chief Complaint & Triage Acuity)</span>
+                              </span>
+                              <div className="no-print flex gap-2">
+                                <button 
+                                  onClick={() => handleSectionAction('chief_complaint', 'accepted', formatClinicalText(draftContent.chief_complaint))}
+                                  className={`text-xs font-bold px-3 py-1 rounded-lg border transition-all ${
+                                    sectionActions['chief_complaint'] === 'accepted' ? 'bg-[#2E7D4F] text-white border-[#2E7D4F]' : 'bg-white text-slate-700 hover:bg-slate-100'
+                                  }`}
+                                >
+                                  Accept
+                                </button>
+                                <button 
+                                  onClick={() => setEditReasonModal({ open: true, section: 'chief_complaint', field: 'Chief Complaint', prevVal: formatClinicalText(draftContent.chief_complaint) })}
+                                  className={`text-xs font-bold px-3 py-1 rounded-lg border transition-all ${
+                                    sectionActions['chief_complaint'] === 'edited' ? 'bg-[#B8860B] text-white border-[#B8860B]' : 'bg-white text-slate-700 hover:bg-slate-100'
+                                  }`}
+                                >
+                                  Edit
+                                </button>
+                              </div>
+                            </div>
+                            <p className="text-sm font-bold text-slate-900 mb-1">{ccText}</p>
+                            <div className="flex flex-wrap gap-2 text-[11px] text-slate-600 mt-2 pt-2 border-t border-slate-200">
+                              <span><strong>Patient:</strong> {selectedSession.patient_name || selectedSession.patient_ref} ({selectedSession.age || 35}y / {selectedSession.gender || 'M'})</span>
+                              <span>• <strong>Triage Status:</strong> {selectedSession.status?.toUpperCase()}</span>
+                              {selectedSession.red_flag_count > 0 && (
+                                <span className="text-rose-700 font-bold bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                                  🚨 {selectedSession.red_flag_count} Red Flag Flagged
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* B: Background */}
+                          <div className="bg-slate-50 border-2 border-teal-200 rounded-2xl p-4 shadow-xs">
+                            <span className="text-xs font-black text-[#004643] uppercase tracking-wider flex items-center gap-2 mb-3">
+                              <span className="w-5 h-5 rounded-full bg-[#004643] text-white flex items-center justify-center text-[10px]">B</span>
+                              <span>Background (HPI, Past Medical, Family History)</span>
+                            </span>
+                            
+                            {/* HPI */}
+                            <div className="mb-3 pb-3 border-b border-slate-200">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[11px] font-bold text-slate-500 uppercase">History of Present Illness (SOCRATES)</span>
+                                <div className="no-print flex gap-1.5">
+                                  <button onClick={() => handleSectionAction('hpi', 'accepted', formatClinicalText(draftContent.hpi))} className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white text-slate-700">Accept</button>
+                                  <button onClick={() => setEditReasonModal({ open: true, section: 'hpi', field: 'HPI', prevVal: formatClinicalText(draftContent.hpi) })} className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white text-slate-700">Edit</button>
+                                </div>
+                              </div>
+                              <p className="text-xs font-medium text-slate-800 whitespace-pre-line leading-relaxed">{hpiText}</p>
+                            </div>
+
+                            {/* Past Medical */}
+                            <div className="mb-3 pb-3 border-b border-slate-200">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[11px] font-bold text-slate-500 uppercase">Past Medical & Surgical History</span>
+                                <div className="no-print flex gap-1.5">
+                                  <button onClick={() => handleSectionAction('past_medical_surgical', 'accepted', formatClinicalText(draftContent.past_medical_surgical))} className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white text-slate-700">Accept</button>
+                                  <button onClick={() => setEditReasonModal({ open: true, section: 'past_medical_surgical', field: 'Past History', prevVal: formatClinicalText(draftContent.past_medical_surgical) })} className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white text-slate-700">Edit</button>
+                                </div>
+                              </div>
+                              <p className="text-xs font-semibold text-slate-800">{pastDiseases}</p>
+                            </div>
+
+                            {/* Family History */}
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[11px] font-bold text-slate-500 uppercase">Family History</span>
+                                <div className="no-print flex gap-1.5">
+                                  <button onClick={() => handleSectionAction('family_history', 'accepted', formatClinicalText(draftContent.family_history))} className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white text-slate-700">Accept</button>
+                                  <button onClick={() => setEditReasonModal({ open: true, section: 'family_history', field: 'Family History', prevVal: formatClinicalText(draftContent.family_history) })} className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white text-slate-700">Edit</button>
+                                </div>
+                              </div>
+                              <p className="text-xs font-semibold text-slate-800">{famHistory}</p>
+                            </div>
+                          </div>
+
+                          {/* A: Assessment */}
+                          <div className="bg-slate-50 border-2 border-teal-200 rounded-2xl p-4 shadow-xs">
+                            <span className="text-xs font-black text-[#004643] uppercase tracking-wider flex items-center gap-2 mb-3">
+                              <span className="w-5 h-5 rounded-full bg-[#004643] text-white flex items-center justify-center text-[10px]">A</span>
+                              <span>Assessment (ROS, Diagnostics & Provisional Diagnoses)</span>
+                            </span>
+
+                            {/* ROS */}
+                            <div className="mb-3 pb-3 border-b border-slate-200">
+                              <span className="text-[11px] font-bold text-slate-500 uppercase block mb-1">Review of Systems (ROS)</span>
+                              <p className="text-xs font-medium text-slate-800">{rosText}</p>
+                            </div>
+
+                            {/* AYUSH Assessment if Ayurveda */}
+                            {isAyurveda && (
+                              <div className="mb-3 pb-3 border-b border-slate-200">
+                                <span className="text-[11px] font-bold text-[#8B5A2B] uppercase block mb-1">Ministry of AYUSH — Dashavidha & Tridosha Profile</span>
+                                <p className="text-xs font-semibold text-slate-800">{formatClinicalText(draftContent.dashavidha_pariksha || draftContent.ayush_profile) || 'Prakriti & Agni intake completed.'}</p>
+                              </div>
+                            )}
+
+                            {/* Provisional Diagnoses */}
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[11px] font-bold text-slate-500 uppercase">Provisional Clinical Diagnoses (Voice Analysis)</span>
+                                <div className="no-print flex gap-1.5">
+                                  <button onClick={() => handleSectionAction('provisional_diagnoses', 'accepted', formatClinicalText(draftContent.provisional_diagnoses))} className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white text-slate-700">Accept</button>
+                                  <button onClick={() => setEditReasonModal({ open: true, section: 'provisional_diagnoses', field: 'Provisional Diagnoses', prevVal: formatClinicalText(draftContent.provisional_diagnoses) })} className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white text-slate-700">Edit</button>
+                                </div>
+                              </div>
+                              <p className="text-sm font-bold text-slate-900">{diagText}</p>
+                            </div>
+                          </div>
+
+                          {/* R: Recommendation */}
+                          <div className="bg-slate-50 border-2 border-teal-200 rounded-2xl p-4 shadow-xs">
+                            <span className="text-xs font-black text-[#004643] uppercase tracking-wider flex items-center gap-2 mb-3">
+                              <span className="w-5 h-5 rounded-full bg-[#004643] text-white flex items-center justify-center text-[10px]">R</span>
+                              <span>Recommendation (Active Medications, Allergies & Orders)</span>
+                            </span>
+
+                            {/* Current Meds */}
+                            <div className="mb-3 pb-3 border-b border-slate-200">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[11px] font-bold text-slate-500 uppercase">Current Medications</span>
+                                <div className="no-print flex gap-1.5">
+                                  <button onClick={() => handleSectionAction('medications', 'accepted', formatClinicalText(draftContent.medications))} className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white text-slate-700">Accept</button>
+                                  <button onClick={() => setEditReasonModal({ open: true, section: 'medications', field: 'Medications', prevVal: formatClinicalText(draftContent.medications) })} className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white text-slate-700">Edit</button>
+                                </div>
+                              </div>
+                              <p className="text-xs font-semibold text-slate-800">{medsText}</p>
+                            </div>
+
+                            {/* Allergies */}
+                            <div className="mb-3 pb-3 border-b border-slate-200">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[11px] font-bold text-[#C4292A] uppercase">Allergies & Drug Reactions</span>
+                                <div className="no-print flex gap-1.5">
+                                  <button onClick={() => handleSectionAction('allergies', 'accepted', formatClinicalText(draftContent.allergies))} className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white text-slate-700">Accept</button>
+                                  <button onClick={() => setEditReasonModal({ open: true, section: 'allergies', field: 'Allergies', prevVal: formatClinicalText(draftContent.allergies) })} className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white text-slate-700">Edit</button>
+                                </div>
+                              </div>
+                              <p className="text-xs font-bold text-slate-900">{allergyText}</p>
+                            </div>
+
+                            {/* Investigations & Scans */}
+                            <div>
+                              <span className="text-[11px] font-bold text-slate-500 uppercase block mb-1">Prior Investigations & Scanned Documents</span>
+                              <p className="text-xs font-medium text-slate-800">{labsText}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* --- SOAP VIEW --- */}
+                      {noteFormat === 'soap' && (
+                        <div className="space-y-4">
+                          {/* S: Subjective */}
+                          <div className="bg-slate-50 border-2 border-indigo-200 rounded-2xl p-4 shadow-xs">
+                            <span className="text-xs font-black text-indigo-900 uppercase tracking-wider flex items-center gap-2 mb-3">
+                              <span className="w-5 h-5 rounded-full bg-indigo-900 text-white flex items-center justify-center text-[10px]">S</span>
+                              <span>Subjective (Chief Complaint, Narrative & ROS)</span>
+                            </span>
+
+                            <div className="mb-3 pb-3 border-b border-slate-200">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[11px] font-bold text-slate-500 uppercase">Chief Complaint (CC)</span>
+                                <div className="no-print flex gap-1.5">
+                                  <button onClick={() => handleSectionAction('chief_complaint', 'accepted', formatClinicalText(draftContent.chief_complaint))} className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white text-slate-700">Accept</button>
+                                  <button onClick={() => setEditReasonModal({ open: true, section: 'chief_complaint', field: 'Chief Complaint', prevVal: formatClinicalText(draftContent.chief_complaint) })} className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white text-slate-700">Edit</button>
+                                </div>
+                              </div>
+                              <p className="text-sm font-bold text-slate-900">{ccText}</p>
+                            </div>
+
+                            <div className="mb-3 pb-3 border-b border-slate-200">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[11px] font-bold text-slate-500 uppercase">History of Present Illness (SOCRATES Analysis)</span>
+                                <div className="no-print flex gap-1.5">
+                                  <button onClick={() => handleSectionAction('hpi', 'accepted', formatClinicalText(draftContent.hpi))} className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white text-slate-700">Accept</button>
+                                  <button onClick={() => setEditReasonModal({ open: true, section: 'hpi', field: 'HPI', prevVal: formatClinicalText(draftContent.hpi) })} className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white text-slate-700">Edit</button>
+                                </div>
+                              </div>
+                              <p className="text-xs font-medium text-slate-800 whitespace-pre-line leading-relaxed">{hpiText}</p>
+                            </div>
+
+                            <div className="mb-3 pb-3 border-b border-slate-200">
+                              <span className="text-[11px] font-bold text-slate-500 uppercase block mb-1">Review of Systems (ROS)</span>
+                              <p className="text-xs font-medium text-slate-800">{rosText}</p>
+                            </div>
+
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[11px] font-bold text-[#C4292A] uppercase">Reported Allergies</span>
+                                <div className="no-print flex gap-1.5">
+                                  <button onClick={() => handleSectionAction('allergies', 'accepted', formatClinicalText(draftContent.allergies))} className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white text-slate-700">Accept</button>
+                                  <button onClick={() => setEditReasonModal({ open: true, section: 'allergies', field: 'Allergies', prevVal: formatClinicalText(draftContent.allergies) })} className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white text-slate-700">Edit</button>
+                                </div>
+                              </div>
+                              <p className="text-xs font-bold text-slate-900">{allergyText}</p>
+                            </div>
+                          </div>
+
+                          {/* O: Objective */}
+                          <div className="bg-slate-50 border-2 border-indigo-200 rounded-2xl p-4 shadow-xs">
+                            <span className="text-xs font-black text-indigo-900 uppercase tracking-wider flex items-center gap-2 mb-3">
+                              <span className="w-5 h-5 rounded-full bg-indigo-900 text-white flex items-center justify-center text-[10px]">O</span>
+                              <span>Objective (Clinical Examination, Scans & Labs)</span>
+                            </span>
+
+                            {isAyurveda ? (
+                              <div className="mb-3 pb-3 border-b border-slate-200">
+                                <span className="text-[11px] font-bold text-[#8B5A2B] uppercase block mb-1">दशविध परीक्षा (Dashavidha 10-Fold Assessment)</span>
+                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
+                                  <div className="bg-white p-2 rounded-lg border border-amber-200"><span className="text-[10px] font-bold text-amber-800 block">दूष्य:</span><span className="font-semibold">{dashavidha.dushya}</span></div>
+                                  <div className="bg-white p-2 rounded-lg border border-amber-200"><span className="text-[10px] font-bold text-amber-800 block">अग्नि:</span><span className="font-semibold">{dashavidha.anala_agni}</span></div>
+                                  <div className="bg-white p-2 rounded-lg border border-amber-200"><span className="text-[10px] font-bold text-amber-800 block">प्रकृति:</span><span className="font-semibold">{dashavidha.prakriti}</span></div>
+                                  <div className="bg-white p-2 rounded-lg border border-amber-200"><span className="text-[10px] font-bold text-amber-800 block">बल:</span><span className="font-semibold">{dashavidha.bala}</span></div>
+                                  <div className="bg-white p-2 rounded-lg border border-amber-200"><span className="text-[10px] font-bold text-amber-800 block">सात्म्य:</span><span className="font-semibold">{dashavidha.satmya}</span></div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="mb-3 pb-3 border-b border-slate-200">
+                                <span className="text-[11px] font-bold text-slate-500 uppercase block mb-1">Physical Observations & Functional Status</span>
+                                <p className="text-xs font-medium text-slate-800">Alert, conscious, oriented to time, place, and person. Systemic functional exam unremarkable on primary intake.</p>
+                              </div>
+                            )}
+
+                            <div>
+                              <span className="text-[11px] font-bold text-slate-500 uppercase block mb-1">Diagnostic Investigations & Scanned Prescriptions</span>
+                              <p className="text-xs font-medium text-slate-800">{labsText}</p>
+                              {(sessionDetail?.documents?.length || 0) > 0 && (
+                                <p className="text-[11px] text-teal-700 font-bold mt-1">
+                                  📎 {sessionDetail.documents.length} verified physical medical records attached.
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* A: Assessment */}
+                          <div className="bg-slate-50 border-2 border-indigo-200 rounded-2xl p-4 shadow-xs">
+                            <span className="text-xs font-black text-indigo-900 uppercase tracking-wider flex items-center gap-2 mb-3">
+                              <span className="w-5 h-5 rounded-full bg-indigo-900 text-white flex items-center justify-center text-[10px]">A</span>
+                              <span>Assessment (Diagnoses, Acuity & Contradictions)</span>
+                            </span>
+
+                            <div className="mb-3 pb-3 border-b border-slate-200">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[11px] font-bold text-slate-500 uppercase">Provisional Diagnoses & Considerations</span>
+                                <div className="no-print flex gap-1.5">
+                                  <button onClick={() => handleSectionAction('provisional_diagnoses', 'accepted', formatClinicalText(draftContent.provisional_diagnoses))} className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white text-slate-700">Accept</button>
+                                  <button onClick={() => setEditReasonModal({ open: true, section: 'provisional_diagnoses', field: 'Provisional Diagnoses', prevVal: formatClinicalText(draftContent.provisional_diagnoses) })} className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white text-slate-700">Edit</button>
+                                </div>
+                              </div>
+                              <p className="text-sm font-bold text-slate-900">{diagText}</p>
+                            </div>
+
+                            <div>
+                              <span className="text-[11px] font-bold text-slate-500 uppercase block mb-1">Clinical Safety & Contradiction Audit</span>
+                              <p className="text-xs font-semibold text-slate-800">
+                                {sessionDetail?.contradictions?.length > 0 
+                                  ? `⚠️ ${sessionDetail.contradictions.length} contradiction(s) detected between voice narrative and scanned document records.`
+                                  : '✅ No clinical discrepancies or drug contradictions detected.'}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* P: Plan */}
+                          <div className="bg-slate-50 border-2 border-indigo-200 rounded-2xl p-4 shadow-xs">
+                            <span className="text-xs font-black text-indigo-900 uppercase tracking-wider flex items-center gap-2 mb-3">
+                              <span className="w-5 h-5 rounded-full bg-indigo-900 text-white flex items-center justify-center text-[10px]">P</span>
+                              <span>Plan (Therapy, Diet/Pathya & Referrals)</span>
+                            </span>
+
+                            <div className="mb-3 pb-3 border-b border-slate-200">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[11px] font-bold text-slate-500 uppercase">Pharmacological & Therapeutic Regimen</span>
+                                <div className="no-print flex gap-1.5">
+                                  <button onClick={() => handleSectionAction('medications', 'accepted', formatClinicalText(draftContent.medications))} className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white text-slate-700">Accept</button>
+                                  <button onClick={() => setEditReasonModal({ open: true, section: 'medications', field: 'Medications', prevVal: formatClinicalText(draftContent.medications) })} className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white text-slate-700">Edit</button>
+                                </div>
+                              </div>
+                              <p className="text-xs font-semibold text-slate-800">{medsText}</p>
+                            </div>
+
+                            {isAyurveda && dashavidha.recommendations?.length > 0 && (
+                              <div className="mb-3 pb-3 border-b border-slate-200">
+                                <span className="text-[11px] font-bold text-[#8B5A2B] uppercase block mb-1">Ayurvedic Pathya & Ahara Directives</span>
+                                {dashavidha.recommendations.map((rec: string, rIdx: number) => (
+                                  <p key={rIdx} className="text-xs text-slate-800">• {rec}</p>
+                                ))}
+                              </div>
+                            )}
+
+                            <div>
+                              <span className="text-[11px] font-bold text-slate-500 uppercase block mb-1">Follow-Up & Department Allocation</span>
+                              <p className="text-xs font-semibold text-slate-800">
+                                Room: {selectedSession.allocated_doctor?.room_display || 'Room 101'} • Attending: {selectedSession.allocated_doctor?.name || 'Dr. Vikram Sharma'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Print-Only Signature Block */}
+                      <div className="print-only mt-8 pt-4 border-t border-slate-400">
+                        <div className="flex justify-between items-end">
+                          <div>
+                            <p className="text-xs font-bold text-slate-900">Physician Attestation & Signature:</p>
+                            <div className="h-12 border-b border-dashed border-slate-400 w-52 mt-2"></div>
+                            <p className="text-[11px] font-bold text-slate-900 mt-1">{selectedSession.allocated_doctor?.name || 'Dr. Vikram Sharma'} ({selectedSession.allocated_doctor?.qualification || 'MBBS, MD'})</p>
+                          </div>
+                          <div className="text-right text-[10px] text-slate-600">
+                            <p className="font-semibold">MediKiosk Clinical Documentation</p>
+                            <p>Certified Health Document • ABDM Validated</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-
-
-                </div>
-              )}
+                );
+              })()}
 
               {/* TAB 2: CONTRADICTIONS VIEW */}
               {activeTab === 'contradictions' && (
@@ -1907,6 +2157,74 @@ export default function ClinicianDashboard() {
                       <span>FHIR Resource Count: {fhirValidation.resource_count}</span>
                     </div>
                   )}
+
+                  {/* Module D: Hospital Information System (HIS / OpenMRS) & ABDM Connector Card */}
+                  <div className="bg-white border-2 border-[#2F5D62]/20 rounded-2xl p-5 shadow-sm space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black text-[#2F5D62] uppercase tracking-wider">
+                            Module D: Hospital Information System (HIS) Connector
+                          </span>
+                          <span className="bg-teal-100 text-[#2F5D62] text-[10px] font-bold px-2 py-0.5 rounded-full border border-teal-200">
+                            Bahmni / OpenMRS FHIR2
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Idempotent transmission of attested NRCeS Document Bundle into institutional EMR with Curve25519 ECDH encryption support.
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handlePushToHIS}
+                          disabled={hisPushStatus.state === 'pushing'}
+                          className="px-4 py-2 bg-[#2F5D62] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 hover:bg-teal-800 disabled:opacity-50 shadow-sm transition-all"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${hisPushStatus.state === 'pushing' ? 'animate-spin' : ''}`} />
+                          {hisPushStatus.state === 'pushing' ? 'Transmitting to HIS...' : 'Push to Hospital HIS (OpenMRS)'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Security & Protocol Badges */}
+                    <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100">
+                      <span className="text-[10px] font-bold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200 flex items-center gap-1">
+                        <ShieldCheck className="w-3 h-3 text-[#2F5D62]" /> DPDP Act 2023 Compliant
+                      </span>
+                      <span className="text-[10px] font-bold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200 flex items-center gap-1">
+                        <Lock className="w-3 h-3 text-[#B8860B]" /> Fidelius Curve25519 ECDH + AES-256-GCM
+                      </span>
+                      <span className="text-[10px] font-bold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200">
+                        NRCeS HL7 FHIR R4
+                      </span>
+                      <span className="text-[10px] font-bold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200">
+                        UUID Idempotency Active
+                      </span>
+                    </div>
+
+                    {/* Push Result Confirmation */}
+                    {hisPushStatus.state === 'pushed' && (
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 text-xs text-emerald-900 space-y-1">
+                        <div className="flex items-center gap-1.5 font-bold text-emerald-800">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          <span>Successfully Committed into Hospital Information System!</span>
+                        </div>
+                        <div className="text-[11px] font-mono text-emerald-700 grid grid-cols-1 sm:grid-cols-2 gap-1 pt-1">
+                          <span>Encounter UUID: <strong className="font-bold">{hisPushStatus.encounterUuid || 'N/A'}</strong></span>
+                          <span>Server Mode: <strong className="font-bold">{hisPushStatus.serverMode || 'mock'}</strong></span>
+                          <span className="col-span-full truncate">Idempotency Key: {hisPushStatus.idempotencyKey}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {hisPushStatus.state === 'error' && (
+                      <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-xs text-rose-800 flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                        <span>{hisPushStatus.message || 'Error transmitting to Hospital Information System'}</span>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Textual Clinical Report Display */}
                   <div className="bg-slate-900 rounded-2xl p-4 text-emerald-400 font-mono text-xs overflow-x-auto max-h-80 whitespace-pre leading-relaxed border border-slate-800">

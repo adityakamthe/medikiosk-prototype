@@ -11,8 +11,12 @@ try:
     from ..schemas.ingestion_schemas import PatientRecordPayload, ReportedAllergy, CurrentMedicationItem, MedicalItem
     from ..schemas.synthesis_schemas import ContradictionItem
 except (ImportError, ValueError):
-    from schemas.ingestion_schemas import PatientRecordPayload, ReportedAllergy, CurrentMedicationItem, MedicalItem
-    from schemas.synthesis_schemas import ContradictionItem
+    try:
+        from module_c.schemas.ingestion_schemas import PatientRecordPayload, ReportedAllergy, CurrentMedicationItem, MedicalItem
+        from module_c.schemas.synthesis_schemas import ContradictionItem
+    except (ImportError, ValueError):
+        from schemas.ingestion_schemas import PatientRecordPayload, ReportedAllergy, CurrentMedicationItem, MedicalItem
+        from schemas.synthesis_schemas import ContradictionItem
 
 
 class ContradictionEngine:

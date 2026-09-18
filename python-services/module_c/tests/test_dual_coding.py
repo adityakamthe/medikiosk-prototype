@@ -2,10 +2,16 @@
 Unit tests for Native FHIR R4 Dual-Coding Engine (NAMASTE + WHO ICD-11 TM2 + SNOMED CT).
 """
 import pytest
-from engine.dual_coder import dual_coder, DUAL_CODING_REGISTRY
-from fhir.dual_coded_bundle import dual_coded_fhir_builder
-from schemas.synthesis_schemas import Standard8PartSummary
-from schemas.ingestion_schemas import PatientMeta
+try:
+    from engine.dual_coder import dual_coder, DUAL_CODING_REGISTRY
+    from fhir.dual_coded_bundle import dual_coded_fhir_builder
+    from schemas.synthesis_schemas import Standard8PartSummary
+    from schemas.ingestion_schemas import PatientMeta
+except (ImportError, ModuleNotFoundError):
+    from module_c.engine.dual_coder import dual_coder, DUAL_CODING_REGISTRY
+    from module_c.fhir.dual_coded_bundle import dual_coded_fhir_builder
+    from module_c.schemas.synthesis_schemas import Standard8PartSummary
+    from module_c.schemas.ingestion_schemas import PatientMeta
 
 
 def test_dual_coding_amlapitta():

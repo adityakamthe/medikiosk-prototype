@@ -11,8 +11,12 @@ try:
     from ..schemas.ingestion_schemas import PatientRecordPayload
     from ..schemas.synthesis_schemas import DashavidhaReport
 except (ImportError, ValueError):
-    from schemas.ingestion_schemas import PatientRecordPayload
-    from schemas.synthesis_schemas import DashavidhaReport
+    try:
+        from module_c.schemas.ingestion_schemas import PatientRecordPayload
+        from module_c.schemas.synthesis_schemas import DashavidhaReport
+    except (ImportError, ValueError):
+        from schemas.ingestion_schemas import PatientRecordPayload
+        from schemas.synthesis_schemas import DashavidhaReport
 
 
 class AyushSynthesizer:

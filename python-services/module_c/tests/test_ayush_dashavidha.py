@@ -2,13 +2,22 @@
 Unit tests for Ayurvedic Dashavidha Pariksha Synthesis Engine.
 """
 import pytest
-from engine.ayush_synthesizer import ayush_synthesizer
-from schemas.ingestion_schemas import (
-    PatientRecordPayload,
-    ChiefComplaint,
-    SocratesHPI,
-    PatientMeta
-)
+try:
+    from engine.ayush_synthesizer import ayush_synthesizer
+    from schemas.ingestion_schemas import (
+        PatientRecordPayload,
+        ChiefComplaint,
+        SocratesHPI,
+        PatientMeta
+    )
+except (ImportError, ModuleNotFoundError):
+    from module_c.engine.ayush_synthesizer import ayush_synthesizer
+    from module_c.schemas.ingestion_schemas import (
+        PatientRecordPayload,
+        ChiefComplaint,
+        SocratesHPI,
+        PatientMeta
+    )
 
 
 def test_dashavidha_pitta_burning_dyspepsia():

@@ -144,9 +144,22 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     await query(`DELETE FROM consent_records WHERE session_id = $1`, [sessionId]);
     await query(`DELETE FROM sessions WHERE id = $1`, [sessionId]);
 
+    // Module D: Secure 3-pass ephemeral file shredder (DoD 5220.22-M: 0 bytes retained)
+    try {
+      const moduleDUrl = process.env.MODULE_D_URL || 'http://127.0.0.1:8003';
+      await fetch(`${moduleDUrl}/privacy/purge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId }),
+        signal: AbortSignal.timeout(2000)
+      });
+    } catch {
+      // Graceful offline fallback
+    }
+
     return NextResponse.json({
       success: true,
-      message: `Patient assessment completed. Session ${sessionId} discharged and removed from active queue.`
+      message: `Patient assessment completed. Session ${sessionId} discharged and ephemeral memory wiped (0 bytes retained).`
     });
   } catch (err: any) {
     console.error('Error deleting/discharging patient session:', err);

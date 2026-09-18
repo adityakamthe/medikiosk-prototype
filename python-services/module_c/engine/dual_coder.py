@@ -12,7 +12,10 @@ from rapidfuzz import fuzz, process
 try:
     from ..schemas.synthesis_schemas import DualCodingEntry
 except (ImportError, ValueError):
-    from schemas.synthesis_schemas import DualCodingEntry
+    try:
+        from module_c.schemas.synthesis_schemas import DualCodingEntry
+    except (ImportError, ValueError):
+        from schemas.synthesis_schemas import DualCodingEntry
 
 
 DUAL_CODING_REGISTRY: Dict[str, Dict[str, Any]] = {

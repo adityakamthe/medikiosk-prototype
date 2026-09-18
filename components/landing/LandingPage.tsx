@@ -105,14 +105,20 @@ export default function LandingPage() {
           </nav>
           <div className="flex items-center gap-2">
             <Link
+              href="/appointments"
+              className="rounded-full bg-cornsilk/20 hover:bg-cornsilk/30 border border-cornsilk/40 px-3 py-2 text-xs font-semibold text-cornsilk md:px-3.5 md:text-sm transition-all"
+            >
+              Book OPD
+            </Link>
+            <Link
               href="/patient"
-              className="rounded-full bg-cornsilk/20 hover:bg-cornsilk/30 border border-cornsilk/40 px-3 py-2 text-xs font-semibold text-cornsilk md:px-4 md:text-sm transition-all"
+              className="hidden sm:inline-block rounded-full bg-cornsilk/10 hover:bg-cornsilk/20 border border-cornsilk/30 px-3 py-2 text-xs font-semibold text-cornsilk md:px-3.5 md:text-sm transition-all"
             >
               Patient Portal
             </Link>
             <Link
               href="/kiosk"
-              className="hidden sm:inline-block rounded-full border border-cornsilk/30 px-3 py-2 text-xs font-semibold text-cornsilk/90 hover:text-cornsilk hover:bg-white/10 transition-all md:px-3.5 md:text-sm"
+              className="hidden md:inline-block rounded-full border border-cornsilk/30 px-3 py-2 text-xs font-semibold text-cornsilk/90 hover:text-cornsilk hover:bg-white/10 transition-all md:px-3.5 md:text-sm"
             >
               On-Site Kiosk
             </Link>
@@ -156,10 +162,16 @@ export default function LandingPage() {
                 ABDM-compliant workflow — so the consult starts with context, not paperwork.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
+                <Link
+                  href="/appointments"
+                  className="rounded-full bg-[#004643] hover:bg-teal-900 text-white px-6 py-3 text-sm font-semibold transition-all shadow-md active:scale-95"
+                >
+                  Book Appointment
+                </Link>
                 <button
                   type="button"
                   onClick={() => setDemoOpen(true)}
-                  className="rounded-full bg-metallic-gold px-5 py-3 text-sm font-semibold text-ink-black transition-opacity hover:opacity-85 active:scale-95"
+                  className="rounded-full bg-metallic-gold px-5 py-3 text-sm font-semibold text-ink-black transition-opacity hover:opacity-85 active:scale-95 cursor-pointer"
                 >
                   Watch Demo
                 </button>

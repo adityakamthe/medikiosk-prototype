@@ -2,17 +2,30 @@
 Unit tests for Module C Contradiction Interception Engine.
 """
 import pytest
-from engine.contradiction_engine import contradiction_engine
-from schemas.ingestion_schemas import (
-    PatientRecordPayload,
-    ChiefComplaint,
-    SocratesHPI,
-    ReportedAllergy,
-    CurrentMedicationItem,
-    MedicalItem,
-    PriorInvestigationItem,
-    PatientMeta
-)
+try:
+    from engine.contradiction_engine import contradiction_engine
+    from schemas.ingestion_schemas import (
+        PatientRecordPayload,
+        ChiefComplaint,
+        SocratesHPI,
+        ReportedAllergy,
+        CurrentMedicationItem,
+        MedicalItem,
+        PriorInvestigationItem,
+        PatientMeta
+    )
+except (ImportError, ModuleNotFoundError):
+    from module_c.engine.contradiction_engine import contradiction_engine
+    from module_c.schemas.ingestion_schemas import (
+        PatientRecordPayload,
+        ChiefComplaint,
+        SocratesHPI,
+        ReportedAllergy,
+        CurrentMedicationItem,
+        MedicalItem,
+        PriorInvestigationItem,
+        PatientMeta
+    )
 
 
 def test_allergy_contradiction_speech_denial_vs_document():

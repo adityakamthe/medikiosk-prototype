@@ -11,8 +11,12 @@ try:
     from ..schemas.synthesis_schemas import DualCodingEntry, Standard8PartSummary
     from ..schemas.ingestion_schemas import PatientMeta
 except (ImportError, ValueError):
-    from schemas.synthesis_schemas import DualCodingEntry, Standard8PartSummary
-    from schemas.ingestion_schemas import PatientMeta
+    try:
+        from module_c.schemas.synthesis_schemas import DualCodingEntry, Standard8PartSummary
+        from module_c.schemas.ingestion_schemas import PatientMeta
+    except (ImportError, ValueError):
+        from schemas.synthesis_schemas import DualCodingEntry, Standard8PartSummary
+        from schemas.ingestion_schemas import PatientMeta
 
 
 class DualCodedFHIRBuilder:

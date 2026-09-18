@@ -12,8 +12,12 @@ try:
     from ..schemas.ingestion_schemas import PatientRecordPayload
     from ..schemas.synthesis_schemas import Standard8PartSummary, PatientAudioView
 except (ImportError, ValueError):
-    from schemas.ingestion_schemas import PatientRecordPayload
-    from schemas.synthesis_schemas import Standard8PartSummary, PatientAudioView
+    try:
+        from module_c.schemas.ingestion_schemas import PatientRecordPayload
+        from module_c.schemas.synthesis_schemas import Standard8PartSummary, PatientAudioView
+    except (ImportError, ValueError):
+        from schemas.ingestion_schemas import PatientRecordPayload
+        from schemas.synthesis_schemas import Standard8PartSummary, PatientAudioView
 
 
 class SBARSynthesizer:

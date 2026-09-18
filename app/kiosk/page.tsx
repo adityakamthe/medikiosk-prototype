@@ -6,7 +6,7 @@ import {
   Volume2, Mic, MicOff, Camera, Upload, CheckCircle2 as CheckCircle, AlertTriangle, 
   ChevronRight, HeartPulse, User, Clock, ShieldCheck,
   HelpCircle, FileText, XCircle, Globe, RefreshCw, Lock, Stethoscope,
-  QrCode, ScanLine
+  QrCode, ScanLine, Printer
 } from '@/components/Icons';
 import { 
   allocateDoctorAndRoom, 
@@ -3020,7 +3020,13 @@ export default function KioskPortal() {
             </p>
 
             {/* OFFICIAL DIGITAL OPD CONSULTATION SLIP */}
-            <div className="bg-gradient-to-b from-[#FAF4D3]/40 to-slate-50 border-2 border-[#2F5D62]/30 rounded-3xl p-5 md:p-6 mb-6 text-left shadow-md relative overflow-hidden">
+            <div className="printable-area bg-gradient-to-b from-[#FAF4D3]/40 to-slate-50 border-2 border-[#2F5D62]/30 rounded-3xl p-5 md:p-6 mb-6 text-left shadow-md relative overflow-hidden">
+              {/* Print-Only Hospital Header */}
+              <div className="print-only mb-4 border-b-2 border-slate-900 pb-2">
+                <h1 className="text-xl font-black uppercase text-slate-900">AIIMS / CENTRAL CIVIL HOSPITAL</h1>
+                <p className="text-xs text-slate-700">Outpatient Department (OPD) Consultation Token Pass • ABDM Certified</p>
+              </div>
+
               {/* Top Slip Header */}
               <div className="flex flex-wrap items-center justify-between border-b border-slate-200 pb-3 mb-4 gap-2">
                 <div>
@@ -3098,13 +3104,20 @@ export default function KioskPortal() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="no-print flex flex-wrap items-center justify-center gap-3">
+              <button
+                onClick={() => window.print()}
+                className="touch-target bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 rounded-2xl font-bold text-sm flex items-center gap-2 transition-all shadow-sm cursor-pointer active:scale-[0.98]"
+              >
+                <Printer className="w-4 h-4" />
+                <span>{clinicalMode === 'ayurveda' ? 'पर्ची प्रिंट करें' : 'Print Token Pass'}</span>
+              </button>
               <button
                 onClick={() => {
                   playHospitalChime();
                   speakPrompt(`टोकन संख्या ${queueId}। कृपया ${allocatedDoc.room_number} के बाहर प्रतीक्षा करें।`);
                 }}
-                className="touch-target bg-slate-100 hover:bg-slate-200 text-[#2F5D62] border border-slate-200 px-5 py-3 rounded-2xl font-bold text-sm flex items-center gap-2 transition-all"
+                className="touch-target bg-slate-100 hover:bg-slate-200 text-[#2F5D62] border border-slate-200 px-5 py-3 rounded-2xl font-bold text-sm flex items-center gap-2 transition-all cursor-pointer"
               >
                 <Volume2 className="w-4 h-4" />
                 <span>Replay Room Announcement</span>

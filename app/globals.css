@@ -75,3 +75,78 @@ body {
   background: var(--pine-teal);
   border-radius: 3px;
 }
+
+/* =========================================================================
+   PRINT OPTIMIZATION: DATA-ONLY PRINTING (NO UI CHROME, BUTTONS, OR BARS)
+   ========================================================================= */
+.print-only {
+  display: none !important;
+}
+
+@media print {
+  @page {
+    margin: 10mm;
+    size: auto;
+  }
+
+  /* 1. Hide all application chrome, navigation, toolbars, sidebars & actions */
+  header,
+  footer,
+  nav,
+  aside,
+  button,
+  .no-print,
+  [role="tablist"],
+  .modal-overlay,
+  input,
+  select,
+  textarea {
+    display: none !important;
+  }
+
+  /* 2. Reset document background and typography */
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 10pt !important;
+    line-height: 1.4 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* 3. Surface printable items exclusively */
+  .print-only {
+    display: block !important;
+  }
+
+  /* Ensure printable area containers occupy clean full-width document flow */
+  .printable-area {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    page-break-inside: avoid;
+  }
+
+  .printable-area * {
+    color: #000000 !important;
+    box-shadow: none !important;
+  }
+
+  /* Maintain essential visual borders for clinical tables and badges */
+  .printable-border {
+    border: 1px solid #94a3b8 !important;
+  }
+
+  .printable-divider {
+    border-bottom: 1px solid #cbd5e1 !important;
+  }
+}
+
