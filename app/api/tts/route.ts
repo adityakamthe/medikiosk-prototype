@@ -59,6 +59,45 @@ const BHASHINI_SERVICE_MAP: Record<string, { serviceId: string; sourceLang: stri
 // In-Memory Audio Cache to speed up recurring clinical prompts and reduce Bhashini API usage
 const audioCache = new Map<string, { buffer: Buffer; mime: string }>();
 
+// Upstream Bhashini Endpoint Health Tracker & Circuit Breaker
+interface CircuitStatus {
+  failedCount: number;
+  lastFailedAt: number;
+}
+const bhashiniHealthMap = new Map<string, CircuitStatus>();
+const CIRCUIT_COOLDOWN_MS = 5 * 60 * 1000; // 5-minute cooldown for degraded endpoints
+
+// Languages with known upstream worker stalls on Bhashini's cluster (returning 504 Gateway Timeout)
+const KNOWN_DEGRADED_BHASHINI_LANGS = new Set(['mr', 'gu']);
+
+function shouldAttemptBhashini(lang: string): boolean {
+  const status = bhashiniHealthMap.get(lang);
+  if (KNOWN_DEGRADED_BHASHINI_LANGS.has(lang)) {
+    // If degraded, only attempt once every 10 minutes to test if Bhashini recovered
+    if (!status || (Date.now() - status.lastFailedAt) > 10 * 60 * 1000) {
+      return true;
+    }
+    return false;
+  }
+  if (!status) return true;
+  if (status.failedCount >= 2 && (Date.now() - status.lastFailedAt) < CIRCUIT_COOLDOWN_MS) {
+    return false;
+  }
+  return true;
+}
+
+function recordBhashiniResult(lang: string, success: boolean) {
+  if (success) {
+    bhashiniHealthMap.delete(lang);
+  } else {
+    const prev = bhashiniHealthMap.get(lang) || { failedCount: 0, lastFailedAt: 0 };
+    bhashiniHealthMap.set(lang, {
+      failedCount: prev.failedCount + 1,
+      lastFailedAt: Date.now()
+    });
+  }
+}
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -84,7 +123,6 @@ export async function GET(req: Request) {
     }
 
     // Replace slashes (and slash-comma combos like '/', '/,', ',/') with natural spoken conjunctions (" or " or " या ")
-    // NOTE: Keep pure commas (',') intact so TTS has natural, brief breath pauses and NEVER says "or" for commas!
     if (rawLang === 'en') {
       cleanText = cleanText
         .replace(/\s*\/+,\s*|\s*,\/+\s*|\s*\/+\s*/g, ' or ')
@@ -100,7 +138,6 @@ export async function GET(req: Request) {
     cleanText = cleanText.replace(/[*_#`~]/g, '').trim();
 
     if (rawLang === 'en') {
-      // Strip any residual non-Latin characters for crystal-clear English voice
       cleanText = cleanText.replace(/[\u0900-\u0D7F]/g, ' ').replace(/\s+/g, ' ').trim();
     }
 
@@ -111,6 +148,7 @@ export async function GET(req: Request) {
       cleanText = rawText.substring(0, 150);
     }
 
+    // Instant Cache Retrieval (0ms response time for recurring prompts)
     const cacheKey = `${rawLang}:${cleanText.substring(0, 250)}`;
     if (audioCache.has(cacheKey)) {
       const cached = audioCache.get(cacheKey)!;
@@ -119,7 +157,7 @@ export async function GET(req: Request) {
         headers: {
           'Content-Type': cached.mime,
           'Content-Length': String(cached.buffer.length),
-          'X-TTS-Engine': 'Bhashini-IndicTTS-Cached',
+          'X-TTS-Engine': 'AudioCache-Instant-0ms',
           'Cache-Control': 'public, max-age=86400'
         }
       });
@@ -133,73 +171,79 @@ export async function GET(req: Request) {
     // Truncate to reasonable sentence chunk for low-latency synthesis
     const inputChunk = cleanText.substring(0, 300);
 
-    // 3. Primary: Attempt Bhashini Indic-TTS Inference Pipeline
-    try {
-      const bhashiniPayload = {
-        pipelineTasks: [
-          {
-            taskType: 'tts',
-            config: {
-              language: {
-                sourceLanguage: targetSourceLang
-              },
-              serviceId: targetServiceId,
-              gender: 'female'
-            }
-          }
-        ],
-        inputData: {
-          input: [
+    // 3. Primary: Attempt Bhashini Indic-TTS Inference Pipeline (if endpoint is healthy)
+    const canTryBhashini = shouldAttemptBhashini(rawLang);
+    const bhashiniTimeoutMs = KNOWN_DEGRADED_BHASHINI_LANGS.has(rawLang) ? 1200 : 3500;
+
+    if (canTryBhashini) {
+      try {
+        const bhashiniPayload = {
+          pipelineTasks: [
             {
-              source: inputChunk
+              taskType: 'tts',
+              config: {
+                language: {
+                  sourceLanguage: targetSourceLang
+                },
+                serviceId: targetServiceId,
+                gender: 'female'
+              }
             }
-          ]
-        }
-      };
-
-      const bhashiniRes = await fetch(BHASHINI_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': BHASHINI_INFERENCE_KEY
-        },
-        body: JSON.stringify(bhashiniPayload),
-        signal: AbortSignal.timeout(7000) // 7-second safeguard timeout
-      });
-
-      if (bhashiniRes.ok) {
-        const bhashiniData = await bhashiniRes.json();
-        const base64Audio = bhashiniData?.pipelineResponse?.[0]?.audio?.[0]?.audioContent;
-
-        if (base64Audio) {
-          const audioBuffer = Buffer.from(base64Audio, 'base64');
-          
-          // Cache audio in memory
-          if (audioCache.size > 200) {
-            // Prune oldest entry if cache grows too large
-            const firstKey = audioCache.keys().next().value;
-            if (firstKey) audioCache.delete(firstKey);
+          ],
+          inputData: {
+            input: [
+              {
+                source: inputChunk
+              }
+            ]
           }
-          audioCache.set(cacheKey, { buffer: audioBuffer, mime: 'audio/wav' });
+        };
 
-          return new Response(new Uint8Array(audioBuffer), {
-            status: 200,
-            headers: {
-              'Content-Type': 'audio/wav',
-              'Content-Length': String(audioBuffer.length),
-              'X-TTS-Engine': 'Bhashini-IndicTTS-22Lang',
-              'Cache-Control': 'public, max-age=86400, stale-while-revalidate=43200'
+        const bhashiniRes = await fetch(BHASHINI_ENDPOINT, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': BHASHINI_INFERENCE_KEY
+          },
+          body: JSON.stringify(bhashiniPayload),
+          signal: AbortSignal.timeout(bhashiniTimeoutMs)
+        });
+
+        if (bhashiniRes.ok) {
+          const bhashiniData = await bhashiniRes.json();
+          const base64Audio = bhashiniData?.pipelineResponse?.[0]?.audio?.[0]?.audioContent;
+
+          if (base64Audio) {
+            recordBhashiniResult(rawLang, true);
+            const audioBuffer = Buffer.from(base64Audio, 'base64');
+            
+            if (audioCache.size > 250) {
+              const firstKey = audioCache.keys().next().value;
+              if (firstKey) audioCache.delete(firstKey);
             }
-          });
+            audioCache.set(cacheKey, { buffer: audioBuffer, mime: 'audio/wav' });
+
+            return new Response(new Uint8Array(audioBuffer), {
+              status: 200,
+              headers: {
+                'Content-Type': 'audio/wav',
+                'Content-Length': String(audioBuffer.length),
+                'X-TTS-Engine': 'Bhashini-IndicTTS-22Lang',
+                'Cache-Control': 'public, max-age=86400, stale-while-revalidate=43200'
+              }
+            });
+          }
+        } else {
+          recordBhashiniResult(rawLang, false);
+          console.warn(`Bhashini TTS returned status ${bhashiniRes.status} for ${rawLang}. Fast-falling back.`);
         }
-      } else {
-        console.warn(`Bhashini TTS returned status ${bhashiniRes.status}. Falling back to secondary audio stream.`);
+      } catch (bhashiniErr: any) {
+        recordBhashiniResult(rawLang, false);
+        console.warn(`Bhashini TTS notice for ${rawLang} (fast circuit breaker active):`, bhashiniErr?.message || bhashiniErr);
       }
-    } catch (bhashiniErr: any) {
-      console.warn('Bhashini TTS notice (using fallback):', bhashiniErr?.message || bhashiniErr);
     }
 
-    // 4. Secondary Fallback: Google Translate TTS Stream
+    // 4. Secondary Fallback: High-Speed Google Translate TTS Stream
     const googleLangMap: Record<string, string> = {
       hi: 'hi',
       en: 'en-IN',
@@ -233,17 +277,25 @@ export async function GET(req: Request) {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Referer': 'https://translate.google.com/'
       },
-      signal: AbortSignal.timeout(5000)
+      signal: AbortSignal.timeout(4000)
     });
 
     if (fallbackRes.ok) {
       const audioBuffer = Buffer.from(await fallbackRes.arrayBuffer());
+
+      // Cache fallback audio buffer so recurring regional prompts return in 0ms!
+      if (audioCache.size > 250) {
+        const firstKey = audioCache.keys().next().value;
+        if (firstKey) audioCache.delete(firstKey);
+      }
+      audioCache.set(cacheKey, { buffer: audioBuffer, mime: 'audio/mpeg' });
+
       return new Response(new Uint8Array(audioBuffer), {
         status: 200,
         headers: {
           'Content-Type': 'audio/mpeg',
           'Content-Length': String(audioBuffer.length),
-          'X-TTS-Engine': 'Fallback-Stream',
+          'X-TTS-Engine': 'Fast-Indic-Fallback-Cached',
           'Cache-Control': 'public, max-age=86400'
         }
       });

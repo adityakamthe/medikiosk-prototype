@@ -367,8 +367,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       aiResponse.severity_level = 'mild';
     }
 
-    // For non-severe cases: enforce minimum 8 turns to cover SOCRATES, past conditions, medications, allergies, and family history
-    const isCompleted = Boolean((aiResponse.is_intake_complete && turnCount >= 8) || turnCount >= 10);
+    // Strict limit of 10 to 12 questions:
+    // - Never complete before turn 10 for non-severe intakes.
+    // - Between turns 10 and 12, complete only if mandatory clinical domains (previous illnesses, allergies, family history) are asked.
+    // - Strictly complete at turn >= 12 (hard maximum ceiling).
+    const historyTextAll = historyItems.map(h => `${h.question} ${h.answer} ${h.section || ''} ${h.field_name || ''}`).join(' ').toLowerCase();
+    const hasPastIllness = historyItems.some(h => (h.section || '').includes('past') || (h.field_name || '').includes('chronic') || (h.field_name || '').includes('past_illness')) ||
+      /(previous medical|chronic illness|past condition|diabetes|sugar|hypertension|blood pressure|thyroid|asthma|पुरानी बीमारी|मधुमेह|रक्तदाब|दमा|आजार)/i.test(historyTextAll);
+
+    const hasAllergies = historyItems.some(h => (h.section || '').includes('allerg') || (h.field_name || '').includes('allerg')) ||
+      /(known allerg|penicillin|drug reaction|food allergy|एलर्जी|ऍलर्जी|அலர்ஜி)/i.test(historyTextAll);
+
+    const hasFamilyHistory = historyItems.some(h => (h.section || '').includes('family') || (h.field_name || '').includes('family')) ||
+      /(family history|parents or siblings|hereditary|परिवार|कुटुंब|குடும்ப)/i.test(historyTextAll);
+
+    const mandatoryDomainsMet = hasPastIllness && hasAllergies && hasFamilyHistory;
+    const isCompleted = Boolean((aiResponse.is_intake_complete && turnCount >= 10 && mandatoryDomainsMet) || turnCount >= 12);
 
     // 8. Auto-update live draft summary asynchronously in the background so the patient is NOT blocked!
     (async () => {

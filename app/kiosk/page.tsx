@@ -2207,7 +2207,7 @@ export default function KioskPortal() {
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-[#2F5D62] mb-6 border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="bg-[#2F5D62] text-white px-3 py-1 rounded-full font-black text-[11px] uppercase tracking-wider">
-                Question {answeredHistory.length + 1} of 8–9
+                Question {answeredHistory.length + 1} of 10–12
               </span>
               <span className="bg-[#EAF3F2] text-[#2F5D62] border border-teal-200 px-3 py-1 rounded-full font-extrabold text-[11px]">
                 {currentQuestion.section === 'emergency_confirmation' || currentQuestion.framework_stage === 'emergency_confirmation'
@@ -2222,6 +2222,10 @@ export default function KioskPortal() {
                   ? '⚠️ Known Allergies'
                   : currentQuestion.section === 'family_history'
                   ? '🧬 Family Medical History'
+                  : currentQuestion.framework_stage === 'lifestyle_exposures'
+                  ? '🏃 Lifestyle & Exposures'
+                  : currentQuestion.framework_stage === 'systemic_review'
+                  ? '🔍 Systemic Review'
                   : '🌿 AYUSH Clinical Intake'}
               </span>
             </div>
