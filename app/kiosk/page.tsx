@@ -1389,10 +1389,12 @@ export default function KioskPortal() {
       {/* MediKiosk Sticky Top Navigation Header */}
       <header className="sticky top-0 z-50 bg-pine-teal border-b border-white/10 shadow-sm">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 md:px-6">
-          <Link href="/" className="flex items-center gap-3">
-            <span className="font-[family-name:var(--font-sora)] text-base font-bold tracking-tight text-cornsilk md:text-lg">
-              MediKiosk
-            </span>
+          <Link href="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-90">
+            <img
+              src="/assets/logo/medikiosk-logo.png"
+              alt="MediKiosk"
+              className="h-7 md:h-8 w-auto object-contain"
+            />
             <span className="text-[10px] bg-metallic-gold text-ink-black font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
               Patient Intake
             </span>
@@ -1645,8 +1647,14 @@ export default function KioskPortal() {
       {step === 'language' && (
         <div className="bg-white/95 backdrop-blur-md rounded-3xl p-8 md:p-12 border border-slate-200 shadow-2xl text-center my-auto w-full max-w-7xl mx-auto min-h-[640px] flex flex-col justify-between">
           <div>
-            <div className="w-16 h-16 rounded-2xl bg-[#EAF3F2] text-[#2F5D62] flex items-center justify-center mx-auto mb-4 shadow-2xs">
-              <Globe className="w-8 h-8" />
+            <div className="flex items-center justify-center mb-4">
+              <div className="bg-pine-teal px-6 py-2.5 rounded-2xl shadow-md inline-flex items-center justify-center">
+                <img
+                  src="/assets/logo/medikiosk-logo.png"
+                  alt="MediKiosk"
+                  className="h-8 md:h-10 w-auto object-contain"
+                />
+              </div>
             </div>
             <h2 className="text-3xl md:text-4xl font-black text-[#1A1A1A] mb-2.5 font-[family-name:var(--font-sora)]">
               {currentLang.select_title}

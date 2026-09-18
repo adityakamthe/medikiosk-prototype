@@ -23,6 +23,11 @@ export const metadata: Metadata = {
   title: "MediKiosk — Structured clinical history before the room",
   description:
     "AI-powered multimodal clinical intake for Indian hospital OPDs. Voice and touch, AYUSH and allopathic, ABDM-compliant. SIH 2026 · SIH26047.",
+  icons: {
+    icon: "/assets/logo/medikiosk-icon.png",
+    shortcut: "/favicon.ico",
+    apple: "/assets/logo/medikiosk-icon.png",
+  },
 };
 
 export default function RootLayout({

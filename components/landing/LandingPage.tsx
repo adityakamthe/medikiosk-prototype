@@ -89,8 +89,12 @@ export default function LandingPage() {
 
       <header className="sticky top-0 z-50 bg-pine-teal">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-6">
-          <a href="#top" className="font-[family-name:var(--font-sora)] text-base font-bold tracking-tight text-cornsilk md:text-lg">
-            MediKiosk
+          <a href="#top" className="flex items-center gap-2 transition-opacity hover:opacity-90">
+            <img
+              src="/assets/logo/medikiosk-logo.png"
+              alt="MediKiosk"
+              className="h-8 md:h-9 w-auto object-contain"
+            />
           </a>
           <nav className="hidden items-center gap-6 text-sm text-cornsilk/85 lg:flex" aria-label="Primary">
             {NAV.map((item) => (
@@ -257,7 +261,13 @@ export default function LandingPage() {
                 </div>
               ))}
               <div className="grid gap-2 border-2 border-metallic-gold bg-ink-black px-5 py-5 md:grid-cols-[220px_1fr] md:items-center">
-                <p className="font-[family-name:var(--font-sora)] font-bold text-metallic-gold">MediKiosk</p>
+                <div className="flex items-center">
+                  <img
+                    src="/assets/logo/medikiosk-logo.png"
+                    alt="MediKiosk"
+                    className="h-7 w-auto object-contain"
+                  />
+                </div>
                 <p className="text-sm text-cornsilk">
                   Voice + touch intake, dual-system history, document intelligence, and ABDM-ready FHIR — before the room.
                 </p>
@@ -545,9 +555,14 @@ export default function LandingPage() {
             </ul>
           </div>
         </div>
-        <div className="overflow-hidden px-3 pb-6 md:px-6">
-          <p className="select-none font-[family-name:var(--font-sora)] text-[18vw] font-bold leading-[0.85] tracking-tighter text-cornsilk/80">
-            MediKiosk
+        <div className="overflow-hidden px-3 pb-8 md:px-6 flex flex-col items-center justify-center">
+          <img
+            src="/assets/logo/medikiosk-logo.png"
+            alt="MediKiosk Logo"
+            className="h-16 md:h-24 w-auto object-contain opacity-90 mb-4"
+          />
+          <p className="text-xs text-cornsilk/50 font-medium tracking-wide">
+            © {new Date().getFullYear()} MediKiosk · AI-Powered Multimodal Clinical Intake · SIH 2026
           </p>
         </div>
       </footer>

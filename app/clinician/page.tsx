@@ -497,9 +497,13 @@ export default function ClinicianDashboard() {
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-6">
             <Link
               href="/"
-              className="font-[family-name:var(--font-sora)] text-base font-bold tracking-tight text-cornsilk md:text-lg"
+              className="flex items-center gap-2 transition-opacity hover:opacity-90"
             >
-              MediKiosk
+              <img
+                src="/assets/logo/medikiosk-logo.png"
+                alt="MediKiosk"
+                className="h-7 md:h-8 w-auto object-contain"
+              />
             </Link>
             <div className="flex items-center gap-3">
               <span className="hidden text-xs text-cornsilk/80 md:inline font-medium">
@@ -531,9 +535,15 @@ export default function ClinicianDashboard() {
               </span>
             </div>
 
-            {/* Icon */}
-            <div className="w-14 h-14 bg-pine-teal text-cornsilk rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-md">
-              <Lock className="w-7 h-7 text-metallic-gold" />
+            {/* Brand Logo */}
+            <div className="flex justify-center mb-4">
+              <div className="bg-pine-teal px-5 py-2.5 rounded-2xl shadow-md inline-flex items-center justify-center">
+                <img
+                  src="/assets/logo/medikiosk-logo.png"
+                  alt="MediKiosk"
+                  className="h-7 w-auto object-contain"
+                />
+              </div>
             </div>
 
             <h1 className="font-[family-name:var(--font-sora)] text-2xl md:text-3xl font-bold tracking-tight text-ink-black mb-1">
@@ -626,9 +636,13 @@ export default function ClinicianDashboard() {
           <div className="flex items-center gap-3">
             <Link
               href="/"
-              className="font-[family-name:var(--font-sora)] text-base font-bold tracking-tight text-cornsilk md:text-lg"
+              className="flex items-center gap-2 transition-opacity hover:opacity-90"
             >
-              MediKiosk
+              <img
+                src="/assets/logo/medikiosk-logo.png"
+                alt="MediKiosk"
+                className="h-7 md:h-8 w-auto object-contain"
+              />
             </Link>
             <span className="hidden sm:inline-block text-[11px] bg-white/15 text-cornsilk/90 px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
               OPD Clinician Suite
