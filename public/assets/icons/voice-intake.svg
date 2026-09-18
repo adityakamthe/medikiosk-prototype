@@ -1,0 +1,18 @@
+<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#004643" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Microphone body -->
+  <rect x="17" y="6" width="14" height="22" rx="7"/>
+  <!-- Microphone stand arc -->
+  <path d="M10 26c0 7.7 6.3 14 14 14s14-6.3 14-14"/>
+  <!-- Stand line -->
+  <line x1="24" y1="40" x2="24" y2="46"/>
+  <!-- Base -->
+  <line x1="17" y1="46" x2="31" y2="46"/>
+  <!-- Sound waves left -->
+  <path d="M7 20c-1.5 2-1.5 6 0 8" stroke-width="1.8"/>
+  <path d="M3 17c-3 4-3 10 0 14" stroke-width="1.5"/>
+  <!-- Sound waves right -->
+  <path d="M41 20c1.5 2 1.5 6 0 8" stroke-width="1.8"/>
+  <path d="M45 17c3 4 3 10 0 14" stroke-width="1.5"/>
+  <!-- Mic line detail -->
+  <line x1="20" y1="18" x2="28" y2="18"/>
+</svg>

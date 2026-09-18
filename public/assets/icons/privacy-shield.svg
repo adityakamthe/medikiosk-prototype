@@ -1,0 +1,14 @@
+<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#004643" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Shield outline -->
+  <path d="M24 4L6 12v12c0 11 7.6 21.3 18 24 10.4-2.7 18-13 18-24V12L24 4z"/>
+  <!-- Lock body -->
+  <rect x="17" y="22" width="14" height="12" rx="2"/>
+  <!-- Lock shackle -->
+  <path d="M19 22v-4a5 5 0 0110 0v4"/>
+  <!-- Keyhole -->
+  <circle cx="24" cy="27" r="2"/>
+  <line x1="24" y1="29" x2="24" y2="32"/>
+  <!-- Check mark badge -->
+  <circle cx="36" cy="36" r="7" fill="#FAF4D3" stroke="#004643" stroke-width="1.5"/>
+  <polyline points="33,36 35.5,38.5 39,34" stroke-width="2"/>
+</svg>

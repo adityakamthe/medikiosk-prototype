@@ -1,0 +1,18 @@
+<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#004643" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Central lotus petals -->
+  <!-- Center petal -->
+  <path d="M24 34 C24 28, 20 22, 24 16 C28 22, 24 28, 24 34z"/>
+  <!-- Left petal -->
+  <path d="M24 34 C20 30, 13 28, 10 22 C16 20, 22 26, 24 34z"/>
+  <!-- Right petal -->
+  <path d="M24 34 C28 30, 35 28, 38 22 C32 20, 26 26, 24 34z"/>
+  <!-- Far left petal -->
+  <path d="M24 34 C18 32, 9 32, 7 26 C12 22, 20 28, 24 34z"/>
+  <!-- Far right petal -->
+  <path d="M24 34 C30 32, 39 32, 41 26 C36 22, 28 28, 24 34z"/>
+  <!-- Water base -->
+  <path d="M8 36 Q16 38 24 36 Q32 34 40 36" stroke-dasharray="0"/>
+  <path d="M4 40 Q14 44 24 42 Q34 40 44 44" stroke-width="1.5"/>
+  <!-- Stamen -->
+  <circle cx="24" cy="30" r="3" fill="#D1AC00" stroke="#D1AC00"/>
+</svg>

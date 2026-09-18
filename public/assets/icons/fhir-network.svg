@@ -1,0 +1,19 @@
+<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#004643" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Network nodes -->
+  <circle cx="24" cy="10" r="4"/>
+  <circle cx="8" cy="30" r="4"/>
+  <circle cx="40" cy="30" r="4"/>
+  <circle cx="16" cy="42" r="3"/>
+  <circle cx="32" cy="42" r="3"/>
+  <!-- Connecting edges -->
+  <line x1="21" y1="13" x2="11" y2="27"/>
+  <line x1="27" y1="13" x2="37" y2="27"/>
+  <line x1="12" y1="30" x2="36" y2="30"/>
+  <line x1="10" y1="33" x2="14" y2="39"/>
+  <line x1="38" y1="33" x2="34" y2="39"/>
+  <line x1="19" y1="42" x2="29" y2="42"/>
+  <!-- FHIR label dots -->
+  <circle cx="24" cy="10" r="2" fill="#004643"/>
+  <circle cx="8" cy="30" r="2" fill="#004643"/>
+  <circle cx="40" cy="30" r="2" fill="#004643"/>
+</svg>
