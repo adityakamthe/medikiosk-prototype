@@ -3,25 +3,38 @@ NRCeS FHIR R4 Bundle Validator & HIS Connector for MediKiosk Module D.
 Pushes attested clinical consultation drafts into OpenMRS fhir2 or HAPI-FHIR with idempotency.
 """
 
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 from datetime import datetime, timezone
+import json
 import httpx
-from ..config import settings
-from ..schemas.his_schemas import FHIRBundlePushRequest, FHIRBundlePushResponse
-from .idempotency import idempotency_manager
-from ..simulator.mock_his_server import mock_his_server
+
+try:
+    from ..config import settings
+    from ..schemas.his_schemas import FHIRBundlePushRequest, FHIRBundlePushResponse
+    from .idempotency import idempotency_manager
+    from ..simulator.mock_his_server import mock_his_server
+except (ImportError, ValueError):
+    import sys
+    from pathlib import Path
+    _services_root = Path(__file__).resolve().parent.parent.parent
+    if str(_services_root) not in sys.path:
+        sys.path.insert(0, str(_services_root))
+    from module_d.config import settings
+    from module_d.schemas.his_schemas import FHIRBundlePushRequest, FHIRBundlePushResponse
+    from module_d.his.idempotency import idempotency_manager
+    from module_d.simulator.mock_his_server import mock_his_server
 
 
 class FHIRConnector:
     """Validates and pushes NRCeS FHIR R4 Bundles to institutional HIS."""
 
     def __init__(self):
-        self.openmrs_fhir_url = settings.OPENMRS_FHIR2_URL
-        self.hapi_fhir_url = settings.HAPI_FHIR_URL
-        self.use_mock = settings.USE_MOCK_HIS
-        self.timeout = settings.HIS_REQUEST_TIMEOUT_SECONDS
+        self.openmrs_fhir_url = getattr(settings, "OPENMRS_FHIR2_URL", "http://localhost:8080/openmrs/ws/fhir2/R4")
+        self.hapi_fhir_url = getattr(settings, "HAPI_FHIR_URL", "http://localhost:8090/fhir")
+        self.use_mock = getattr(settings, "USE_MOCK_HIS", True)
+        self.timeout = getattr(settings, "HIS_REQUEST_TIMEOUT_SECONDS", 15)
 
-    def validate_nrces_bundle(self, bundle: Dict[str, Any]) -> Tuple[bool, List[str]]:
+    def validate_nrces_bundle(self, bundle: Any) -> Tuple[bool, List[str]]:
         """
         Validates NRCeS requirements for an OPD Consultation Document Bundle:
         1. resourceType == "Bundle"
@@ -30,6 +43,9 @@ class FHIRConnector:
         4. Must contain at least one Patient resource
         """
         errors = []
+        if not isinstance(bundle, dict):
+            return False, ["Invalid bundle payload: must be a JSON object"]
+
         if bundle.get("resourceType") != "Bundle":
             errors.append("Invalid resourceType: must be 'Bundle'")
 
@@ -37,15 +53,21 @@ class FHIRConnector:
             errors.append("Invalid Bundle.type: must be 'document'")
 
         entries = bundle.get("entry", [])
-        if not entries:
+        if not isinstance(entries, list) or not entries:
             errors.append("Bundle has no entries")
             return False, errors
 
-        first_resource = entries[0].get("resource", {})
-        if first_resource.get("resourceType") != "Composition":
+        first_entry = entries[0] if isinstance(entries[0], dict) else {}
+        first_resource = first_entry.get("resource", {}) if isinstance(first_entry, dict) else {}
+        if not isinstance(first_resource, dict) or first_resource.get("resourceType") != "Composition":
             errors.append("NRCeS specification: First entry in a document bundle must be a 'Composition'")
 
-        has_patient = any(e.get("resource", {}).get("resourceType") == "Patient" for e in entries)
+        has_patient = any(
+            isinstance(e, dict)
+            and isinstance(e.get("resource"), dict)
+            and e["resource"].get("resourceType") == "Patient"
+            for e in entries
+        )
         if not has_patient:
             errors.append("NRCeS specification: Bundle must contain a 'Patient' resource")
 
@@ -75,7 +97,7 @@ class FHIRConnector:
             )
 
         if is_dup and cached_rec:
-            res_dict = cached_rec.response_data
+            res_dict = cached_rec.response_data if isinstance(cached_rec.response_data, dict) else {}
             return FHIRBundlePushResponse(
                 status="DUPLICATE_SUBMISSION",
                 message="Transaction already processed; returning recorded response.",
@@ -128,7 +150,13 @@ class FHIRConnector:
                         }
                     )
                     if resp.status_code in [200, 201]:
-                        remote_id = resp.json().get("id") or req.bundle.get("id")
+                        try:
+                            body = resp.json()
+                            remote_id = body.get("id") if isinstance(body, dict) else None
+                        except Exception:
+                            remote_id = None
+                        if not remote_id and isinstance(req.bundle, dict):
+                            remote_id = req.bundle.get("id")
                         status_text = "SUCCESS"
                         msg = f"Bundle accepted by remote FHIR server: {resp.status_code}"
                         http_status = resp.status_code
@@ -169,3 +197,4 @@ class FHIRConnector:
 
 
 fhir_connector = FHIRConnector()
+

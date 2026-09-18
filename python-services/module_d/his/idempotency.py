@@ -6,8 +6,23 @@ Prevents duplicate clinical encounters or FHIR bundles on network retries.
 import time
 import hashlib
 import json
+import threading
 from typing import Dict, Any, Optional, Tuple
-from ..config import settings
+
+try:
+    from ..config import settings
+except (ImportError, ValueError):
+    import sys
+    from pathlib import Path
+    _services_root = Path(__file__).resolve().parent.parent.parent
+    if str(_services_root) not in sys.path:
+        sys.path.insert(0, str(_services_root))
+    try:
+        from module_d.config import settings
+    except (ImportError, ValueError):
+        class _FallbackSettings:
+            IDEMPOTENCY_TTL_SECONDS = 7200
+        settings = _FallbackSettings()
 
 
 class IdempotencyRecord:
@@ -25,9 +40,10 @@ class IdempotencyRecord:
 class IdempotencyManager:
     """In-memory thread-safe idempotency registry with TTL expiration."""
 
-    def __init__(self, ttl_seconds: int = settings.IDEMPOTENCY_TTL_SECONDS):
+    def __init__(self, ttl_seconds: Optional[int] = None):
         self._store: Dict[str, IdempotencyRecord] = {}
-        self.ttl = ttl_seconds
+        self.ttl = ttl_seconds if ttl_seconds is not None else getattr(settings, "IDEMPOTENCY_TTL_SECONDS", 7200)
+        self._lock = threading.Lock()
 
     def _hash_payload(self, payload: Any) -> str:
         if isinstance(payload, (dict, list)):
@@ -44,28 +60,30 @@ class IdempotencyManager:
         Returns:
             (is_duplicate, cached_record, error_message)
         """
-        self._clean_expired()
-        current_hash = self._hash_payload(payload)
+        with self._lock:
+            self._clean_expired()
+            current_hash = self._hash_payload(payload)
 
-        record = self._store.get(idempotency_key)
-        if not record:
-            return False, None, None
+            record = self._store.get(idempotency_key)
+            if not record:
+                return False, None, None
 
-        if record.payload_hash != current_hash:
-            return False, record, f"Idempotency conflict: Key '{idempotency_key}' reused with differing payload."
+            if record.payload_hash != current_hash:
+                return False, record, f"Idempotency conflict: Key '{idempotency_key}' reused with differing payload."
 
-        return True, record, None
+            return True, record, None
 
     def record_transaction(self, idempotency_key: str, payload: Any, status_code: int, response_data: Dict[str, Any]) -> None:
         """Store the processed result of an idempotent operation."""
-        self._clean_expired()
-        payload_hash = self._hash_payload(payload)
-        self._store[idempotency_key] = IdempotencyRecord(
-            key=idempotency_key,
-            payload_hash=payload_hash,
-            status_code=status_code,
-            response_data=response_data
-        )
+        with self._lock:
+            self._clean_expired()
+            payload_hash = self._hash_payload(payload)
+            self._store[idempotency_key] = IdempotencyRecord(
+                key=idempotency_key,
+                payload_hash=payload_hash,
+                status_code=status_code,
+                response_data=response_data
+            )
 
     def _clean_expired(self):
         """Purge entries older than TTL."""
@@ -75,7 +93,9 @@ class IdempotencyManager:
 
     def clear(self):
         """Clear all stored idempotency records (useful for test resets)."""
-        self._store.clear()
+        with self._lock:
+            self._store.clear()
 
 
 idempotency_manager = IdempotencyManager()
+

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { DOCTOR_ROSTER, DoctorProfile } from '@/lib/doctors';
 
-export interface AppointmentRecord {
+interface AppointmentRecord {
   id: string;
   appointment_token: string;
   patient_name: string;
@@ -72,7 +72,7 @@ const APPOINTMENTS_STORE: AppointmentRecord[] = [
 ];
 
 // Department catalog with quota limits
-export const DEPARTMENTS = [
+const DEPARTMENTS = [
   {
     code: 'general_medicine',
     name: 'General Medicine',
