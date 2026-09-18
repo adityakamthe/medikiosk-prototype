@@ -999,7 +999,7 @@ export default function KioskPortal() {
 
     setCurrentQuestion({
       id: 'q_chief_complaint',
-      question_localized: isAyurveda ? `${targetPack.initial_q} (आयुष मोड)` : targetPack.initial_q,
+      question_localized: isAyurveda ? `${targetPack.initial_q} (${targetPack.ayurveda_title || 'AYUSH'})` : targetPack.initial_q,
       question_en: isAyurveda ? 'What primary Ayurvedic or general health symptom brings you here today?' : 'What primary symptom or health complaint brings you to the clinic today?',
       section: isAyurveda ? 'ayush_chief_complaint' : 'chief_complaint',
       field_name: 'chief_complaint',
@@ -1876,16 +1876,16 @@ export default function KioskPortal() {
               <div>
                 <div className="flex items-center gap-2">
                   <h4 className="font-extrabold text-sm md:text-base text-white">
-                    Scan ABHA Health Card QR Code / आभा क्यूआर कोड
+                    {t('scan_qr_title', 'Scan ABHA Health Card QR Code')}
                   </h4>
                   {isAbhaVerified && (
                     <span className="bg-emerald-500 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
-                      <CheckCircle className="w-3 h-3" /> Verified
+                      <CheckCircle className="w-3 h-3" /> {t('verified_badge', 'Verified')}
                     </span>
                   )}
                 </div>
                 <p className="text-xs text-teal-100/90 mt-0.5">
-                  Directly auto-populate Name, Age, Gender, and ABHA ID with camera scan or image
+                  {t('scan_qr_desc', 'Directly auto-populate Name, Age, Gender, and ABHA ID with camera scan or image')}
                 </p>
               </div>
             </div>
@@ -2029,20 +2029,18 @@ export default function KioskPortal() {
                     {currentLang.abha_id_label}
                   </label>
                   <span className="text-[10px] font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
-                    Optional Field
+                    {t('optional_field_badge', 'Optional Field')}
                   </span>
                 </div>
                 <input
                   type="text"
-                  placeholder="e.g. 91-1234-5678-9012 (Fill only if you have an ABID)"
+                  placeholder={t('abha_input_placeholder', 'e.g. 91-1234-5678-9012 (Fill only if you have an ABID)')}
                   value={abhaId}
                   onChange={e => setAbhaId(e.target.value)}
                   className="w-full p-3 border-2 border-slate-200 focus:border-[#2F5D62] bg-white rounded-xl text-xs font-semibold text-slate-800 outline-none transition-all"
                 />
                 <span className="text-[11px] text-slate-500 mt-1.5 block leading-tight">
-                  {language === 'hi'
-                    ? 'आभा आईडी केवल तभी भरें जब आपके पास हो; इसे खाली छोड़ने पर अस्पताल इसे बाद में साझा/लिंक करेगा।'
-                    : 'Fill only if you have an ABID. If left empty, the hospital will link and share it accordingly.'}
+                  {t('abha_input_hint', 'Fill only if you have an ABID. If left empty, the hospital will link and share it accordingly.')}
                 </span>
               </div>
             </div>
@@ -2053,10 +2051,10 @@ export default function KioskPortal() {
             <div className="flex items-center justify-between mb-3">
               <div>
                 <span className="text-xs font-extrabold uppercase tracking-wider text-[#2F5D62] block">
-                  Select Clinical Care Stream / चिकित्सा पद्धति चुनें
+                  {t('clinical_stream_title', 'Select Clinical Care Stream')}
                 </span>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Choose your treatment approach: Modern Allopathy or Classical Ayurveda
+                  {t('clinical_stream_subtitle', 'Choose your treatment approach: Modern Allopathy or Classical Ayurveda')}
                 </p>
               </div>
             </div>
@@ -2075,16 +2073,18 @@ export default function KioskPortal() {
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2">
                     <Stethoscope className="w-5 h-5 text-[#2F5D62]" />
-                    <span className="font-extrabold text-base text-slate-900">Allopathic Care</span>
+                    <span className="font-extrabold text-base text-slate-900">
+                      {t('allopathy_title', 'Allopathic Care')}
+                    </span>
                   </div>
                   {clinicalMode === 'allopathy' && (
                     <span className="bg-[#2F5D62] text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase">
-                      Selected
+                      {t('selected_badge', 'Selected')}
                     </span>
                   )}
                 </div>
                 <p className="text-xs text-slate-600 font-medium">
-                  Dynamic SOCRATES symptom inquiry, intelligent follow-up questions, red flag detection, and specialist doctor allocation.
+                  {t('allopathy_desc', 'Dynamic SOCRATES symptom inquiry, intelligent follow-up questions, red flag detection, and specialist doctor allocation.')}
                 </p>
               </button>
 
@@ -2101,16 +2101,18 @@ export default function KioskPortal() {
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2">
                     <HeartPulse className="w-5 h-5 text-[#8B5A2B]" />
-                    <span className="font-extrabold text-base text-[#8B5A2B]">Ayurveda (AYUSH)</span>
+                    <span className="font-extrabold text-base text-[#8B5A2B]">
+                      {t('ayurveda_title', 'Ayurveda (AYUSH)')}
+                    </span>
                   </div>
                   {clinicalMode === 'ayurveda' && (
                     <span className="bg-[#8B5A2B] text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase">
-                      Selected
+                      {t('selected_badge', 'Selected')}
                     </span>
                   )}
                 </div>
                 <p className="text-xs text-slate-600 font-medium">
-                  Classical holistic pariksha assessment for Prakriti, Dosha imbalance (Vata, Pitta, Kapha), and Agni vitality.
+                  {t('ayurveda_desc', 'Classical holistic pariksha assessment for Prakriti, Dosha imbalance (Vata, Pitta, Kapha), and Agni vitality.')}
                 </p>
               </button>
             </div>
@@ -2120,10 +2122,10 @@ export default function KioskPortal() {
               <div className="p-4 bg-amber-100/60 border border-amber-300 rounded-2xl animate-in fade-in duration-150">
                 <div className="flex items-center justify-between mb-2.5">
                   <span className="text-xs font-black text-[#8B5A2B] uppercase tracking-wider">
-                    Select Ayurvedic Pariksha Assessment:
+                    {t('ayush_pariksha_select_title', 'Select Ayurvedic Pariksha Assessment:')}
                   </span>
                   <span className="text-[10px] font-bold bg-[#8B5A2B] text-white px-2 py-0.5 rounded-full">
-                    3 Assessment Types
+                    {t('ayush_pariksha_count_badge', '3 Assessment Types')}
                   </span>
                 </div>
 
@@ -2139,11 +2141,13 @@ export default function KioskPortal() {
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="font-extrabold text-sm text-[#8B5A2B]">1. Dashavidha</span>
+                      <span className="font-extrabold text-sm text-[#8B5A2B]">
+                        {t('dashavidha_title', '1. Dashavidha')}
+                      </span>
                       {ayushAssessmentType === 'dashavidha' && <CheckCircle className="w-4 h-4 text-[#8B5A2B]" />}
                     </div>
                     <p className="text-[11px] text-slate-600 leading-tight">
-                      10-fold Assessment: Prakriti, Vikriti, Sara, Samhanana, Pramana, Satmya, Satva, Ahara, Vyayama, Vaya.
+                      {t('dashavidha_desc', '10-fold Assessment: Prakriti, Vikriti, Sara, Samhanana, Pramana, Satmya, Satva, Ahara, Vyayama, Vaya.')}
                     </p>
                   </button>
 
@@ -2158,11 +2162,13 @@ export default function KioskPortal() {
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="font-extrabold text-sm text-[#8B5A2B]">2. Ashtavidha</span>
+                      <span className="font-extrabold text-sm text-[#8B5A2B]">
+                        {t('ashtavidha_title', '2. Ashtavidha')}
+                      </span>
                       {ayushAssessmentType === 'ashtavidha' && <CheckCircle className="w-4 h-4 text-[#8B5A2B]" />}
                     </div>
                     <p className="text-[11px] text-slate-600 leading-tight">
-                      8-fold Diagnostic: Nadi (Pulse), Mutra, Mala, Jihwa (Tongue), Shabda, Sparsha, Drik, Akriti.
+                      {t('ashtavidha_desc', '8-fold Diagnostic: Nadi (Pulse), Mutra, Mala, Jihwa (Tongue), Shabda, Sparsha, Drik, Akriti.')}
                     </p>
                   </button>
 
@@ -2177,11 +2183,13 @@ export default function KioskPortal() {
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="font-extrabold text-sm text-[#8B5A2B]">3. Trividha</span>
+                      <span className="font-extrabold text-sm text-[#8B5A2B]">
+                        {t('trividha_title', '3. Trividha')}
+                      </span>
                       {ayushAssessmentType === 'trividha' && <CheckCircle className="w-4 h-4 text-[#8B5A2B]" />}
                     </div>
                     <p className="text-[11px] text-slate-600 leading-tight">
-                      3-fold Assessment: Darshana (Observation), Sparshana (Palpation), Prashna (Interrogation).
+                      {t('trividha_desc', '3-fold Assessment: Darshana (Observation), Sparshana (Palpation), Prashna (Interrogation).')}
                     </p>
                   </button>
                 </div>
