@@ -5,6 +5,8 @@
  * past medical history, allergies, and family history screening.
  */
 
+import { LOCALIZED_LANGUAGES } from './languages';
+
 export interface DomainContent {
   section: string;
   field_name: string;
@@ -380,7 +382,7 @@ export const CLINICAL_DOMAINS: Record<string, DomainContent> = {
   }
 };
 
-const PATIENT_PREFIX_MAP: Record<string, (name: string) => string> = {
+export const PATIENT_PREFIX_MAP: Record<string, (name: string) => string> = {
   en: (n) => `Hello ${n}, `,
   hi: (n) => `${n} जी, `,
   mr: (n) => `${n} जी, `,
@@ -390,48 +392,83 @@ const PATIENT_PREFIX_MAP: Record<string, (name: string) => string> = {
   gu: (n) => `${n} ભાઈ/બહેન, `,
   kn: (n) => `${n} ಅವರೇ, `,
   ml: (n) => `${n}, `,
-  pa: (n) => `${n} ਜੀ, `
+  pa: (n) => `${n} ਜੀ, `,
+  or: (n) => `${n} ଆଜ୍ଞା, `,
+  as: (n) => `${n} ডাঙৰীয়া, `,
+  ur: (n) => `${n} صاحب, `,
+  sa: (n) => `${n} महोदय, `,
+  mai: (n) => `${n} जी, `,
+  sat: (n) => `${n} ᱜᱚᱢᱠᱮ, `,
+  ks: (n) => `${n} صٲب, `,
+  ne: (n) => `${n} ज्यू, `,
+  kok: (n) => `${n} बाब/बाय, `,
+  sd: (n) => `${n} صاحب, `,
+  doi: (n) => `${n} जी, `,
+  brx: (n) => `${n} आदा/आबौ, `,
+  mni: (n) => `${n} ইবুংগো/ইবেম্মা, `
 };
 
 /**
  * Validates whether a text string contains characters matching the expected Indian language script.
- * Prevents unintentional language drift (e.g. Hindi Devanagari text presented to a Bengali patient).
+ * Supports all 23 official languages and accommodates common medical acronyms (e.g. BP, ECG, Sugar).
  */
 export function validateLanguageScript(text: string, langCode: string): boolean {
   if (!text || typeof text !== 'string') return false;
   const lang = (langCode || 'en').toLowerCase().trim();
 
+  // Strip common medical acronyms and numbers to prevent false mismatch detections
+  const clean = text.replace(/\b(BP|ECG|Sugar|Diabetes|NSAIDs|Paracetamol|Tablet|Syrup|Injection|IV|Op|ER|ICU)\b/gi, '');
+
   switch (lang) {
     case 'en':
-      // English: should not contain Devanagari or other Indic scripts
-      return !/[\u0900-\u0D7F]/.test(text);
+      // English: should not contain Indic or Perso-Arabic scripts
+      return !/[\u0600-\u0D7F]/.test(clean);
     case 'bn':
-      // Bengali: must contain Bengali script (\u0980-\u09FF) and not Devanagari
-      return /[\u0980-\u09FF]/.test(text) && !/[\u0900-\u097F]/.test(text);
+    case 'as':
+      // Bengali & Assamese: (\u0980-\u09FF)
+      return /[\u0980-\u09FF]/.test(clean);
     case 'mr':
-      // Marathi: Devanagari script (\u0900-\u097F)
-      return /[\u0900-\u097F]/.test(text) && !/[\u0980-\u0D7F]/.test(text);
     case 'hi':
-      // Hindi: Devanagari script (\u0900-\u097F)
-      return /[\u0900-\u097F]/.test(text) && !/[\u0980-\u0D7F]/.test(text);
+    case 'sa':
+    case 'mai':
+    case 'ne':
+    case 'kok':
+    case 'doi':
+    case 'brx':
+      // Devanagari script (\u0900-\u097F)
+      return /[\u0900-\u097F]/.test(clean);
     case 'ta':
       // Tamil: (\u0B80-\u0BFF)
-      return /[\u0B80-\u0BFF]/.test(text);
+      return /[\u0B80-\u0BFF]/.test(clean);
     case 'te':
       // Telugu: (\u0C00-\u0C7F)
-      return /[\u0C00-\u0C7F]/.test(text);
+      return /[\u0C00-\u0C7F]/.test(clean);
     case 'gu':
       // Gujarati: (\u0A80-\u0AFF)
-      return /[\u0A80-\u0AFF]/.test(text);
+      return /[\u0A80-\u0AFF]/.test(clean);
     case 'kn':
       // Kannada: (\u0C80-\u0CFF)
-      return /[\u0C80-\u0CFF]/.test(text);
+      return /[\u0C80-\u0CFF]/.test(clean);
     case 'ml':
       // Malayalam: (\u0D00-\u0D7F)
-      return /[\u0D00-\u0D7F]/.test(text);
+      return /[\u0D00-\u0D7F]/.test(clean);
     case 'pa':
       // Gurmukhi / Punjabi: (\u0A00-\u0A7F)
-      return /[\u0A00-\u0A7F]/.test(text);
+      return /[\u0A00-\u0A7F]/.test(clean);
+    case 'or':
+      // Odia: (\u0B00-\u0B7F)
+      return /[\u0B00-\u0B7F]/.test(clean);
+    case 'ur':
+    case 'ks':
+    case 'sd':
+      // Perso-Arabic / Urdu / Kashmiri / Sindhi: (\u0600-\u06FF)
+      return /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/.test(clean);
+    case 'sat':
+      // Santali: Ol Chiki (\u1C50-\u1C7F) or Devanagari/Latin
+      return /[\u1C50-\u1C7F\u0900-\u097F\p{L}]/u.test(clean);
+    case 'mni':
+      // Manipuri: Meetei Mayek (\uABC0-\uABFF) or Bengali script
+      return /[\uABC0-\uABFF\uAAE0-\uAAFF\u0980-\u09FF]/.test(clean);
     default:
       return true;
   }
@@ -471,10 +508,27 @@ export function getStructuredClinicalQuestion(
     turnCount === 11 ? 'systemic_review' : 'completed'
   );
 
+  // Determine localized text and ensure language fidelity for all supported languages
   const domainData = CLINICAL_DOMAINS[targetDomain] || CLINICAL_DOMAINS.site_onset;
   const rawQEn = domainData.questions.en;
   const rawQLoc = isEn ? rawQEn : (domainData.questions[langKey] || domainData.questions.en);
-  const qEn = pName ? `Hello ${pName}, ${rawQEn.charAt(0).toLowerCase() + rawQEn.slice(1)}` : rawQEn;
+
+  // Dynamically contextualize English question with complaint if present
+  let dynamicQEn = rawQEn;
+  if (chiefComplaintText && chiefComplaintText.length > 3 && targetDomain !== 'site_onset' && targetDomain !== 'completed') {
+    const cleanComplaint = chiefComplaintText.trim().replace(/[.,!?;]+$/, '');
+    if (targetDomain === 'past_history') {
+      dynamicQEn = `Considering your complaint of "${cleanComplaint}", do you have any previous medical conditions (such as Diabetes, High BP, Thyroid, Asthma, Heart disease) or prior surgeries?`;
+    } else if (targetDomain === 'medications') {
+      dynamicQEn = `Are you taking any regular prescription medications, daily tablets, or home remedies for your "${cleanComplaint}" or any other illness?`;
+    } else if (targetDomain === 'allergies') {
+      dynamicQEn = `Before the physician prescribes treatment for your "${cleanComplaint}", do you have any known allergies to specific medicines (such as penicillin, painkillers), foods, or dust?`;
+    } else if (targetDomain === 'family_history') {
+      dynamicQEn = `Is there any family history of heart disease, diabetes, high BP, asthma, or stroke among your parents or siblings?`;
+    }
+  }
+
+  const qEn = pName ? `Hello ${pName}, ${dynamicQEn.charAt(0).toLowerCase() + dynamicQEn.slice(1)}` : dynamicQEn;
   const qLoc = isEn ? qEn : `${prefix}${rawQLoc}`;
 
   let options = domainData.options[langKey] || domainData.options.en;

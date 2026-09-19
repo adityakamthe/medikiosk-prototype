@@ -8,6 +8,7 @@ import {
 import { generateConversationalFollowUp, generateBilingualSummary } from '@/lib/mistral';
 import { analyzeVoiceInputForDiagnosis } from '@/lib/diagnosis';
 import { allocateDoctorAndRoom } from '@/lib/doctors';
+import { LOCALIZED_LANGUAGES } from '@/lib/languages';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -439,7 +440,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       pa: 'ਕਿਰਪਾ ਕਰਕੇ ਆਪਣੀ ਤਕਲੀਫ਼ ਅਤੇ ਇਹ ਕਦੋਂ ਸ਼ੁਰੂ ਹੋਈ, ਵਿਸਥਾਰ ਨਾਲ ਦੱਸੋ।'
     };
 
-    // Sanitize options: if English mode, ensure options are strictly English without slashes or Hindi
+    // Sanitize options: if English mode, ensure options are strictly English without slashes or Indic scripts
     let finalOptions = aiResponse.options;
     if (isEn && Array.isArray(finalOptions)) {
       finalOptions = finalOptions.map((opt: string) => {
@@ -449,20 +450,24 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             const parts = c.split('/');
             c = parts.find(p => /[a-zA-Z]/.test(p))?.trim() || parts[parts.length - 1].trim();
           }
-          return c.replace(/[\u0900-\u097F]/g, '').trim();
+          return c.replace(/[\u0900-\u0D7F]/g, '').trim();
         }
         return opt;
       }).filter(Boolean);
     }
 
     if (!finalOptions || finalOptions.length === 0) {
-      finalOptions = LOCALIZED_DEFAULT_OPTIONS[language] || LOCALIZED_DEFAULT_OPTIONS.hi;
+      finalOptions = LOCALIZED_DEFAULT_OPTIONS[language] || 
+        LOCALIZED_LANGUAGES[language]?.initial_options || 
+        LOCALIZED_DEFAULT_OPTIONS.hi;
     }
 
     const rawLocQ = aiResponse.question_localized;
-    const defaultFallbackQ = LOCALIZED_DEFAULT_QUESTIONS[language] || LOCALIZED_DEFAULT_QUESTIONS.hi;
+    const defaultFallbackQ = LOCALIZED_DEFAULT_QUESTIONS[language] || 
+      LOCALIZED_LANGUAGES[language]?.initial_q || 
+      LOCALIZED_DEFAULT_QUESTIONS.hi;
     const cleanLocalizedQ = isEn
-      ? ((aiResponse.question_en || rawLocQ || 'Please describe your symptoms and when they started.').replace(/[\u0900-\u097F]/g, '').trim())
+      ? ((aiResponse.question_en || rawLocQ || 'Please describe your symptoms and when they started.').replace(/[\u0900-\u0D7F]/g, '').trim())
       : (rawLocQ || aiResponse.question_en || defaultFallbackQ);
 
     const nextQuestion = isCompleted ? null : {

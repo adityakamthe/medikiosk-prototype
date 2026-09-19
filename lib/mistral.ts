@@ -21,8 +21,10 @@ async function executeLlmChatCompletion(prompt: string, jsonMode: boolean = true
   const activeGroqKey = process.env.GROQ_API_KEY || groqApiKey;
   if (activeGroqKey) {
     const candidateModels = [
-      process.env.GROQ_MODEL || 'qwen/qwen3.8-27b',
-      'openai/gpt-oss-20b'
+      'openai/gpt-oss-20b',
+      'qwen/qwen3.8-27b',
+      'openai/gpt-oss-120b',
+      'groq/compound-mini'
     ];
 
     for (const model of candidateModels) {
@@ -52,7 +54,7 @@ async function executeLlmChatCompletion(prompt: string, jsonMode: boolean = true
             return content;
           }
         } else if (res.status === 429) {
-          console.warn(`Groq rate limit on ${model}, trying next LPU model...`);
+          console.warn(`Groq rate limit on ${model}, trying next candidate LPU model...`);
           continue;
         } else {
           const errText = await res.text().catch(() => '');
@@ -103,33 +105,39 @@ export const SUPPORTED_LANGUAGES: Record<string, { name: string; native: string;
 
 /**
  * Checks if a candidate question repeats or heavily overlaps with any past questions in the session.
+ * Uses Unicode-aware tokenization to support all 22 official Indian languages + English without script loss.
  */
 function checkQuestionRepetition(
   questionText: string,
   history: Array<{ question: string; answer: string; section?: string; field_name?: string }>
 ): boolean {
   if (!questionText || !history || history.length === 0) return false;
-  const normNew = questionText.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
-  const newTokens = new Set(normNew.split(' ').filter(w => w.length > 3));
+  
+  // Use Unicode letters and digits (\p{L} and \p{N}) to preserve Indic & vernacular scripts
+  const normNew = questionText.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+  if (normNew.length < 15) return false;
+
+  const newTokens = new Set(normNew.split(' ').filter(w => w.length > 2));
+  if (newTokens.size < 3) return false;
 
   for (const h of history) {
-    const pastQ = (h.question || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
-    if (!pastQ) continue;
+    const pastQ = (h.question || '').toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+    if (!pastQ || pastQ.length < 15) continue;
     
-    // Direct or substring match
-    if (pastQ === normNew || pastQ.includes(normNew) || (normNew.length > 20 && pastQ.includes(normNew.slice(0, 30)))) {
-      return true;
-    }
+    // Exact or long identical substring match
+    if (pastQ === normNew) return true;
+    if (normNew.length >= 30 && pastQ.includes(normNew)) return true;
+    if (pastQ.length >= 30 && normNew.includes(pastQ)) return true;
 
-    // Significant token overlap check (>50% common clinical words)
-    const pastTokens = new Set(pastQ.split(' ').filter(w => w.length > 3));
-    if (newTokens.size >= 3 && pastTokens.size >= 3) {
+    // Token overlap check (>75% common words among meaningful tokens)
+    const pastTokens = new Set(pastQ.split(' ').filter(w => w.length > 2));
+    if (pastTokens.size >= 3) {
       let overlapCount = 0;
       for (const token of newTokens) {
         if (pastTokens.has(token)) overlapCount++;
       }
-      const similarity = overlapCount / Math.min(newTokens.size, pastTokens.size);
-      if (similarity >= 0.55) {
+      const similarity = overlapCount / Math.max(newTokens.size, pastTokens.size);
+      if (similarity >= 0.75) {
         return true;
       }
     }
@@ -138,7 +146,7 @@ function checkQuestionRepetition(
 }
 
 /**
- * Evaluates which core clinical domains have already been probed in conversation history.
+ * Evaluates which core clinical domains have already been probed in conversation history across all 23 languages.
  */
 function evaluateDomainCoverage(
   history: Array<{ question: string; answer: string; section?: string; field_name?: string }>
@@ -147,19 +155,19 @@ function evaluateDomainCoverage(
 
   const hasPastIllness = 
     history.some(h => (h.section || '').includes('past') || (h.field_name || '').includes('chronic') || (h.field_name || '').includes('past_illness')) ||
-    /(previous medical|chronic illness|past condition|diabetes|sugar|hypertension|bp|blood pressure|thyroid|asthma|पुरानी बीमारी|मधुमेह|रक्तदाब|दमा|आजार|পূর্ববর্তী রোগ|রোগ|ডায়াবেটিস|രോഗം|வியாதி|நோய்|ಅನಾರೋಗ್ಯ|ರೋಗ)/i.test(historyText);
+    /(previous medical|chronic illness|past condition|pre-existing|diabetes|sugar|hypertension|bp|blood pressure|thyroid|asthma|surger|पुरानी बीमारी|बीमारी|मधुमेह|रक्तदाब|दमा|आजार|পূর্ববর্তী রোগ|রোগ|ডায়াবেটিস|രോഗം|வியாதி|நோய்|ಅನಾರೋಗ್ಯ|ರೋಗ|వ్యాధి|జబ్బు|ਬਿਮਾਰੀ|ਸ਼ੂਗਰ|ਰੋਗ)/i.test(historyText);
 
   const hasMedications = 
     history.some(h => (h.section || '').includes('medication') || (h.field_name || '').includes('medication')) ||
-    /(regular prescription|daily tablet|taking any medicine|painkiller|dawa|दवाई|औषध|மருந்து|ঔষধ|औषधे|మందులు|ಔಷಧಿ|മരുന്ന്)/i.test(historyText);
+    /(regular prescription|daily tablet|taking any medicine|painkiller|remed|dawa|दवाई|गोली|औषध|மருந்து|ঔষধ|औषधे|మందులు|మాత్రలు|ಔಷಧಿ|മാತ್ರೆ|മരുന്ന്|ਦਵਾਈ|ਦਵਾ)/i.test(historyText);
 
   const hasAllergies = 
     history.some(h => (h.section || '').includes('allerg') || (h.field_name || '').includes('allerg')) ||
-    /(known allerg|penicillin|drug reaction|food allergy|एलर्जी|ऍलर्जी|অ্যালার্জি|அலர்ஜி|ಅಲರ್ಜಿ|അലർജി|అలెర్జీ|ਅਲਰਜੀ)/i.test(historyText);
+    /(known allerg|penicillin|drug reaction|food allergy|reaction|एलर्जी|ऍलर्जी|অ্যালার্জি|அலர்ஜி|ಅಲರ್ಜಿ|അലർജി|అలెర్జీ|ਅਲਰਜੀ|ଆଲର୍ଜି)/i.test(historyText);
 
   const hasFamilyHistory = 
     history.some(h => (h.section || '').includes('family') || (h.field_name || '').includes('family')) ||
-    /(family history|parents or siblings|hereditary|परिवार|कुटुंब|குடும்ப|পারিবারিক|ಕುಟುಂಬ|കുടുംബം|కుటుంబ|ਪਰਿਵਾਰ)/i.test(historyText);
+    /(family history|parents or siblings|hereditary|genetic|माता-पिता|परिवार|कुटुंब|குடும்ப|পারিবারিক|ಕುಟುಂಬ|കുടുംബം|కుటుంబ|ਪਰਿਵਾਰ|ପରିବାର)/i.test(historyText);
 
   return { hasPastIllness, hasMedications, hasAllergies, hasFamilyHistory };
 }
@@ -189,9 +197,90 @@ export async function generateConversationalFollowUp(
   const chiefComplaintItem = history[0]?.answer || '';
 
   try {
+    // Calculate clinical objective for this turn within 10 to 12 question budget
+    let targetDomainObjective = '';
+    let targetFrameworkStage = 'socrates';
+    let targetSection = 'hpi';
+    let targetFieldName = 'clinical_inquiry';
+
+    if (turnCount <= 1) {
+      targetDomainObjective = `CLINICAL OBJECTIVE: SOCRATES SITE & CHARACTER OF SENSATION
+Ask ONE clear, dynamic question inquiring about the exact physical location and the sensation character (e.g. sharp, burning, dull ache, heavy pressure, throbbing), specifically adapting to what the patient described about "${chiefComplaintItem}".`;
+      targetFrameworkStage = 'socrates_character_radiation';
+      targetSection = 'hpi';
+      targetFieldName = 'socrates_character_and_radiation';
+    } else if (turnCount === 2) {
+      targetDomainObjective = `CLINICAL OBJECTIVE: SOCRATES RADIATION & DAILY TIMING
+Inquire if the sensation spreads or radiates anywhere else (e.g. to back, shoulders, arms, abdomen) and whether it is constant, intermittent, or worse at specific times of day or night.`;
+      targetFrameworkStage = 'socrates_associations_timing';
+      targetSection = 'hpi';
+      targetFieldName = 'socrates_associations_and_timing';
+    } else if (turnCount === 3) {
+      targetDomainObjective = `CLINICAL OBJECTIVE: ASSOCIATED SYSTEMIC SYMPTOMS
+Inquire dynamically about any associated warning signs directly relevant to their complaint (e.g. nausea/vomiting, fever, dizziness, breathing difficulty, excessive sweating, weakness).`;
+      targetFrameworkStage = 'socrates_associations';
+      targetSection = 'hpi';
+      targetFieldName = 'associated_symptoms';
+    } else if (turnCount === 4) {
+      targetDomainObjective = `CLINICAL OBJECTIVE: TRIGGERS & RELIEF FACTORS
+Ask what specific activities, postures, movement, food, or rest make the symptom worse or bring relief.`;
+      targetFrameworkStage = 'socrates_severity_triggers';
+      targetSection = 'hpi';
+      targetFieldName = 'socrates_triggers_and_relief';
+    } else if (turnCount === 5) {
+      targetDomainObjective = `CLINICAL OBJECTIVE: SEVERITY SCALE (1-10) & FUNCTIONAL DAILY IMPACT
+Ask the patient to rate the severity from 1 to 10 and describe whether it disrupts their sleep, work, or routine physical mobility.`;
+      targetFrameworkStage = 'socrates_severity_triggers';
+      targetSection = 'hpi';
+      targetFieldName = 'socrates_severity_and_impact';
+    } else if (!domainCoverage.hasPastIllness && (turnCount === 6 || turnCount >= 6)) {
+      targetDomainObjective = `CLINICAL OBJECTIVE: MANDATORY CLINICAL PILLAR 1 — PREVIOUS ILLNESSES & CHRONIC CONDITIONS
+Formulate a dynamic, compassionate question inquiring if the patient has any pre-existing chronic conditions (such as Diabetes/Sugar, High Blood Pressure/Hypertension, Thyroid, Asthma/respiratory disorders, Heart disease, or prior surgeries).
+Adapt the question naturally to their presenting complaint ("${chiefComplaintItem}") so it feels relevant to their visit.`;
+      targetFrameworkStage = 'past_medical_history';
+      targetSection = 'past_history';
+      targetFieldName = 'chronic_illnesses';
+    } else if (!domainCoverage.hasMedications && (turnCount === 7 || turnCount >= 7)) {
+      targetDomainObjective = `CLINICAL OBJECTIVE: CURRENT MEDICATIONS & TREATMENTS
+Inquire dynamically what regular prescription medicines, daily tablets, pain relievers, or ayurvedic/home remedies they are taking.`;
+      targetFrameworkStage = 'medications';
+      targetSection = 'medications';
+      targetFieldName = 'current_medications';
+    } else if (!domainCoverage.hasAllergies && (turnCount === 8 || turnCount >= 8)) {
+      targetDomainObjective = `CLINICAL OBJECTIVE: MANDATORY CLINICAL PILLAR 2 — KNOWN ALLERGIES
+Formulate a dynamic safety question inquiring if the patient has any known allergies to medicines (such as penicillin, pain medications/NSAIDs), foods, or dust before the physician recommends treatment.`;
+      targetFrameworkStage = 'allergies';
+      targetSection = 'allergies';
+      targetFieldName = 'known_allergies';
+    } else if (!domainCoverage.hasFamilyHistory && (turnCount === 9 || turnCount >= 9)) {
+      targetDomainObjective = `CLINICAL OBJECTIVE: MANDATORY CLINICAL PILLAR 3 — FAMILY MEDICAL HISTORY
+Formulate a dynamic question inquiring whether parents or siblings have any family history of chronic or hereditary conditions (heart disease, diabetes, high blood pressure, asthma, stroke, or cancer).`;
+      targetFrameworkStage = 'family_history';
+      targetSection = 'family_history';
+      targetFieldName = 'family_medical_history';
+    } else if (turnCount === 10) {
+      targetDomainObjective = `CLINICAL OBJECTIVE: LIFESTYLE & ENVIRONMENTAL RISK FACTORS
+Inquire dynamically about lifestyle habits, daily physical strain, hydration, dietary habits, sleep, or tobacco/smoking/alcohol exposure.`;
+      targetFrameworkStage = 'lifestyle_exposures';
+      targetSection = 'hpi';
+      targetFieldName = 'lifestyle_and_exposures';
+    } else if (turnCount === 11) {
+      targetDomainObjective = `CLINICAL OBJECTIVE: SYSTEMIC REVIEW & FINAL DOCTOR CONCERNS
+Ask if there are any other specific symptoms, changes, or concerns the patient would like the consulting doctor to know.`;
+      targetFrameworkStage = 'systemic_review';
+      targetSection = 'hpi';
+      targetFieldName = 'systemic_review';
+    } else {
+      targetDomainObjective = `CLINICAL OBJECTIVE: INTAKE COMPLETION
+All necessary clinical dimensions within the 10-12 question budget have been systematically probed. Conclude the intake respectfully.`;
+      targetFrameworkStage = 'completed';
+      targetSection = 'completed';
+      targetFieldName = 'intake_completed';
+    }
+
     const prompt = `
     You are MediKiosk's empathetic, clinical conversational intake AI for ${isAyurveda ? `a Ministry of AYUSH Ayurvedic Clinic (Assessment: ${ayushAssessmentType.toUpperCase()})` : 'an Allopathic Outpatient Clinic in India'}.
-    Your primary clinical responsibility is to conduct a thorough, non-repetitive, structured intake interview using the SOCRATES clinical framework and essential medical history, while actively monitoring for SEVERE or LIFE-THREATENING conditions.
+    Your primary clinical responsibility is to conduct a thorough, non-repetitive, dynamically-varying intake interview using clinical frameworks and essential medical history, while actively monitoring for SEVERE or LIFE-THREATENING conditions.
 
     CLINICAL MODE: ${isAyurveda ? `MINISTRY OF AYUSH / AYURVEDIC CLINIC (${ayushAssessmentType.toUpperCase()} PARIKSHA)` : 'ALLOPATHIC CLINIC (DYNAMIC SOCRATES FRAMEWORK)'}
     PATIENT CHOSEN LANGUAGE: ${langConfig.name} (${langConfig.native})
@@ -201,6 +290,9 @@ export async function generateConversationalFollowUp(
     PATIENT CONVERSATION HISTORY SO FAR:
     ${JSON.stringify(history, null, 2)}
 
+    MANDATORY OBJECTIVE FOR THIS TURN:
+    ${targetDomainObjective}
+
     CURRENT DOMAIN COVERAGE STATUS:
     - Previous Illnesses / Past Medical History Asked: ${domainCoverage.hasPastIllness ? 'YES (ALREADY COVERED - DO NOT RE-ASK)' : 'NO (MUST BE ASKED BEFORE COMPLETION)'}
     - Known Allergies Asked: ${domainCoverage.hasAllergies ? 'YES (ALREADY COVERED - DO NOT RE-ASK)' : 'NO (MUST BE ASKED BEFORE COMPLETION)'}
@@ -208,85 +300,53 @@ export async function generateConversationalFollowUp(
     - Current Medications Asked: ${domainCoverage.hasMedications ? 'YES (ALREADY COVERED - DO NOT RE-ASK)' : 'NO'}
 
     ========================================================================
-    CRITICAL ANTI-REPETITION MANDATE (STRICT ZERO REPETITION):
+    CRITICAL DYNAMIC QUESTIONING & ANTI-REPETITION MANDATE:
     ========================================================================
-    1. NEVER repeat a question or ask about information that the patient has already stated in ANY previous answer.
+    1. NEVER use fixed, repetitive, or robotic question text. Every question MUST adapt dynamically to the patient's symptoms, past answers, and specific clinical situation.
     2. Carefully check PATIENT CONVERSATION HISTORY SO FAR. If the patient already explained when it started, what type of pain it is, what medicines they take, their previous illness, or allergies, DO NOT probe that dimension again.
-    3. Never generate a question that has a similar wording or identical intent to any question already in history.
-    4. Every turn MUST explore a distinct, unprobed clinical dimension following the progression below.
+    3. Never generate a question that has similar wording or identical intent to any question already in history.
+    4. Provide 4 to 6 realistic, context-specific quick-tap options tailored to this exact question.
 
     ========================================================================
-    INTAKE STRUCTURE: STRICT 10 TO 12 QUESTIONS TOTAL
+    INTAKE BUDGET: STRICT 10 TO 12 QUESTIONS TOTAL
     ========================================================================
-    The complete intake MUST consist of exactly 10 to 12 questions:
-    - Turn 1-5: SOCRATES Symptom Inquiry (Site & Onset, Character & Radiation, Associated signs, Triggers & Relief, Severity 1-10 & Daily Impact)
-    - Turn 6: MANDATORY - Previous Illnesses & Past Medical History (Diabetes, Hypertension, Heart disease, Asthma/COPD, Thyroid, past surgeries)
-    - Turn 7: Current Active Medications & Treatments (daily pills, OTC analgesics, traditional remedies)
-    - Turn 8: MANDATORY - Known Allergies (Penicillin, Sulfa, NSAIDs, food, environmental/dust)
-    - Turn 9: MANDATORY - Family Medical History (hereditary conditions in parents/siblings: cardiac, diabetes, stroke, cancer)
-    - Turn 10: Lifestyle, Dietary & Occupational Factors (physical exertion, smoking/tobacco/alcohol, hydration, sleep)
-    - Turn 11: Review of Systems & Red-Flag Clearance (unexplained weight change, night sweats, other symptoms for doctor)
+    The complete intake MUST consist of around 10 to 12 questions:
+    - Turns 1-5: Dynamic SOCRATES Symptom Inquiry
+    - Turn 6: MANDATORY - Previous Illnesses & Past Medical History (dynamically adapted)
+    - Turn 7: Current Active Medications & Treatments (dynamically adapted)
+    - Turn 8: MANDATORY - Known Allergies (dynamically adapted)
+    - Turn 9: MANDATORY - Family Medical History (dynamically adapted)
+    - Turn 10: Lifestyle, Dietary & Occupational Factors
+    - Turn 11: Review of Systems & Red-Flag Clearance
     - Turn 12: Intake Completion (set "is_intake_complete": true)
 
     COMPLETION RULES:
     - If turnCount < 10: set "is_intake_complete": false. The interview MUST NEVER end before 10 questions!
-    - If turnCount >= 10 and turnCount < 12: set "is_intake_complete": true ONLY IF Previous Illnesses, Allergies, and Family History have all been asked. If any are missing, probe the missing domain immediately!
+    - If turnCount >= 10 and turnCount < 12: set "is_intake_complete": true ONLY IF Previous Illnesses, Allergies, and Family History have all been asked.
     - If turnCount >= 12: set "is_intake_complete": true. Hard upper limit of 12 questions.
 
     ========================================================================
     HOSPITAL BACKGROUND NOISE & BABBLE REJECTION INSTRUCTION:
     ========================================================================
-    The patient is speaking at a busy hospital OPD intake kiosk. The audio transcript may occasionally contain bystander chatter, family member interjections, queue/token calls, or background noise.
-    You MUST isolate and extract ONLY the direct clinical answers describing the patient's own symptoms. Disregard any extraneous conversational noise, non-medical chatter, or background dialogue.
+    The patient is speaking at a busy hospital OPD intake kiosk. Isolate and extract ONLY the direct clinical answers describing the patient's own symptoms. Disregard extraneous noise or bystander banter.
 
     ${isAyurveda ? `========================================================================
     AYUSH SPECIALIZED MODE: ${ayushAssessmentType.toUpperCase()} PARIKSHA
     ========================================================================
-    ${ayushAssessmentType === 'dashavidha' ? `
-    Capture Dashavidha Pariksha dimensions:
-    - Prakriti (Constitutional bio-energy / Vata-Pitta-Kapha)
-    - Vikriti & Dushya (Afflicted Dhatus and Srotas)
-    - Sara (Tissue essence) & Samhanana (Compactness)
-    - Pramana (Anthropometric proportions)
-    - Satmya (Dietary habituation & sensitivities)
-    - Sattva (Mental resilience & psychological temperament)
-    - Ahara Shakti (Abhyavaharana & Jarana Shakti - ingestion & digestion)
-    - Vyayama Shakti (Physical endurance)
-    - Vaya (Life stage / Balya, Madhyama, Vriddha)
-    ` : ayushAssessmentType === 'ashtavidha' ? `
-    Capture Ashtavidha Pariksha diagnostic parameters:
-    - Nadi (Pulse rhythm: Sarpa, Manduka, Hamsa Gati)
-    - Mutra (Urinary characteristics and frequency)
-    - Mala (Bowel elimination, consistency, Koshtha nature)
-    - Jihva (Tongue appearance, Ama coating)
-    - Shabda (Voice tone, resonance, breath sounds)
-    - Sparsha (Skin temperature, texture, dryness/oiliness)
-    - Druk (Vision, sclera appearance, brightness)
-    - Akruti (General stature, facies, bodily build)
-    ` : `
-    Capture Trividha Pariksha parameters:
-    - Darshana (Visual observation: posture, skin color, swelling, gait)
-    - Sparshana (Tactile palpation: local warmth, pulse, abdominal softness/tenderness)
-    - Prashna (Clinical inquiry: sleep quality, appetite, bowel habit, mental stress)
-    `}
-    Also ensure Previous Illnesses, Current Medications, Allergies, and Family History are methodically inquired!
+    Capture ${ayushAssessmentType.toUpperCase()} Pariksha dimensions and ensure Previous Illnesses, Medications, Allergies, and Family History are methodically inquired within the 10-12 turn budget!
     ` : ''}
 
     ========================================================================
     CRITICAL SAFETY & SEVERITY RULES: MULTI-TURN VERIFICATION PROTOCOL
     ========================================================================
     STRICT CLINICAL RULE: ON A SINGLE-QUESTION BASIS, EMERGENCY TRIAGE MUST NEVER BE ACTIVATED!
-    - Answering a single question is NEVER enough to declare an acute emergency. More questions MUST be asked to thoroughly explore whether this is an acute life-threatening event vs a chronic/subacute condition.
-    - If the patient mentions a potentially severe symptom on Turn 1, 2, or 3:
-      * DO NOT immediately stop routine questioning!
-      * DO NOT set "is_severe": true, "suggested_emergency_routing": true, or "is_intake_complete": true!
-      * Instead, ask focused follow-up questions following the SOCRATES hierarchy.
-    - ONLY if after AT LEAST 3 to 4 clinical questions have been answered, the patient consistently confirms acute, corroborated life-threatening red-flag indicators across multiple answers, should "is_severe": true be considered.
+    - A single reported symptom is NEVER enough to declare an acute emergency. More questions MUST be asked to verify whether this is an acute life-threatening event vs a chronic/subacute condition.
+    - If the patient mentions a potentially severe symptom on Turn 1, 2, or 3: DO NOT stop questioning; ask focused follow-up questions following the SOCRATES hierarchy.
 
     INSTRUCTIONS FOR GENERATING NEXT QUESTION:
     - Review what has already been answered in the history above.
-    - Ask ONE clear, concise, tailored clinical question addressing the next unprobed clinical dimension.
-    - CONVERSATIONAL VOICE SPEED GUIDELINE: Keep the question natural, punchy, and concise (1 to 2 sentences maximum, 15 to 25 words). Do NOT include long lists or paragraphs of examples in the question text, because this will be spoken aloud to the patient over Voice TTS.
+    - Ask ONE clear, concise, tailored clinical question addressing the MANDATORY OBJECTIVE FOR THIS TURN.
+    - CONVERSATIONAL VOICE SPEED GUIDELINE: Keep the question natural, punchy, and concise (1 to 2 sentences maximum, 15 to 25 words).
     ${isEnglish ? '- CRITICAL LANGUAGE RULE: Patient chose ENGLISH. You MUST output "question_localized", "options", and "emergency_instruction_localized" STRICTLY IN ENGLISH. NEVER output Hindi words or Devanagari script.' : `- Output "question_localized" in ${langConfig.name} (${langConfig.native}) script.`}
     - Output "question_en" in clear English.
     - Provide 4 to 6 smart, realistic quick-tap options${isEnglish ? ' in English ONLY.' : ` formatted as: "Option in ${langConfig.name} / English".`}
@@ -301,11 +361,11 @@ export async function generateConversationalFollowUp(
       "emergency_instruction_localized": "Emergency guidance in ${isEnglish ? 'English' : langConfig.name} if severe",
       "emergency_instruction_en": "Emergency guidance in English if severe",
       "is_intake_complete": false,
-      "current_framework_stage": "socrates_site_onset" | "socrates_character_radiation" | "socrates_associations_timing" | "socrates_severity_triggers" | "past_medical_history" | "medications" | "allergies" | "family_history" | "lifestyle_exposures" | "systemic_review" | "ayush_pariksha",
+      "current_framework_stage": "${targetFrameworkStage}",
       "question_localized": "Next question in ${isEnglish ? 'English' : langConfig.name}",
       "question_en": "Next question in English",
-      "section": "hpi" | "past_history" | "family_history" | "allergies" | "medications" | "ayush_pariksha",
-      "field_name": "clinical_field_identifier",
+      "section": "${targetSection}",
+      "field_name": "${targetFieldName}",
       "options": [
         "Option 1",
         "Option 2",
@@ -321,7 +381,7 @@ export async function generateConversationalFollowUp(
 
     // When patient is English, ensure English is strictly assigned and devoid of any Devanagari/Hindi
     if (isEnglish) {
-      const candidateQ = (parsed.question_en || parsed.question_localized || '').replace(/[\u0900-\u097F]/g, '').trim();
+      const candidateQ = (parsed.question_en || parsed.question_localized || '').replace(/[\u0900-\u0D7F]/g, '').trim();
       parsed.question_localized = candidateQ || 'Please describe your symptoms and when they started.';
       parsed.question_en = parsed.question_localized;
       
@@ -333,13 +393,13 @@ export async function generateConversationalFollowUp(
               const parts = cleanOpt.split('/');
               cleanOpt = parts.find(p => /[a-zA-Z]/.test(p))?.trim() || parts[parts.length - 1].trim();
             }
-            return cleanOpt.replace(/[\u0900-\u097F]/g, '').trim();
+            return cleanOpt.replace(/[\u0900-\u0D7F]/g, '').trim();
           }
           return opt;
         }).filter(Boolean);
       }
       if (parsed.emergency_instruction_localized) {
-        parsed.emergency_instruction_localized = parsed.emergency_instruction_en || parsed.emergency_instruction_localized.replace(/[\u0900-\u097F]/g, '').trim();
+        parsed.emergency_instruction_localized = parsed.emergency_instruction_en || parsed.emergency_instruction_localized.replace(/[\u0900-\u0D7F]/g, '').trim();
       }
     }
 
@@ -362,7 +422,7 @@ export async function generateConversationalFollowUp(
     }
 
     // Programmatic Anti-Repetition Guardrail:
-    // If the LLM generated question repeats an already asked question, substitute it with an unprobed clinical dimension.
+    // Only triggers if significant token overlap or near-duplicate is detected
     const isRepetitive = checkQuestionRepetition(parsed.question_en, history) || 
                          checkQuestionRepetition(parsed.question_localized, history);
 
@@ -378,17 +438,12 @@ export async function generateConversationalFollowUp(
       Object.assign(parsed, fallbackQ);
     }
 
-    // Domain Coverage Enforcement:
-    // Ensure mandatory domains (past illnesses, allergies, family history) are asked before completion.
-    if (turnCount >= 6 && !domainCoverage.hasPastIllness && parsed.section !== 'past_history') {
-      const pastQ = getStructuredClinicalQuestion(turnCount, patientLangCode, patientName, chiefComplaintItem, 'past_history');
-      Object.assign(parsed, pastQ);
-    } else if (turnCount >= 7 && !domainCoverage.hasAllergies && parsed.section !== 'allergies') {
-      const allergyQ = getStructuredClinicalQuestion(turnCount, patientLangCode, patientName, chiefComplaintItem, 'allergies');
-      Object.assign(parsed, allergyQ);
-    } else if (turnCount >= 8 && !domainCoverage.hasFamilyHistory && parsed.section !== 'family_history') {
-      const familyQ = getStructuredClinicalQuestion(turnCount, patientLangCode, patientName, chiefComplaintItem, 'family_history');
-      Object.assign(parsed, familyQ);
+    // Ensure section and field_name are aligned with target if the LLM left them generic
+    if (!parsed.section || parsed.section === 'hpi') {
+      parsed.section = targetSection;
+    }
+    if (!parsed.field_name || parsed.field_name === 'clinical_inquiry') {
+      parsed.field_name = targetFieldName;
     }
 
     // Strict 10 to 12 Question Limit Guardrails:
@@ -398,7 +453,10 @@ export async function generateConversationalFollowUp(
         parsed.is_intake_complete = false;
       } else if (turnCount >= 10 && turnCount < 12) {
         // Between turns 10 and 12, can only complete if past illnesses, allergies, and family history have all been asked
-        const updatedCoverage = evaluateDomainCoverage([...history, { question: parsed.question_en, answer: '', section: parsed.section, field_name: parsed.field_name }]);
+        const updatedCoverage = evaluateDomainCoverage([
+          ...history,
+          { question: parsed.question_en || '', answer: '', section: parsed.section, field_name: parsed.field_name }
+        ]);
         if (!updatedCoverage.hasPastIllness || !updatedCoverage.hasAllergies || !updatedCoverage.hasFamilyHistory) {
           parsed.is_intake_complete = false;
         }
@@ -408,7 +466,6 @@ export async function generateConversationalFollowUp(
       }
     }
 
-    
     // Language Consistency Guardrail: verify script matches patientLangCode
     if (!validateLanguageScript(parsed.question_localized || "", patientLangCode)) {
       console.warn(`[Language Guardrail] Script mismatch for ${patientLangCode} in: "${parsed.question_localized}". Using localized clinical question.`);
