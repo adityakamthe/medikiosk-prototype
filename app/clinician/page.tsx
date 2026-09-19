@@ -1532,7 +1532,22 @@ export default function ClinicianDashboard() {
                             })) || []}
                             safetyAlerts={safetyData?.safety_audit?.alerts || []}
                             patientAllergiesText={allergyText}
-                            extractedLabs={safetyData?.labs || []}
+                            extractedLabs={[
+                              ...(safetyData?.labs || []),
+                              ...(sessionDetail?.extracted_entities?.filter((e: any) => e.entity_type === 'lab_result')?.map((e: any) => {
+                                const f = typeof e.fields === 'object' && e.fields !== null ? e.fields : {};
+                                return {
+                                  name: f.test_name || f.name || 'Lab Test',
+                                  value: f.raw_value ?? f.value ?? '',
+                                  unit: f.unit || '',
+                                  loinc: f.loinc_code || null,
+                                  severity: f.severity_status || f.severity || 'normal',
+                                  status: (f.severity_status || f.status || 'NORMAL').toUpperCase(),
+                                  is_panic: f.is_panic || false,
+                                  reference_range: f.reference_range_display || f.reference_range || null,
+                                };
+                              }) || [])
+                            ].filter((item: any, idx: number, arr: any[]) => arr.findIndex((t: any) => (t.name || t.test_name) === (item.name || item.test_name)) === idx)}
                             onUpdateMedications={(medsList, formattedText) => {
                               handleSectionAction('medications', 'edited', medsText, formattedText, 'Physician updated digitalized prescription');
                             }}

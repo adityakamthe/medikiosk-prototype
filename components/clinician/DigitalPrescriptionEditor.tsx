@@ -153,117 +153,49 @@ export function DigitalPrescriptionEditor({
       });
     }
 
-    // Default sample medications if empty to illustrate full digital prescription capability
-    if (list.length === 0) {
-      list.push(
-        {
-          id: 'med-sample-1',
-          name: 'Tab Metformin Hydrochloride',
-          dosage: '500 mg',
-          frequency: '1-0-1',
-          timing: 'After Meals (PC)',
-          duration: '30 days',
-          instructions: 'Take with full glass of water',
-          allergy_warning: checkMedAllergyConflict('Metformin')
-        },
-        {
-          id: 'med-sample-2',
-          name: 'Tab Pantoprazole',
-          dosage: '40 mg',
-          frequency: '1-0-0',
-          timing: 'Before Meals (AC)',
-          duration: '14 days',
-          instructions: 'Take 30 mins before breakfast',
-          allergy_warning: checkMedAllergyConflict('Pantoprazole')
-        },
-        {
-          id: 'med-sample-3',
-          name: 'Syp Sucralfate',
-          dosage: '10 ml',
-          frequency: 'TDS',
-          timing: 'Before Meals (AC)',
-          duration: '7 days',
-          instructions: 'Shake bottle well before use',
-          allergy_warning: checkMedAllergyConflict('Sucralfate')
-        }
-      );
-    }
-
     setMedications(list);
   }, [initialMedicationsText, extractedMedications, patientAllergiesText]);
 
-  // Initialize out-of-range labs
+  // Initialize out-of-range labs strictly from actual extracted reports
   useEffect(() => {
     const list: OutOfRangeLabItem[] = [];
 
     if (Array.isArray(extractedLabs) && extractedLabs.length > 0) {
       extractedLabs.forEach((lab: any, idx: number) => {
-        const isPanic = lab.is_panic || lab.severity === 'panic';
-        const isAbnormal = lab.severity === 'abnormal' || isPanic;
+        const isPanic = Boolean(
+          lab.is_panic || 
+          lab.severity === 'panic' || 
+          lab.severity_status === 'panic' ||
+          String(lab.status || '').toUpperCase() === 'PANIC' ||
+          String(lab.status || '').toUpperCase() === 'CRITICAL'
+        );
+        const statusUpper = String(lab.status || lab.clinical_flag || '').toUpperCase();
+        const isHigh = statusUpper === 'HIGH' || statusUpper.includes('HIGH') || statusUpper === 'ELEVATED';
+        const isLow = statusUpper === 'LOW' || statusUpper.includes('LOW') || statusUpper === 'REDUCED';
+        const isAbnormal = Boolean(
+          isPanic || 
+          isHigh || 
+          isLow || 
+          lab.is_out_of_range ||
+          lab.severity === 'abnormal' || 
+          lab.severity_status === 'abnormal' ||
+          (statusUpper && statusUpper !== 'NORMAL' && statusUpper !== 'WITHIN_RANGE')
+        );
+
         if (isAbnormal) {
           list.push({
-            id: `lab-${idx}`,
-            test_name: lab.test_name || 'Investigation',
-            value: lab.raw_value || String(lab.parsed_value || 'Abnormal'),
+            id: lab.id || `lab-${idx}-${Date.now()}`,
+            test_name: lab.name || lab.test_name || 'Investigation',
+            value: String(lab.value ?? lab.raw_value ?? lab.parsed_value ?? ''),
             unit: lab.unit || '',
-            reference_range: lab.reference_range || 'Normal range exceeded',
-            loinc: lab.loinc,
+            reference_range: lab.reference_range_display || lab.reference_range || 'Normal range exceeded',
+            loinc: lab.loinc || lab.loinc_code,
             severity: isPanic ? 'panic' : 'abnormal',
-            clinical_flag: isPanic ? 'CRITICAL' : 'HIGH',
-            doctor_note: lab.alert_message || ''
+            clinical_flag: isPanic ? 'CRITICAL' : (isLow ? 'LOW' : 'HIGH'),
+            doctor_note: lab.alert_message || lab.doctor_note || lab.note || ''
           });
         }
       });
-    }
-
-    // Default clinical demonstration out-of-range labs if none provided
-    if (list.length === 0) {
-      list.push(
-        {
-          id: 'lab-def-1',
-          test_name: 'Glycated Hemoglobin (HbA1c)',
-          value: '9.2',
-          unit: '%',
-          reference_range: '4.0 - 5.6 % (Non-diabetic)',
-          loinc: '4548-4',
-          severity: 'panic',
-          clinical_flag: 'CRITICAL',
-          doctor_note: 'Poor glycemic control; warrants immediate diabetic review.'
-        },
-        {
-          id: 'lab-def-2',
-          test_name: 'Fasting Blood Glucose (FBG)',
-          value: '184',
-          unit: 'mg/dL',
-          reference_range: '70 - 100 mg/dL',
-          loinc: '1558-6',
-          severity: 'abnormal',
-          clinical_flag: 'HIGH',
-          doctor_note: 'Markedly elevated fasting sugar.'
-        },
-        {
-          id: 'lab-def-3',
-          test_name: 'Serum Creatinine',
-          value: '1.8',
-          unit: 'mg/dL',
-          reference_range: '0.7 - 1.2 mg/dL',
-          loinc: '2160-0',
-          severity: 'abnormal',
-          clinical_flag: 'HIGH',
-          doctor_note: 'Mild renal impairment; review nephrotoxic drugs.'
-        },
-        {
-          id: 'lab-def-4',
-          test_name: 'Hemoglobin (Hb)',
-          value: '9.4',
-          unit: 'g/dL',
-          reference_range: '13.0 - 17.0 g/dL',
-          loinc: '718-7',
-          severity: 'abnormal',
-          clinical_flag: 'LOW',
-          doctor_note: 'Moderate microcytic hypochromic anemia.'
-        }
-      );
     }
 
     setOutOfRangeLabs(list);
@@ -356,125 +288,127 @@ export function DigitalPrescriptionEditor({
 
   return (
     <div className="space-y-6">
-      {/* 1. TOP HIGHLIGHTED SECTION: OUT-OF-RANGE CLINICAL LABS & RED FLAGS */}
-      <div className="bg-gradient-to-br from-rose-950/20 via-slate-900 to-amber-950/20 border-2 border-rose-500/40 rounded-3xl p-5 shadow-lg relative overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-rose-500/20 mb-4">
-          <div className="flex items-center gap-2.5">
-            <span className="p-2 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 animate-pulse">
-              <ShieldAlert className="w-5 h-5" />
-            </span>
-            <div>
-              <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
-                <span>Critical Out-of-Range Clinical Details & Lab Findings</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white uppercase tracking-wider">
-                  {outOfRangeLabs.length} Abnormal Flags
-                </span>
-              </h3>
-              <p className="text-xs text-slate-300">
-                Extracted from patient uploaded lab reports & digital investigations. High-priority physician review.
-              </p>
+      {/* 1. TOP HIGHLIGHTED SECTION: OUT-OF-RANGE CLINICAL LABS & RED FLAGS (Rendered strictly when actual out-of-range labs exist) */}
+      {outOfRangeLabs.length > 0 && (
+        <div className="bg-gradient-to-br from-rose-950/20 via-slate-900 to-amber-950/20 border-2 border-rose-500/40 rounded-3xl p-5 shadow-lg relative overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-rose-500/20 mb-4">
+            <div className="flex items-center gap-2.5">
+              <span className="p-2 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 animate-pulse">
+                <ShieldAlert className="w-5 h-5" />
+              </span>
+              <div>
+                <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
+                  <span>Critical Out-of-Range Clinical Details & Lab Findings</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white uppercase tracking-wider">
+                    {outOfRangeLabs.length} Abnormal Flag{outOfRangeLabs.length === 1 ? '' : 's'}
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-300">
+                  Extracted from patient uploaded lab reports & digital investigations. High-priority physician review.
+                </p>
+              </div>
             </div>
+
+            {onOpenDocCrossCheck && (
+              <button
+                type="button"
+                onClick={onOpenDocCrossCheck}
+                className="px-3.5 py-1.5 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+              >
+                <span>📄 Cross-Check Scanned Report</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
-          {onOpenDocCrossCheck && (
-            <button
-              type="button"
-              onClick={onOpenDocCrossCheck}
-              className="px-3.5 py-1.5 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
-            >
-              <span>📄 Cross-Check Scanned Report</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
+          {/* Labs Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            {outOfRangeLabs.map((lab) => {
+              const isCritical = lab.severity === 'panic';
+              const isEditing = editingLabId === lab.id;
 
-        {/* Labs Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-          {outOfRangeLabs.map((lab) => {
-            const isCritical = lab.severity === 'panic';
-            const isEditing = editingLabId === lab.id;
+              return (
+                <div
+                  key={lab.id}
+                  className={`p-4 rounded-2xl border transition-all ${
+                    isCritical 
+                      ? 'bg-rose-950/50 border-rose-500/60 shadow-md ring-1 ring-rose-500/30' 
+                      : 'bg-amber-950/40 border-amber-500/50 shadow-sm'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div>
+                      <span className="text-xs font-bold text-white block">{lab.test_name}</span>
+                      {lab.loinc && (
+                        <span className="text-[10px] font-mono text-slate-400">LOINC: {lab.loinc}</span>
+                      )}
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1 ${
+                      isCritical ? 'bg-rose-500 text-white animate-pulse' : 'bg-amber-400 text-slate-950 font-extrabold'
+                    }`}>
+                      {lab.clinical_flag === 'HIGH' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                      {lab.clinical_flag}
+                    </span>
+                  </div>
 
-            return (
-              <div
-                key={lab.id}
-                className={`p-4 rounded-2xl border transition-all ${
-                  isCritical 
-                    ? 'bg-rose-950/50 border-rose-500/60 shadow-md ring-1 ring-rose-500/30' 
-                    : 'bg-amber-950/40 border-amber-500/50 shadow-sm'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div>
-                    <span className="text-xs font-bold text-white block">{lab.test_name}</span>
-                    {lab.loinc && (
-                      <span className="text-[10px] font-mono text-slate-400">LOINC: {lab.loinc}</span>
+                  <div className="flex items-baseline gap-2 mb-1.5">
+                    <span className="text-xl font-black text-white font-mono">{lab.value}</span>
+                    <span className="text-xs text-slate-300 font-semibold">{lab.unit}</span>
+                    <span className="text-[11px] text-slate-400 ml-auto">
+                      Normal: <strong className="text-slate-200">{lab.reference_range}</strong>
+                    </span>
+                  </div>
+
+                  {/* Doctor Note / Clinical Annotation */}
+                  <div className="mt-2.5 pt-2 border-t border-slate-700/50 flex items-center justify-between text-[11px]">
+                    {isEditing ? (
+                      <div className="flex items-center gap-1.5 w-full">
+                        <input
+                          type="text"
+                          value={labNoteInput}
+                          onChange={(e) => setLabNoteInput(e.target.value)}
+                          placeholder="Add physician interpretation / action plan..."
+                          className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-2.5 py-1 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-teal-400"
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => handleSaveLabNote(lab.id)}
+                          className="p-1 rounded-lg bg-teal-500 text-white hover:bg-teal-600"
+                          title="Save note"
+                        >
+                          <Save className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setEditingLabId(null)}
+                          className="p-1 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="text-slate-300 italic flex-1 pr-2 truncate">
+                          {lab.doctor_note || 'No physician note added yet.'}
+                        </span>
+                        <button
+                          onClick={() => {
+                            setEditingLabId(lab.id);
+                            setLabNoteInput(lab.doctor_note || '');
+                          }}
+                          className="text-teal-300 hover:text-teal-200 text-[10px] font-bold flex items-center gap-1 shrink-0 cursor-pointer"
+                        >
+                          <Edit3 className="w-3 h-3" />
+                          <span>{lab.doctor_note ? 'Edit Note' : '+ Note'}</span>
+                        </button>
+                      </>
                     )}
                   </div>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1 ${
-                    isCritical ? 'bg-rose-500 text-white animate-pulse' : 'bg-amber-400 text-slate-950 font-extrabold'
-                  }`}>
-                    {lab.clinical_flag === 'HIGH' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                    {lab.clinical_flag}
-                  </span>
                 </div>
-
-                <div className="flex items-baseline gap-2 mb-1.5">
-                  <span className="text-xl font-black text-white font-mono">{lab.value}</span>
-                  <span className="text-xs text-slate-300 font-semibold">{lab.unit}</span>
-                  <span className="text-[11px] text-slate-400 ml-auto">
-                    Normal: <strong className="text-slate-200">{lab.reference_range}</strong>
-                  </span>
-                </div>
-
-                {/* Doctor Note / Clinical Annotation */}
-                <div className="mt-2.5 pt-2 border-t border-slate-700/50 flex items-center justify-between text-[11px]">
-                  {isEditing ? (
-                    <div className="flex items-center gap-1.5 w-full">
-                      <input
-                        type="text"
-                        value={labNoteInput}
-                        onChange={(e) => setLabNoteInput(e.target.value)}
-                        placeholder="Add physician interpretation / action plan..."
-                        className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-2.5 py-1 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-teal-400"
-                        autoFocus
-                      />
-                      <button
-                        onClick={() => handleSaveLabNote(lab.id)}
-                        className="p-1 rounded-lg bg-teal-500 text-white hover:bg-teal-600"
-                        title="Save note"
-                      >
-                        <Save className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => setEditingLabId(null)}
-                        className="p-1 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <span className="text-slate-300 italic flex-1 pr-2 truncate">
-                        {lab.doctor_note || 'No physician note added yet.'}
-                      </span>
-                      <button
-                        onClick={() => {
-                          setEditingLabId(lab.id);
-                          setLabNoteInput(lab.doctor_note || '');
-                        }}
-                        className="text-teal-300 hover:text-teal-200 text-[10px] font-bold flex items-center gap-1 shrink-0 cursor-pointer"
-                      >
-                        <Edit3 className="w-3 h-3" />
-                        <span>{lab.doctor_note ? 'Edit Note' : '+ Note'}</span>
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 2. DIGITALIZED & EDITABLE PRESCRIPTION TABLE */}
       <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-4">
