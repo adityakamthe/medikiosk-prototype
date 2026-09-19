@@ -108,31 +108,64 @@ export default function ClinicianDashboard() {
   const [crossCheckRotation, setCrossCheckRotation] = useState<number>(0);
   const [crossCheckContrast, setCrossCheckContrast] = useState<boolean>(false);
 
-  // Generate high-yield, fluent English clinical briefing text for attending physician
+  // Generate a concise 30-45 second clinical verbal briefing focusing on patient details and current complaints
   const generateEnglishClinicalBriefing = () => {
     if (!selectedSession) return '';
-    const pName = selectedSession.patient_name || selectedSession.patient_ref || 'Patient';
-    const ageGender = `${selectedSession.age ? `${selectedSession.age} year old` : ''} ${selectedSession.gender || 'patient'}`.trim();
-    const queueId = selectedSession.queue_id || 'OPD Token';
-    const isAyurveda = selectedSession.clinical_mode === 'ayurveda';
+    const pName = selectedSession.patient_name || selectedSession.patient_ref || 'The patient';
+    const ageGender = [
+      selectedSession.age ? `${selectedSession.age}-year-old` : '',
+      selectedSession.gender || 'patient'
+    ].filter(Boolean).join(' ');
+    const token = selectedSession.queue_id ? `Token ${selectedSession.queue_id}` : '';
     const draft = sessionDetail?.latest_draft?.clinician_summary || {};
-    const cc = formatClinicalText(draft.chief_complaint) || (isAyurveda ? 'Ayurvedic consultation' : 'Outpatient consultation');
-    const hpi = formatClinicalText(draft.hpi) || '';
-    const past = formatClinicalText(draft.past_medical_surgical) || 'no prior chronic illnesses reported';
-    const allergies = formatClinicalText(draft.allergies) || 'no known drug allergies';
-    const meds = formatClinicalText(draft.medications) || 'no active prescription medications';
-    const family = formatClinicalText(draft.family_history) || 'unremarkable family medical history';
-    const labs = formatClinicalText(draft.prior_investigations) || '';
+    
+    // 1. Clean Chief Complaint (patient's current primary complaint)
+    let cc = formatClinicalText(draft.chief_complaint) || 'outpatient clinical consultation';
+    cc = cc.replace(/^Chief complaint:?\s*/i, '').replace(/[\n\r]+/g, ' ').trim();
+    if (cc.length > 130) {
+      cc = cc.slice(0, 130).replace(/[,;.\s]+$/, '');
+    }
 
-    let text = `Clinical intake briefing for ${pName}, ${ageGender}, token ${queueId}. Chief complaint: ${cc}. `;
-    if (hpi) text += `History of presenting illness: ${hpi.slice(0, 180)}. `;
-    text += `Medical history: ${past.slice(0, 100)}. `;
-    text += `Documented allergies: ${allergies}. `;
-    text += `Current medications: ${meds.slice(0, 100)}. `;
-    text += `Family history: ${family.slice(0, 80)}. `;
-    if (labs && !/no previous/i.test(labs)) text += `Diagnostic investigations: ${labs.slice(0, 100)}. `;
-    text += `Review of systems complete without acute decompensation. Ready for physician review.`;
-    return text;
+    // 2. Extract core symptom onset / duration concisely from HPI (1 short sentence)
+    let symptomDetails = '';
+    const rawHpi = formatClinicalText(draft.hpi);
+    if (rawHpi && rawHpi.length > 8) {
+      const cleanHpi = rawHpi.replace(/[\n\r]+/g, ' ').trim();
+      const firstSentence = cleanHpi.split(/[.!?]\s+/)[0] || cleanHpi;
+      // Avoid duplicate repeat if HPI first sentence just repeats the chief complaint verbatim
+      if (firstSentence.length > 10 && !firstSentence.toLowerCase().includes(cc.toLowerCase().slice(0, 20))) {
+        symptomDetails = firstSentence.slice(0, 110).trim();
+        if (!/[.!?]$/.test(symptomDetails)) symptomDetails += '.';
+      }
+    }
+
+    // 3. High-Priority Safety Flags (ONLY if critical allergy or abnormal lab flag is present)
+    let priorityFlag = '';
+    const allergies = formatClinicalText(draft.allergies);
+    if (allergies && !/no known|none|nil|nkda|denies|unremarkable/i.test(allergies)) {
+      priorityFlag += ` Documented allergy: ${allergies.slice(0, 50)}.`;
+    }
+
+    const abnormalLabs = (safetyData?.labs || []).filter((l: any) => 
+      l.is_panic || l.severity === 'panic' || l.severity === 'abnormal' || l.status === 'HIGH' || l.status === 'LOW'
+    );
+    if (abnormalLabs.length > 0) {
+      const topLab = abnormalLabs[0];
+      priorityFlag += ` Lab alert: ${topLab.test_name || topLab.name} is ${topLab.status || 'out of range'}.`;
+    }
+
+    // 4. Construct concise summary (approx 60-75 words, designed for 30-45 seconds of natural speech)
+    let briefing = `Clinical intake briefing for ${pName}, a ${ageGender}${token ? `, ${token}` : ''}. `;
+    briefing += `Current complaints: ${cc}. `;
+    if (symptomDetails) {
+      briefing += `${symptomDetails} `;
+    }
+    if (priorityFlag) {
+      briefing += `${priorityFlag.trim()} `;
+    }
+    briefing += `Intake is verified and ready for your clinical examination.`;
+
+    return briefing;
   };
 
   // Play / Pause English Audio Briefing
@@ -1265,7 +1298,10 @@ export default function ClinicianDashboard() {
                           ) : (
                             <Play className="w-4 h-4" />
                           )}
-                          <span>{isLoadingBriefing ? 'Synthesizing...' : isBriefingPlaying ? 'Pause Briefing' : '🎙️ Listen to Clinical Briefing (English)'}</span>
+                          <span className="flex items-center gap-1.5">
+                            <span>{isLoadingBriefing ? 'Synthesizing Briefing...' : isBriefingPlaying ? 'Pause Briefing' : '🎙️ Listen to Clinical Briefing'}</span>
+                            <span className="px-1.5 py-0.5 rounded-full bg-teal-400/25 text-teal-300 text-[10px] font-mono font-bold">30-45s</span>
+                          </span>
                         </button>
 
                         {isBriefingPlaying && (
@@ -1285,7 +1321,7 @@ export default function ClinicianDashboard() {
                             <span className="w-1 h-5 bg-teal-300 rounded-full animate-pulse" />
                             <span className="w-1 h-2.5 bg-emerald-400 rounded-full animate-bounce" />
                             <span className="w-1 h-4 bg-teal-400 rounded-full animate-pulse" />
-                            <span className="text-[10px] font-mono font-bold text-teal-300 ml-1">Spoken Briefing</span>
+                            <span className="text-[10px] font-mono font-bold text-teal-300 ml-1">Spoken Briefing (30-45s)</span>
                           </div>
                         )}
                       </div>
@@ -1939,7 +1975,10 @@ export default function ClinicianDashboard() {
                           ) : (
                             <Play className="w-4 h-4" />
                           )}
-                          <span>{isLoadingBriefing ? 'Synthesizing...' : isBriefingPlaying ? 'Pause Briefing' : '🎙️ Listen to Clinical Briefing (English)'}</span>
+                          <span className="flex items-center gap-1.5">
+                            <span>{isLoadingBriefing ? 'Synthesizing Briefing...' : isBriefingPlaying ? 'Pause Briefing' : '🎙️ Listen to Clinical Briefing'}</span>
+                            <span className="px-1.5 py-0.5 rounded-full bg-teal-400/25 text-teal-300 text-[10px] font-mono font-bold">30-45s</span>
+                          </span>
                         </button>
 
                         {isBriefingPlaying && (
@@ -1959,7 +1998,7 @@ export default function ClinicianDashboard() {
                             <span className="w-1 h-5 bg-teal-300 rounded-full animate-pulse" />
                             <span className="w-1 h-2.5 bg-emerald-400 rounded-full animate-bounce" />
                             <span className="w-1 h-4 bg-teal-400 rounded-full animate-pulse" />
-                            <span className="text-[10px] font-mono font-bold text-teal-300 ml-1">Spoken Briefing</span>
+                            <span className="text-[10px] font-mono font-bold text-teal-300 ml-1">Spoken Briefing (30-45s)</span>
                           </div>
                         )}
                       </div>
