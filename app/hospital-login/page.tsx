@@ -10,13 +10,14 @@ interface HospitalConfig {
   name: string;
   fullName: string;
   type: string;
-  clinicalMode: 'allopathy' | 'ayurveda';
+  clinicalMode: 'allopathy' | 'ayurveda' | 'integrated';
   defaultUsername: string;
   badge: string;
   icon: 'stethoscope' | 'leaf';
   accentColor: string;
   databaseName: string;
   description: string;
+  specialties: string[];
 }
 
 const HOSPITALS: HospitalConfig[] = [
@@ -24,27 +25,29 @@ const HOSPITALS: HospitalConfig[] = [
     id: 'aiims',
     name: 'AIIMS New Delhi',
     fullName: 'All India Institute of Medical Sciences, New Delhi',
-    type: 'Central Government Apex Hospital',
-    clinicalMode: 'allopathy',
+    type: 'Apex Integrated Multi-Specialty Hospital',
+    clinicalMode: 'integrated',
     defaultUsername: 'aiims-delhi',
-    badge: 'Allopathy Stream · DB 1',
+    badge: 'Integrated Multi-Specialty · DB 1',
     icon: 'stethoscope',
     accentColor: 'border-emerald-500/40 bg-emerald-500/5',
-    databaseName: 'Neon DB (US-West · General & Critical Care)',
-    description: 'Specialty departments: General Medicine, Cardiology, Orthopedics, Pediatrics.'
+    databaseName: 'Neon DB 1 (US-West · Integrated Allopathy & AYUSH)',
+    description: 'Full Multi-Specialty: General Medicine, Cardiology, Pulmonology, Gastroenterology, Neurology, Orthopedics, Pediatrics, Dermatology, ENT & AYUSH Integrative Center.',
+    specialties: ['General Medicine', 'Cardiology', 'Orthopedics', 'Pediatrics', 'Pulmonology', 'Gastroenterology', 'Neurology', 'Dermatology', 'ENT', 'AYUSH Center']
   },
   {
     id: 'aiia',
-    name: 'AIIA New Delhi (AYUSH)',
-    fullName: 'All India Institute of Ayurveda, New Delhi',
-    type: 'National Autonomous Institute · Ministry of Ayush',
-    clinicalMode: 'ayurveda',
-    defaultUsername: 'aiia-ayush',
-    badge: 'AYUSH Stream · DB 2',
+    name: 'AIIA Integrated Medical Center',
+    fullName: 'All India Institute of Ayurveda & Integrated Multi-Specialty Hospital, New Delhi',
+    type: 'National Apex Integrated Multi-Specialty Hospital',
+    clinicalMode: 'integrated',
+    defaultUsername: 'aiia-delhi',
+    badge: 'Integrated Multi-Specialty · DB 2',
     icon: 'leaf',
     accentColor: 'border-amber-500/40 bg-amber-500/5',
-    databaseName: 'Neon DB (AP-Southeast · Panchakarma & Prakriti)',
-    description: 'Classical Ayurvedic care: Dashavidha Pariksha, Panchakarma, Kayachikitsa & Herbal Formulations.'
+    databaseName: 'Neon DB 2 (AP-Southeast · Integrated Allopathy & AYUSH)',
+    description: 'Full Multi-Specialty: AYUSH Kayachikitsa & Panchakarma, General Medicine, Cardiology, Pulmonology, Gastroenterology, Neurology, Orthopedics, Pediatrics, Dermatology & ENT.',
+    specialties: ['AYUSH Center', 'General Medicine', 'Cardiology', 'Orthopedics', 'Pediatrics', 'Pulmonology', 'Gastroenterology', 'Neurology', 'Dermatology', 'ENT']
   }
 ];
 
@@ -177,7 +180,11 @@ export default function HospitalLoginPage() {
               <div className="pt-2 space-y-2.5">
                 <div className="flex items-start gap-2.5 text-xs text-white/90 bg-white/5 p-3 rounded-2xl border border-white/10">
                   <CheckCircle2 className="w-4 h-4 text-[#F2A900] shrink-0 mt-0.5" />
-                  <span>Dual Neon Database segregation for Allopathy and AYUSH institutes.</span>
+                  <span>Dual Neon Database segregation across Integrated Multi-Specialty Healthcare Centers.</span>
+                </div>
+                <div className="flex items-start gap-2.5 text-xs text-white/90 bg-white/5 p-3 rounded-2xl border border-white/10">
+                  <CheckCircle2 className="w-4 h-4 text-[#F2A900] shrink-0 mt-0.5" />
+                  <span>All specialized departments (Modern Allopathy & AYUSH Integrative Care) available at both hospitals.</span>
                 </div>
                 <div className="flex items-start gap-2.5 text-xs text-white/90 bg-white/5 p-3 rounded-2xl border border-white/10">
                   <CheckCircle2 className="w-4 h-4 text-[#F2A900] shrink-0 mt-0.5" />
@@ -190,7 +197,7 @@ export default function HospitalLoginPage() {
               <div className="mt-6 p-3 bg-white/10 rounded-2xl border border-white/15 text-xs">
                 <p className="text-white/60 text-[10px] uppercase font-bold tracking-wider">Currently Connected</p>
                 <p className="font-bold text-[#F2A900] mt-0.5">{activeHospital.name}</p>
-                <p className="text-[11px] text-white/70">Mode: {activeHospital.clinicalMode}</p>
+                <p className="text-[11px] text-white/70">Mode: Integrated Multi-Specialty</p>
               </div>
             )}
           </div>
@@ -201,7 +208,7 @@ export default function HospitalLoginPage() {
               <div className="mb-6">
                 <h2 className="text-xl font-black text-slate-900">Select Hospital Facility</h2>
                 <p className="text-xs text-slate-500 mt-1">
-                  Choose which hospital environment you want to unlock for OPD intake & clinician review.
+                  Choose which hospital environment you want to unlock for OPD intake & clinician review. Both facilities provide full multi-specialty care.
                 </p>
               </div>
 
@@ -249,6 +256,17 @@ export default function HospitalLoginPage() {
                       <p className="text-[11px] text-slate-600 mt-2.5 border-t border-slate-100 pt-2">
                         {h.description}
                       </p>
+
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {h.specialties.map((spec) => (
+                          <span
+                            key={spec}
+                            className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200"
+                          >
+                            {spec}
+                          </span>
+                        ))}
+                      </div>
 
                       <div className="mt-2.5 flex items-center justify-between">
                         <span className="text-[10px] text-slate-400 font-mono truncate max-w-[200px]">

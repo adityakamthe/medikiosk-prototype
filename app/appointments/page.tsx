@@ -245,7 +245,7 @@ export default function AppointmentBookingPage() {
                         type="button"
                         onClick={() => {
                           setSelectedDeptCode(dept.code);
-                          if (dept.code === 'ayush') setClinicalMode('ayurveda');
+                          setClinicalMode(dept.code === 'ayush' ? 'ayurveda' : 'allopathy');
                         }}
                         className={`text-left p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
                           isSelected

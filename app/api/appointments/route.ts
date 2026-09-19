@@ -71,13 +71,13 @@ const APPOINTMENTS_STORE: AppointmentRecord[] = [
   }
 ];
 
-// Department catalog with quota limits
+// Department catalog with quota limits covering all specialized clinical branches
 const DEPARTMENTS = [
   {
     code: 'general_medicine',
     name: 'General Medicine',
     description: 'Primary medical care, fever, diabetes, hypertension & acute illness',
-    doctor: DOCTOR_ROSTER['general_medicine'],
+    doctor: DOCTOR_ROSTER['general'],
     daily_quota: 40,
     available_slots: ['09:00 AM - 10:00 AM', '10:00 AM - 11:00 AM', '11:30 AM - 12:30 PM', '02:00 PM - 03:00 PM', '03:30 PM - 04:30 PM']
   },
@@ -90,10 +90,42 @@ const DEPARTMENTS = [
     available_slots: ['09:30 AM - 10:30 AM', '10:30 AM - 11:30 AM', '12:00 PM - 01:00 PM', '02:30 PM - 03:30 PM', '04:00 PM - 05:00 PM']
   },
   {
+    code: 'cardio',
+    name: 'Cardiology & Heart Health',
+    description: 'Hypertension, ischemic heart disease, angina, palpitations & ECG review',
+    doctor: DOCTOR_ROSTER['cardio'],
+    daily_quota: 30,
+    available_slots: ['09:30 AM - 10:30 AM', '11:00 AM - 12:00 PM', '02:00 PM - 03:00 PM', '03:30 PM - 04:30 PM']
+  },
+  {
+    code: 'pulmo',
+    name: 'Pulmonology & Respiratory Care',
+    description: 'Asthma, COPD, chronic cough, bronchitis & spirometry evaluation',
+    doctor: DOCTOR_ROSTER['pulmo'],
+    daily_quota: 25,
+    available_slots: ['10:00 AM - 11:00 AM', '11:30 AM - 12:30 PM', '02:30 PM - 03:30 PM']
+  },
+  {
+    code: 'gastro',
+    name: 'Gastroenterology & Hepatology',
+    description: 'Dyspepsia, GERD, liver disorders, abdominal pain & colon health',
+    doctor: DOCTOR_ROSTER['gastro'],
+    daily_quota: 25,
+    available_slots: ['09:00 AM - 10:00 AM', '11:00 AM - 12:00 PM', '02:00 PM - 03:00 PM']
+  },
+  {
+    code: 'neuro',
+    name: 'Neurology & Brain Health',
+    description: 'Migraines, neurological headaches, neuropathies, vertigo & stroke follow-up',
+    doctor: DOCTOR_ROSTER['neuro'],
+    daily_quota: 20,
+    available_slots: ['10:30 AM - 11:30 AM', '12:00 PM - 01:00 PM', '03:00 PM - 04:00 PM']
+  },
+  {
     code: 'orthopedics',
     name: 'Orthopedics & Joint Care',
     description: 'Bone fractures, osteoarthritis, spine, sports injury & joint replacements',
-    doctor: DOCTOR_ROSTER['orthopedics'],
+    doctor: DOCTOR_ROSTER['ortho'],
     daily_quota: 30,
     available_slots: ['10:00 AM - 11:00 AM', '11:00 AM - 12:00 PM', '02:00 PM - 03:00 PM', '03:30 PM - 04:30 PM']
   },
@@ -101,9 +133,25 @@ const DEPARTMENTS = [
     code: 'pediatrics',
     name: 'Pediatrics & Child Health',
     description: 'Infant care, childhood infections, growth monitoring & vaccinations',
-    doctor: DOCTOR_ROSTER['pediatrics'],
+    doctor: DOCTOR_ROSTER['pedia'],
     daily_quota: 25,
     available_slots: ['09:00 AM - 10:00 AM', '10:30 AM - 11:30 AM', '02:00 PM - 03:00 PM']
+  },
+  {
+    code: 'derma',
+    name: 'Dermatology & Skin Clinic',
+    description: 'Eczema, psoriasis, allergic dermatitis, acne & fungal skin conditions',
+    doctor: DOCTOR_ROSTER['derma'],
+    daily_quota: 25,
+    available_slots: ['11:00 AM - 12:00 PM', '02:00 PM - 03:00 PM', '04:00 PM - 05:00 PM']
+  },
+  {
+    code: 'ent',
+    name: 'ENT & Head-Neck Clinic',
+    description: 'Ear infections, sinusitis, tonsillitis, allergic rhinitis & hearing assessment',
+    doctor: DOCTOR_ROSTER['ent'],
+    daily_quota: 25,
+    available_slots: ['10:00 AM - 11:00 AM', '12:00 PM - 01:00 PM', '03:00 PM - 04:00 PM']
   }
 ];
 

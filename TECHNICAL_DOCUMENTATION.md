@@ -110,9 +110,11 @@ To reflect real-world Indian health systems where central apex allopathic hospit
                                          │
                  ┌───────────────────────┴───────────────────────┐
                  ▼                                               ▼
-     [FACILITY 1: AIIMS NEW DELHI]                 [FACILITY 2: AIIA NEW DELHI]
-     - Apex Allopathic Hospital                    - Apex National AYUSH Institute
-     - Mode: Allopathy                             - Mode: Ayurveda (Dashavidha)
+     [FACILITY 1: AIIMS NEW DELHI]                 [FACILITY 2: AIIA MEDICAL CENTER]
+     - Apex Integrated Multi-Specialty             - Apex Integrated Multi-Specialty
+     - All Specialties: Cardio, Pulmo,             - All Specialties: AYUSH, Cardio,
+       Gastro, Neuro, Ortho, Pedia,                  Pulmo, Gastro, Neuro, Ortho,
+       Derma, ENT & AYUSH Center                     Pedia, Derma, ENT & Gen Med
      - DB 1 (Neon US-West)                         - DB 2 (Neon AP-Southeast)
      - Pool: poolAiims                             - Pool: poolAyush
                  │                                               │
@@ -125,14 +127,14 @@ To reflect real-world Indian health systems where central apex allopathic hospit
 ```
 
 ### 3.2 Dual Connection Configuration
-1. **AIIMS Allopathy Database (DB 1)**:
+1. **AIIMS New Delhi Integrated Database (DB 1)**:
    - Connection: `process.env.DATABASE_URL`
    - Host: `ep-spring-sunset-a6k5fwq8-pooler.us-west-2.aws.neon.tech`
-   - Specialty: General Medicine, Cardiology, Orthopedics, Critical Care.
-2. **AIIA AYUSH Database (DB 2)**:
+   - Specialties: All modern allopathic specialties (Cardiology, Pulmonology, Gastroenterology, Neurology, Orthopedics, Pediatrics, Dermatology, ENT, General Medicine) + AYUSH Integrative Medicine.
+2. **AIIA Integrated Medical Center Database (DB 2)**:
    - Connection: `process.env.DATABASE_URL_AYUSH`
    - Host: `ep-little-tooth-b3h1z201-pooler.c-4.ap-southeast-1.aws.neon.tech`
-   - Specialty: Panchakarma, Kayachikitsa, Dhatu Poshan, Herbal Formulations.
+   - Specialties: All modern allopathic specialties + AYUSH Panchakarma, Kayachikitsa & Classical Formulations.
 
 ### 3.3 Dynamic Query Routing Logic ([`lib/db.ts`](file:///c:/medikiosk-main/lib/db.ts#L388-L456))
 ```typescript
