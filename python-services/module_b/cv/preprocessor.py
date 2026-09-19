@@ -52,14 +52,15 @@ def four_point_transform(image: np.ndarray, pts: np.ndarray) -> np.ndarray:
     ], dtype="float32")
 
     M = cv2.getPerspectiveTransform(rect, dst)
-    warped = cv2.warpPerspective(image, M, (maxWidth, maxHeight))
+    warped = cv2.warpPerspective(image, M, (maxWidth, maxHeight), flags=cv2.INTER_CUBIC)
     return warped
 
 
 def detect_document_boundary(image: np.ndarray) -> Optional[np.ndarray]:
     """
     Finds the 4 corners of the medical document in the image using Canny edge detection
-    and contour approximation.
+    and contour approximation on a downscaled 500px proxy.
+    Scales the detected corner points back to the full original image resolution.
     """
     h, w = image.shape[:2]
     ratio = h / 500.0
@@ -81,15 +82,51 @@ def detect_document_boundary(image: np.ndarray) -> Optional[np.ndarray]:
         peri = cv2.arcLength(c, True)
         approx = cv2.approxPolyDP(c, 0.02 * peri, True)
         if len(approx) == 4 and cv2.contourArea(c) >= min_area:
-            return (approx.reshape(4, 2) * ratio).astype("float32")
+            scaled_pts = (approx.reshape(4, 2) * ratio).astype("float32")
+            return scaled_pts
 
     return None
 
 
+def enhance_ink_contrast_lab(image_bgr: np.ndarray) -> np.ndarray:
+    """
+    Dynamic Illumination & CLAHE Ink Contrast Enhancement:
+    1. Converts image to LAB color space.
+    2. Performs morphological opening on the Luminance (L) channel with adaptive
+       kernel size max(35, min(w, h) // 16) to estimate the non-uniform background plane.
+    3. Divides out background illumination: norm_l = cv2.divide(l, bg, scale=255).
+    4. Applies CLAHE with clipLimit=2.0, tileGridSize=(8, 8) to pop faint ballpoint strokes
+       without clipping colored ink or carbon-copy strokes.
+    5. Re-merges channels and converts back to BGR.
+    """
+    h, w = image_bgr.shape[:2]
+    lab = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2LAB)
+    l, a, b = cv2.split(lab)
+
+    k_size = max(35, min(w, h) // 16)
+    k_size = min(k_size, max(3, min(w, h) - 1))
+    if k_size % 2 == 0:
+        k_size += 1
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (k_size, k_size))
+    bg = cv2.morphologyEx(l, cv2.MORPH_OPEN, kernel)
+
+    if bg.mean() > 50:
+        bg = np.maximum(bg, 30)
+        norm_l = cv2.divide(l, bg, scale=255)
+    else:
+        norm_l = l
+
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    enhanced_l = clahe.apply(norm_l)
+
+    enhanced_lab = cv2.merge([enhanced_l, a, b])
+    enhanced_bgr = cv2.cvtColor(enhanced_lab, cv2.COLOR_LAB2BGR)
+    return enhanced_bgr
+
+
 def normalize_illumination(gray_image: np.ndarray) -> np.ndarray:
     """
-    Eliminates non-uniform illumination and shadow gradients caused by ambient OPD lighting
-    by computing background illumination via large morphological opening and dividing it out.
+    Grayscale illumination normalizer dividing out the background illumination plane.
     """
     h, w = gray_image.shape
     q1 = float(np.mean(gray_image[:h//2, :w//2]))
@@ -101,7 +138,7 @@ def normalize_illumination(gray_image: np.ndarray) -> np.ndarray:
     if quad_var < 15.0:
         return gray_image
 
-    k_size = max(51, min(w, h) // 8)
+    k_size = max(35, min(w, h) // 16)
     if k_size % 2 == 0:
         k_size += 1
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (k_size, k_size))
@@ -125,34 +162,47 @@ def denoise_and_threshold(gray_image: np.ndarray) -> np.ndarray:
 
 def isolate_ink_strokes(image_bgr: np.ndarray) -> np.ndarray:
     """
-    Isolates blue and black ballpoint ink strokes from colored backgrounds, clinic logos,
-    and preprinted lines using HSV color masking.
+    Isolates blue, black, and light grey ballpoint ink strokes from colored backgrounds,
+    clinic logos, and preprinted lines using dynamic color thresholding and CLAHE contrast.
+    Preserves faded blue and light grey ballpoint strokes on carbon-copy and aged prescription pads.
     """
     hsv = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2HSV)
 
-    # Blue ballpoint ink
-    lower_blue = np.array([85, 35, 30], dtype=np.uint8)
-    upper_blue = np.array([140, 255, 255], dtype=np.uint8)
+    # Blue ballpoint ink (faded royal blue, cyan-blue, navy doctor pen ink)
+    lower_blue = np.array([75, 20, 25], dtype=np.uint8)
+    upper_blue = np.array([150, 255, 255], dtype=np.uint8)
     mask_blue = cv2.inRange(hsv, lower_blue, upper_blue)
 
-    # Black / dark ballpoint ink
+    # Black / dark grey / faded carbon-copy ink (expanded ceiling V <= 135)
     lower_black = np.array([0, 0, 0], dtype=np.uint8)
-    upper_black = np.array([180, 255, 85], dtype=np.uint8)
+    upper_black = np.array([180, 255, 135], dtype=np.uint8)
     mask_black = cv2.inRange(hsv, lower_black, upper_black)
 
     ink_mask = cv2.bitwise_or(mask_blue, mask_black)
+
+    # Contrast-enhanced stroke extraction to preserve faint 0.5mm pen strokes
+    gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    cl = clahe.apply(gray)
+    adaptive_ink = cv2.adaptiveThreshold(
+        cl, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 25, 12
+    )
+
+    combined_ink = cv2.bitwise_and(ink_mask, adaptive_ink)
+
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
-    cleaned_mask = cv2.morphologyEx(ink_mask, cv2.MORPH_CLOSE, kernel)
+    cleaned_mask = cv2.morphologyEx(combined_ink, cv2.MORPH_CLOSE, kernel)
     return cleaned_mask
 
 
 def segment_prescription_lines(
     image_bgr: np.ndarray,
-    min_line_height: int = 15,
-    min_line_width: int = 60
+    min_line_height: int = 18,
+    min_line_width: int = 80
 ) -> List[Dict[str, Any]]:
     """
     Segments horizontal prescription line strips using horizontal projection profiling and contours.
+    Enforces minimum line height 18px and minimum line width 80px to capture clinical handwriting lines.
     """
     h, w = image_bgr.shape[:2]
     gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
@@ -184,10 +234,14 @@ def segment_prescription_lines(
         x1 = min(w, x + cw + pad)
 
         crop = image_bgr[y0:y1, x0:x1]
+        success, enc = cv2.imencode(".jpg", crop, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
+        b64_crop = base64.b64encode(enc.tobytes()).decode("utf-8") if success else None
+
         line_strips.append({
             "line_index": idx,
             "bbox": {"x": int(x0), "y": int(y0), "width": int(x1 - x0), "height": int(y1 - y0)},
-            "crop_shape": {"width": int(crop.shape[1]), "height": int(crop.shape[0])}
+            "crop_shape": {"width": int(crop.shape[1]), "height": int(crop.shape[0])},
+            "crop_base64": b64_crop
         })
 
     return line_strips
@@ -202,7 +256,8 @@ def preprocess_medical_document(
     extract_lines: bool = False
 ) -> Dict[str, Any]:
     """
-    End-to-End Stage 1 Preprocessing Pipeline.
+    End-to-End Stage 1 Preprocessing Pipeline with Full-Resolution Dewarp
+    and LAB Illumination Division + CLAHE Ink Contrast Enhancement.
     """
     nparr = np.frombuffer(image_bytes, np.uint8)
     image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -213,21 +268,21 @@ def preprocess_medical_document(
     orig_h, orig_w = image.shape[:2]
     was_dewarped = False
 
-    # 1. Perspective Dewarping
+    # 1. Perspective Dewarping on Full-Resolution Buffer
     if apply_dewarp:
         boundary = detect_document_boundary(image)
         if boundary is not None:
             image = four_point_transform(image, boundary)
             was_dewarped = True
 
-    # 2. Illumination and Quality Analysis
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # 2. LAB Illumination Division & CLAHE Ink Contrast
     if apply_shadow_removal:
-        processed_gray = normalize_illumination(gray)
+        enhanced_image = enhance_ink_contrast_lab(image)
     else:
-        processed_gray = gray
+        enhanced_image = image
 
-    # 3. Enhanced Legibility Gating & Sharpness Metrics
+    # 3. Quality Analysis on Enhanced Image
+    gray = cv2.cvtColor(enhanced_image, cv2.COLOR_BGR2GRAY)
     laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
     blur_score = float(laplacian_var)
     contrast_range = float(gray.max() - gray.min())
@@ -242,23 +297,21 @@ def preprocess_medical_document(
         confidence_tier = "ambiguous"
         quality_rating = "acceptable"
 
-    # 4. Optional Ink Color Separation or Binary Mask
+    # 4. Final Image Output Selection
     if apply_ink_isolation:
-        ink_mask = isolate_ink_strokes(image)
+        ink_mask = isolate_ink_strokes(enhanced_image)
         final_image = ink_mask
     elif apply_binary_mask:
-        final_image = denoise_and_threshold(processed_gray)
-    elif apply_shadow_removal and processed_gray is not gray:
-        final_image = processed_gray
+        final_image = denoise_and_threshold(gray)
     else:
-        final_image = image
+        final_image = enhanced_image
 
     if len(final_image.shape) == 2:
         final_image = cv2.cvtColor(final_image, cv2.COLOR_GRAY2BGR)
 
     line_strips = []
     if extract_lines:
-        line_strips = segment_prescription_lines(image)
+        line_strips = segment_prescription_lines(final_image, min_line_height=18, min_line_width=80)
 
     success, encoded_img = cv2.imencode('.jpg', final_image, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
     if not success:

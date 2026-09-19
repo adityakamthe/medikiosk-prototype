@@ -11,12 +11,13 @@ from typing import List, Dict, Any
 
 def extract_prescription_lines(
     image_bgr: np.ndarray,
-    min_line_height: int = 15,
-    min_line_width: int = 60,
+    min_line_height: int = 18,
+    min_line_width: int = 80,
     export_base64: bool = False
 ) -> List[Dict[str, Any]]:
     """
     Extracts ordered text line strips from a medical document image.
+    Enforces minimum height 18px and minimum width 80px for reliable prescription line segmentation.
     Returns bounding box metadata and optional cropped image base64 strings.
     """
     h, w = image_bgr.shape[:2]
@@ -68,13 +69,50 @@ def extract_prescription_lines(
     return line_strips
 
 
+def prepare_multimodal_vlm_input(
+    image_bgr: np.ndarray,
+    min_line_height: int = 18,
+    min_line_width: int = 80,
+    max_strips: int = 12
+) -> Dict[str, Any]:
+    """
+    Prepares multimodal VLM input combining full-page context image and cropped line strips.
+    Prevents skipped lines and column association errors.
+    """
+    success, enc = cv2.imencode(".jpg", image_bgr, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
+    full_page_b64 = base64.b64encode(enc.tobytes()).decode("utf-8") if success else ""
+
+    line_strips = extract_prescription_lines(
+        image_bgr,
+        min_line_height=min_line_height,
+        min_line_width=min_line_width,
+        export_base64=True
+    )
+
+    crops = [
+        {
+            "line_index": s["line_index"],
+            "bbox": s["bbox"],
+            "crop_base64": s["crop_base64"]
+        }
+        for s in line_strips[:max_strips]
+        if s.get("crop_base64")
+    ]
+
+    return {
+        "full_page_base64": full_page_b64,
+        "total_lines_detected": len(line_strips),
+        "line_crops": crops
+    }
+
+
 class LineExtractor:
     """Line extractor helper converting contour strips into RawPrescriptionLine schemas."""
     def extract_lines(
         self,
         image_bgr: np.ndarray,
-        min_line_height: int = 15,
-        min_line_width: int = 60,
+        min_line_height: int = 18,
+        min_line_width: int = 80,
         export_base64: bool = False
     ) -> List[Any]:
         try:
@@ -96,5 +134,20 @@ class LineExtractor:
             ))
         return results
 
+    def prepare_vlm_payload(
+        self,
+        image_bgr: np.ndarray,
+        min_line_height: int = 18,
+        min_line_width: int = 80,
+        max_strips: int = 12
+    ) -> Dict[str, Any]:
+        return prepare_multimodal_vlm_input(
+            image_bgr,
+            min_line_height=min_line_height,
+            min_line_width=min_line_width,
+            max_strips=max_strips
+        )
+
 
 line_extractor = LineExtractor()
+

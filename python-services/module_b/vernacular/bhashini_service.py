@@ -160,6 +160,87 @@ def translate_vernacular_sig(text: str) -> Dict[str, Any]:
     }
 
 
+def call_bhashini_ocr_api(
+    image_bytes_or_b64: Any,
+    source_lang: str = "hi"
+) -> Optional[str]:
+    """
+    Calls the official Government of India Bhashini ULCA OCR API.
+    Sends cropped prescription line strips with Indic script to extract vernacular text.
+    """
+    user_id = os.environ.get("BHASHINI_USER_ID")
+    api_key = os.environ.get("BHASHINI_API_KEY")
+
+    if not (user_id and api_key):
+        return None
+
+    try:
+        import base64
+        if isinstance(image_bytes_or_b64, bytes):
+            b64_str = base64.b64encode(image_bytes_or_b64).decode('utf-8')
+        elif isinstance(image_bytes_or_b64, str):
+            b64_str = image_bytes_or_b64.split(",", 1)[1] if "," in image_bytes_or_b64 else image_bytes_or_b64
+        else:
+            return None
+
+        endpoint = os.environ.get("BHASHINI_OCR_ENDPOINT", "https://ocr-api.bhashini.gov.in/v1/ocr")
+        payload = {
+            "pipelineTasks": [
+                {
+                    "taskType": "ocr",
+                    "config": {
+                        "language": {
+                            "sourceLanguage": source_lang
+                        }
+                    }
+                }
+            ],
+            "inputData": {
+                "image": [{"imageContent": b64_str}]
+            }
+        }
+        headers = {
+            "Content-Type": "application/json",
+            "userID": user_id,
+            "ulcaApiKey": api_key
+        }
+        req = urllib.request.Request(
+            endpoint,
+            data=json.dumps(payload).encode('utf-8'),
+            headers=headers
+        )
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            data = json.loads(resp.read().decode())
+            output = data.get("pipelineResponse", [{}])[0].get("output", [{}])[0].get("source")
+            return output
+    except Exception:
+        return None
+
+
+def route_indic_crop_to_bhashini(
+    crop_image: Any,
+    detected_script: str = "hi"
+) -> Dict[str, Any]:
+    """
+    Routes an Indic line crop directly to the Bhashini Indic-OCR endpoint,
+    followed by the clinical vernacular sig normalizer.
+    """
+    ocr_text = call_bhashini_ocr_api(crop_image, source_lang=detected_script)
+    if not ocr_text:
+        return {
+            "ocr_success": False,
+            "raw_transcription": "",
+            "sig_result": None
+        }
+
+    sig_res = translate_vernacular_sig(ocr_text)
+    return {
+        "ocr_success": True,
+        "raw_transcription": ocr_text,
+        "sig_result": sig_res
+    }
+
+
 def call_bhashini_nmt_api(
     source_text: str,
     source_lang: str = "bn",
@@ -212,12 +293,19 @@ def call_bhashini_nmt_api(
 
 
 class BhashiniTranslator:
-    """Vernacular and Indic Sig Translation Service."""
+    """Vernacular and Indic Sig Translation Service with OCR Hook."""
     def translate_vernacular_sig(self, text: str) -> Dict[str, Any]:
         return translate_vernacular_sig(text)
 
     def normalize_numerals(self, text: str) -> str:
         return normalize_vernacular_numerals(text)
 
+    def call_ocr_api(self, image_data: Any, source_lang: str = "hi") -> Optional[str]:
+        return call_bhashini_ocr_api(image_data, source_lang=source_lang)
+
+    def route_crop_to_ocr(self, crop_image: Any, detected_script: str = "hi") -> Dict[str, Any]:
+        return route_indic_crop_to_bhashini(crop_image, detected_script=detected_script)
+
 
 bhashini_translator = BhashiniTranslator()
+

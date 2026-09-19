@@ -6,6 +6,13 @@
 
 const MODULE_B_SERVICE_URL = process.env.MODULE_B_SERVICE_URL || 'http://127.0.0.1:8001';
 
+export interface LineStrip {
+  line_index: number;
+  bbox: { x: number; y: number; width: number; height: number };
+  crop_shape?: { width: number; height: number };
+  crop_base64?: string | null;
+}
+
 export interface PreprocessResult {
   success: boolean;
   original_resolution?: { width: number; height: number };
@@ -14,7 +21,9 @@ export interface PreprocessResult {
   sharpness_score?: number;
   is_blurry?: boolean;
   quality_assessment: 'good' | 'acceptable' | 'poor_legibility';
+  confidence_tier?: 'high' | 'ambiguous' | 'poor_legibility';
   base64_jpeg?: string;
+  line_strips?: LineStrip[];
 }
 
 export interface CDSCOMatchResult {
@@ -76,7 +85,8 @@ export interface PharmacologicalSafetyResult {
 export async function preprocessDocumentImage(
   base64Image: string,
   applyDewarp: boolean = true,
-  applyShadowRemoval: boolean = true
+  applyShadowRemoval: boolean = true,
+  extractLines: boolean = true
 ): Promise<PreprocessResult> {
   try {
     const res = await fetch(`${MODULE_B_SERVICE_URL}/api/v1/preprocess`, {
@@ -86,6 +96,7 @@ export async function preprocessDocumentImage(
         image_base64: base64Image,
         apply_dewarp: applyDewarp,
         apply_shadow_removal: applyShadowRemoval,
+        extract_lines: extractLines,
       }),
       signal: AbortSignal.timeout(6000),
     });
@@ -100,8 +111,10 @@ export async function preprocessDocumentImage(
   return {
     success: true,
     quality_assessment: 'good',
+    confidence_tier: 'high',
     was_dewarped: false,
     base64_jpeg: base64Image,
+    line_strips: [],
   };
 }
 

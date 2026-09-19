@@ -59,7 +59,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     // -------------------------------------------------------------
     // STAGE 1: OpenCV Perspective Correction & Shadow Normalization
     // -------------------------------------------------------------
-    const preprocessRes = await preprocessDocumentImage(origBase64, true, true);
+    const preprocessRes = await preprocessDocumentImage(origBase64, true, true, true);
     let effectiveMime = mimeType;
     let imageForVision = origBase64;
     if (preprocessRes.success && preprocessRes.base64_jpeg) {
@@ -77,10 +77,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       patientContext = historyRes.rows;
     } catch {}
 
+    const lineCrops = preprocessRes.line_strips || [];
+
     // -------------------------------------------------------------
     // STAGE 2 & 3: Vision-Language Entity Extraction
     // -------------------------------------------------------------
-    let extractedData = await extractDocumentEntitiesFromBase64(imageForVision, effectiveMime, patientContext);
+    let extractedData = await extractDocumentEntitiesFromBase64(imageForVision, effectiveMime, patientContext, lineCrops);
 
     // If preprocessed image yielded no medications/labs, fallback to pristine original image buffer
     const hasEntities = (extractedData.medications && extractedData.medications.length > 0) ||
@@ -88,7 +90,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                         (extractedData.diagnoses && extractedData.diagnoses.length > 0);
     if (!hasEntities && imageForVision !== origBase64) {
       try {
-        const retryData = await extractDocumentEntitiesFromBase64(origBase64, mimeType, patientContext);
+        const retryData = await extractDocumentEntitiesFromBase64(origBase64, mimeType, patientContext, lineCrops);
         if ((retryData.medications && retryData.medications.length > 0) ||
             (retryData.lab_values && retryData.lab_values.length > 0) ||
             (retryData.diagnoses && retryData.diagnoses.length > 0)) {

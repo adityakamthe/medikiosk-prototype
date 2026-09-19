@@ -397,12 +397,29 @@ def match_against_cdsco(
 
     detected_form, detected_strength = extract_dosage_form_and_strength(raw_name)
 
-    # 1. Candidate Filtering by Dosage Form
+    # 1. Candidate Filtering by Dosage Form to avoid global fuzzy matching
+    target_form = form_filter or (detected_form.form if hasattr(detected_form, "form") else detected_form)
     candidate_pool = list(CDSCO_MASTER_REGISTRY.items())
-    if detected_form:
+    if target_form:
+        tf_lower = str(target_form).lower()
+        if tf_lower in ["tablet", "tab"]:
+            form_keys = ["tab", "tablet"]
+        elif tf_lower in ["capsule", "cap"]:
+            form_keys = ["cap", "capsule"]
+        elif tf_lower in ["syrup", "syr"]:
+            form_keys = ["syr", "syrup"]
+        elif tf_lower in ["drops", "drop"]:
+            form_keys = ["drop", "drops", "eye drop", "ear drop"]
+        elif tf_lower in ["oint", "ointment"]:
+            form_keys = ["oint", "ointment", "gel"]
+        elif tf_lower in ["inj", "injection"]:
+            form_keys = ["inj", "injection"]
+        else:
+            form_keys = [tf_lower]
+
         form_filtered = [
             (k, v) for k, v in candidate_pool
-            if detected_form in v.get("forms", [])
+            if any(fk in v.get("forms", []) for fk in form_keys)
         ]
         if form_filtered:
             candidate_pool = form_filtered

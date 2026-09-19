@@ -515,24 +515,38 @@ All necessary clinical dimensions within the 10-12 question budget have been sys
 export async function extractDocumentEntitiesFromBase64(
   base64Image: string, 
   mimeType: string,
-  patientInterviewContext: any[] = []
+  patientInterviewContext: any[] = [],
+  lineCrops: Array<{ line_index?: number; crop_base64?: string | null; [key: string]: any }> = []
 ) {
   try {
     const contextSummary = patientInterviewContext.length > 0
-      ? `PATIENT INTAKE CONTEXT (Spoken during interview):\n${JSON.stringify(patientInterviewContext, null, 2)}`
+      ? `CLINICAL PRIOR FROM VERBAL INTAKE (Module A Structured Symptoms & History):\n${JSON.stringify(patientInterviewContext, null, 2)}\nUse this clinical prior to anchor ambiguous medication trade brands and clinical diagnoses.`
       : 'No prior verbal intake recorded.';
 
     const prompt = `
-    You are an expert clinical document transcription and intelligence system.
+    You are an expert clinical document transcription and intelligence system specializing in Indian handwritten prescriptions and medical reports.
     
     ${contextSummary}
 
+    SOUTH ASIAN & COMMONWEALTH MEDICAL SHORTHAND LEXICON:
+    You must decode handwriting abbreviations according to this clinical standard:
+    • "1+0+1", "BD", "BID" -> "Twice daily (1-0-1)"
+    • "1+0+0", "OD" -> "Once daily (1-0-0)"
+    • "0+0+1", "HS", "SOS" -> "At bedtime (0-0-1) / As needed"
+    • "1+1+1", "TDS", "TID" -> "Three times daily (1-1-1)"
+    • "1/52" -> "1 week"; "2/52" -> "2 weeks"; "3/7" -> "3 days"; "5/7" -> "5 days"
+    • Vernacular Food Directions:
+      - "খাওয়ার পর" / "খাওয়ার পর" / "खाने के बाद" / "சாப்பாட்டுக்கு பின்" -> "After meals (PC)"
+      - "খাওয়ার আগে" / "খাওয়ার আগে" / "खाने से पहले" / "சாப்பாட்டுக்கு முன்" -> "Before meals (AC)"
+      - "খালি পেটে" / "खाली पेट" -> "On empty stomach"
+
     INSTRUCTIONS:
-    1. Read and transcribe the medical document accurately from the image.
-    2. Extract all medications: medicine brand or generic name, dosage, frequency, route, duration.
+    1. Read and transcribe the medical document accurately from the full image and any attached high-resolution line crops.
+    2. Extract all medications: medicine brand or generic name, dosage form (Tab/Cap/Syr), strength, route, frequency (with decoded sig), duration.
     3. Extract all diagnostic lab investigations: test name, quantitative value, unit, reference range.
-    4. Extract any clinical diagnoses or findings.
-    5. Set "quality_assessment": "good", "is_readable": true.
+    4. Extract any clinical diagnoses, symptoms, or findings.
+    5. Correlate with the verbal intake clinical prior when deciphering cursive handwriting trade names.
+    6. Set "quality_assessment": "good", "is_readable": true.
 
     Output strictly valid JSON with NO commentary:
     {
@@ -555,23 +569,41 @@ export async function extractDocumentEntitiesFromBase64(
     }
     `;
 
+    // Construct multimodal parts: prompt + full document + high-resolution line crops
+    const contentParts: any[] = [
+      {
+        type: 'text',
+        text: prompt,
+      },
+      {
+        type: 'image_url',
+        imageUrl: `data:${mimeType};base64,${base64Image}`,
+        image_url: `data:${mimeType};base64,${base64Image}`,
+      },
+    ];
+
+    // Append up to 6 high-res line crops if provided to resolve cursive handwriting
+    const validCrops = lineCrops
+      .filter((c) => c && c.crop_base64)
+      .slice(0, 6);
+
+    for (const crop of validCrops) {
+      const cropB64 = crop.crop_base64!;
+      const cleanB64 = cropB64.includes(',') ? cropB64.split(',')[1] : cropB64;
+      contentParts.push({
+        type: 'image_url',
+        imageUrl: `data:image/jpeg;base64,${cleanB64}`,
+        image_url: `data:image/jpeg;base64,${cleanB64}`,
+      });
+    }
+
     const response = await mistralClient.chat.complete({
       model: MISTRAL_MODELS.VISION_OCR,
       responseFormat: { type: 'json_object' },
       messages: [
         {
           role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: prompt,
-            },
-            {
-              type: 'image_url',
-              imageUrl: `data:${mimeType};base64,${base64Image}`,
-              image_url: `data:${mimeType};base64,${base64Image}`,
-            } as any,
-          ],
+          content: contentParts as any,
         },
       ],
     });

@@ -70,3 +70,15 @@ def test_action_gate_thresholds():
         VerificationActionGate.MANUAL_REVIEW_REQUIRED.value,
         VerificationActionGate.AMBIGUOUS_REQUIRES_CONFIRMATION.value
     ]
+
+
+def test_dosage_form_constrained_filtering():
+    # Test that dosage form constraint limits matching pool and prioritizes matching form
+    cap_match = cdsco_matcher.normalize_candidate("Cartilix", inferred_dosage_form="CAP")
+    assert cap_match["matched"] is True
+    assert cap_match["matched_brand"] == "Cartilix"
+
+    tab_match = cdsco_matcher.normalize_candidate("Tab Ultrafen Plus 50mg", inferred_dosage_form="TABLET")
+    assert tab_match["matched"] is True
+    assert tab_match["matched_brand"] == "Ultrafen Plus"
+

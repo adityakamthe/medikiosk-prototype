@@ -18,6 +18,88 @@ from rapidfuzz import fuzz
 from cdsco_normalizer import match_against_cdsco
 
 
+COMMONWEALTH_SHORTHAND_LEXICON: Dict[str, str] = {
+    "1+0+1": "Twice daily (1-0-1)",
+    "bd": "Twice daily",
+    "bid": "Twice daily",
+    "1+0+0": "Once daily (1-0-0)",
+    "od": "Once daily",
+    "0+0+1": "At bedtime (0-0-1)",
+    "hs": "At bedtime",
+    "sos": "As needed (PRN)",
+    "1+1+1": "Three times daily (1-1-1)",
+    "tds": "Three times daily",
+    "tid": "Three times daily",
+    "1/52": "1 week",
+    "2/52": "2 weeks",
+    "3/7": "3 days",
+    "5/7": "5 days",
+    "খাওয়ার পর": "After meals (PC)",
+    "খাওয়ার পর": "After meals (PC)",
+    "खाने के बाद": "After meals (PC)",
+    "খাওয়ার আগে": "Before meals (AC)",
+    "খাওয়ার আগে": "Before meals (AC)",
+    "खाने से पहले": "Before meals (AC)",
+    "খালি পেটে": "On empty stomach",
+    "खाली पेट": "On empty stomach"
+}
+
+
+def decode_shorthand_sig(sig: str) -> str:
+    """
+    Decodes Commonwealth and South Asian medical prescription abbreviations.
+    """
+    if not sig:
+        return sig
+    result = sig.strip()
+    for short, expanded in COMMONWEALTH_SHORTHAND_LEXICON.items():
+        pattern = r'(?i)\b' + re.escape(short) + r'\b' if short.isalnum() else re.escape(short)
+        if re.search(pattern, result):
+            result = re.sub(pattern, expanded, result)
+    return result
+
+
+def build_vlm_clinical_prompt(
+    verbal_context: Optional[str] = None,
+    line_strips_count: int = 0
+) -> str:
+    """
+    Builds the VLM system/transcription prompt with Medical Prior Injection
+    from Module A verbal intake and Commonwealth/South Asian Shorthand instructions.
+    """
+    prior_clause = (
+        f"CLINICAL PRIOR FROM VERBAL INTAKE (Module A Symptoms & History):\n{verbal_context}\n"
+        "Anchor ambiguous cursive trade brands and diagnoses against this patient context."
+        if verbal_context else
+        "No prior verbal intake recorded."
+    )
+
+    line_crop_clause = (
+        f"\nNOTE: {line_strips_count} high-resolution line crop strips are provided alongside the full image. "
+        "Transcribe line-by-line using both views to eliminate line skipping and column misassociations."
+        if line_strips_count > 0 else ""
+    )
+
+    return f"""You are an expert clinical transcription system specializing in Indian handwritten prescriptions and medical reports.
+
+{prior_clause}{line_crop_clause}
+
+COMMONWEALTH & SOUTH ASIAN SHORTHAND LEXICON:
+• '1+0+1', 'BD', 'BID' -> Twice daily (1-0-1)
+• '1+0+0', 'OD' -> Once daily (1-0-0)
+• '0+0+1', 'HS' -> At bedtime (0-0-1)
+• '1/52' -> 1 week; '3/7' -> 3 days
+• 'খাওয়ার পর' / 'खाने के बाद' -> After meals (PC)
+• 'খাওয়ার আগে' / 'खाने से पहले' -> Before meals (AC)
+
+INSTRUCTIONS:
+1. Extract medications (brand/generic name, form, strength, frequency, duration).
+2. Extract lab investigations (name, value, unit, reference range).
+3. Extract diagnoses and clinical findings.
+4. Output valid JSON.
+"""
+
+
 def normalize_token_name(token: str) -> str:
     """
     Strips forms and punctuation to compare core drug names.
