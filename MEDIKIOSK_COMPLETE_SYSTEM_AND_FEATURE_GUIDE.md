@@ -25,14 +25,19 @@
    - [4.1 Facility-Segregated Dual-Database Pipeline](#41-facility-segregated-dual-database-pipeline)
    - [4.2 Cross-Facility Longitudinal Record Exchange](#42-cross-facility-longitudinal-record-exchange)
    - [4.3 Multi-Modal Clinical Intake & Verification Pipeline](#43-multi-modal-clinical-intake--verification-pipeline)
-5. [End-to-End User Workflows (Step-by-Step Journeys)](#5-end-to-end-user-workflows-step-by-step-journeys)
-   - [5.1 Workflow 1: Hospital Facility Admin Setup & Portal Unlocking](#51-workflow-1-hospital-facility-admin-setup--portal-unlocking)
-   - [5.2 Workflow 2: Walk-In Patient Kiosk Registration & Voice Intake](#52-workflow-2-walk-in-patient-kiosk-registration--voice-intake)
-   - [5.3 Workflow 3: Emergency Red-Flag Interception (Zero-LLM Fast Path)](#53-workflow-3-emergency-red-flag-interception-zero-llm-fast-path)
-   - [5.4 Workflow 4: Patient Portal Login, Record History & OPD Booking](#54-workflow-4-patient-portal-login-record-history--opd-booking)
-   - [5.5 Workflow 5: Attending Clinician Consultation, Prescription & HIS Push](#55-workflow-5-attending-clinician-consultation-prescription--his-push)
-6. [Security, Privacy Architecture & DPDP Act 2023 Compliance](#6-security-privacy-architecture--dpdp-act-2023-compliance)
-7. [Technology Stack & Dependency Inventory](#7-technology-stack--dependency-inventory)
+5. [In-Depth 4-Module System: Features, Technical Architectures & User Flows](#5-in-depth-4-module-system-features-technical-architectures--user-flows)
+   - [5.1 Module A: Multimodal Conversational History Engine](#51-module-a-multimodal-conversational-history-engine)
+   - [5.2 Module B: Zero-Disk OCR & Document Digitization Engine](#52-module-b-zero-disk-ocr--document-digitization-engine)
+   - [5.3 Module C: Multimodal Clinical Verification, Contradiction Engine & SBAR Synthesis](#53-module-c-multimodal-clinical-verification-contradiction-engine--sbar-synthesis)
+   - [5.4 Module D: ABDM Network, DPDP Privacy & HIS Integration](#54-module-d-abdm-network-dpdp-privacy--his-integration)
+6. [End-to-End User Workflows (Step-by-Step Journeys)](#6-end-to-end-user-workflows-step-by-step-journeys)
+   - [6.1 Workflow 1: Hospital Facility Admin Setup & Portal Unlocking](#61-workflow-1-hospital-facility-admin-setup--portal-unlocking)
+   - [6.2 Workflow 2: Walk-In Patient Kiosk Registration & Voice Intake](#62-workflow-2-walk-in-patient-kiosk-registration--voice-intake)
+   - [6.3 Workflow 3: Emergency Red-Flag Interception (Zero-LLM Fast Path)](#63-workflow-3-emergency-red-flag-interception-zero-llm-fast-path)
+   - [6.4 Workflow 4: Patient Portal Login, Record History & OPD Booking](#64-workflow-4-patient-portal-login-record-history--opd-booking)
+   - [6.5 Workflow 5: Attending Clinician Consultation, Prescription & HIS Push](#65-workflow-5-attending-clinician-consultation-prescription--his-push)
+7. [Security, Privacy Architecture & DPDP Act 2023 Compliance](#7-security-privacy-architecture--dpdp-act-2023-compliance)
+8. [Technology Stack & Dependency Inventory](#8-technology-stack--dependency-inventory)
 
 ---
 
@@ -312,13 +317,256 @@ When a patient logs into the **Patient Portal** (`/patient`) or a clinician revi
                      - Side-by-Side Scanned Doc Drawer
                      - Editable Digital Prescription
                      - Attested FHIR R4 Bundle
-```
+---
+
+## 5. In-Depth 4-Module System: Features, Technical Architectures & User Flows
+
+MediKiosk is architected around four cohesive, specialized core clinical engines designated **Module A**, **Module B**, **Module C**, and **Module D**. Each module has dedicated responsibilities, pipeline isolation, and rigorous safety boundaries.
 
 ---
 
-## 5. End-to-End User Workflows (Step-by-Step Journeys)
+### 5.1 Module A: Multimodal Conversational History Engine
 
-### 5.1 Workflow 1: Hospital Facility Admin Setup & Portal Unlocking
+#### A. Executive Summary & Purpose
+Module A handles patient-facing intake at the on-site kiosk terminal. It replaces paper clipboards and intimidating forms with an empathetic, natural conversational interview conducted in the patient's mother tongue.
+
+#### B. Complete Feature List
+1. **22 Official 8th Schedule Indian Languages**: Assamese, Bengali, Bodo, Dogri, Gujarati, Hindi, Kannada, Kashmiri, Konkani, Maithili, Malayalam, Manipuri, Marathi, Nepali, Odia, Punjabi, Sanskrit, Santali, Sindhi, Tamil, Telugu, and Urdu.
+2. **National Bhashini Dhruva AI Integration**: Uses official MeitY models (`indic-tts-coqui-indo_aryan-gpu--t4` and Indic-ASR) for human-grade regional voice synthesis and transcription.
+3. **High-Availability Google TTS Proxy Fallback**: Embedded `/api/tts` regional proxy guaranteeing zero downtime if upstream national APIs face latency.
+4. **Adaptive 10–12 Turn SOCRATES Questionnaire**: Strictly caps conversational turns to between 10 and 12 questions to avoid patient cognitive fatigue, while systematically covering:
+   - **S**ite (Where is the pain or symptom located?)
+   - **O**nset (When did it begin? Was it sudden or gradual?)
+   - **C**haracter (What does it feel like? Throbbing, burning, stabbing?)
+   - **R**adiation (Does the sensation move anywhere else?)
+   - **A**ssociated Symptoms (Fever, nausea, vomiting, sweating?)
+   - **T**iming / Duration (Is it constant, episodic, worsening at night?)
+   - **E**xacerbating / Relieving Factors (What makes it better or worse?)
+   - **S**everity (1–10 pain scale or functional impairment).
+5. **Systematic Secondary Clinical Questioning**: Always incorporates drug and food allergies, active medications, previous surgeries, and family hereditary illness.
+6. **Sub-10ms Zero-LLM Emergency Red-Flag Interception**:
+   - High-speed deterministic regex scanner checking every speech utterance against 50+ emergency triggers (acute myocardial infarction, stroke FAST symptoms, severe anaphylaxis, respiratory distress, active hemorrhage).
+   - Bypasses conversational turns immediately, sounds an 800Hz Web Audio siren, flashes high-contrast red alerts, and dispatches the patient directly to the emergency resuscitation bay.
+7. **DPDP 2023 Multilingual Audio & Touchscreen Consent**: Plain language privacy notice with guardian delegation for minors or incapacitated patients.
+8. **Real-Time Visual Waveform & Audio Amplitude Meter**: Interactive animated equalizer bars powered by HTML5 Web Audio `AnalyserNode`.
+
+#### C. Technical Architecture & Data Pipeline
+```
+[Patient Mic] ──> [Web Audio AnalyserNode] (RMS Amplitude & Visualizer)
+                       │
+                       ▼
+          [Web Speech API / Bhashini ASR] (Locale BCP-47)
+                       │
+                       ▼ (Transcribed Patient Text)
+       [Deterministic Emergency Red-Flag Scanner]
+         ├── If Red Flag: Trigger Web Audio 800Hz Siren ──> Emergency Resuscitation Bay
+         └── If Safe: Continue to Clinical Pipeline
+                       │
+                       ▼
+            [POST /api/session/[id]/converse]
+                       │
+                       ▼
+      [Mistral Small / Groq LLaMA-3.3-70B Engine]
+   (Guides SOCRATES turn progression without hallucination)
+                       │
+                       ▼
+   [Structured Entity Extraction (JSON format)]
+                       │
+                       ▼
+ [INSERT INTO structured_history (Layer 1 Immutable Evidence)]
+                       │
+                       ▼
+    [Bhashini / Google TTS Regional Audio Generation]
+                       │
+                       ▼
+         [Patient Hears Next Question via Kiosk Speaker]
+```
+
+#### D. Step-by-Step Module A User Flow
+1. **Language Selection**: Patient approaches the kiosk and taps their preferred language card (e.g., Bengali / বাংলা).
+2. **Informed Consent**: Kiosk displays and speaks the DPDP Act notice. Patient taps "Accept & Proceed" or chooses caregiver delegation.
+3. **ABHA Card Scanning**: Patient holds their Ayushman Bharat QR card to the kiosk camera. System automatically parses ABHA ID, name, age, and gender.
+4. **Chief Complaint Capture**: Kiosk speaks: *"What health problems brought you to the hospital today?"* Patient responds via voice; transcription displays with audio waveforms.
+5. **Adaptive Questioning**: Kiosk asks targeted follow-ups: onset, severity, radiation, drug allergies, existing treatments, and past illnesses (strictly 10–12 questions).
+6. **Continuous Safety Monitoring**: Each answer is evaluated by the deterministic red-flag filter in <10ms.
+7. **Session Sealing**: Structured history is committed to the database, assigning the patient an OPD token number and transitioning smoothly to document scanning.
+
+---
+
+### 5.2 Module B: Zero-Disk OCR & Document Digitization Engine
+
+#### A. Executive Summary & Purpose
+Module B digitizes physical paper records (crumpled prescriptions, faded thermal lab slips, discharge summaries) into structured, queryable clinical data without exposing sensitive health images to physical disk storage.
+
+#### B. Complete Feature List
+1. **Zero-Disk Ephemeral RAM Processing**: Document image buffers reside exclusively in volatile server RAM during inference. Never written to permanent physical storage or public S3 buckets.
+2. **Multimodal Vision Parsing with Pixtral 12B**: State-of-the-art vision LLM trained to decipher doctor handwriting, vernacular Sig directions (e.g., *"subah shaam khane ke baad"*), and complex multi-column lab tables.
+3. **CDSCO Drug Normalization via RapidFuzz**:
+   - Matches extracted medication strings against 15,000+ approved medicines in the Central Drugs Standard Control Organisation (CDSCO) database.
+   - Resolves brand names (e.g., *Augmentin 625*) to generic molecules (*Amoxicillin + Clavulanic Acid*), dosage forms, and RxNorm codes.
+4. **LOINC Laboratory Investigation Mapping**: Normalizes test names (e.g., *HbA1c*, *FBS*, *Serum Creatinine*, *Hemoglobin*) and binds standard international LOINC identifiers (e.g., `4548-4`, `1558-6`).
+5. **Thermal Paper Image Optimization**: Automatic Gaussian thresholding, deskewing, and contrast sharpening to restore illegible thermal receipts.
+6. **Side-by-Side Clinician Cross-Checking Drawer**:
+   - Allows doctors to inspect original camera captures alongside AI extractions.
+   - Features 3x smooth zoom, 90° image rotation, and thermal contrast toggle.
+
+#### C. Technical Architecture & Data Pipeline
+```
+[Kiosk Document Camera] ──> [HTML5 Canvas Video Snapshot]
+                                    │
+                                    ▼ (Base64 JPEG Payload)
+                        [RAM Ephemeral Buffer] (Volatile Memory)
+                                    │
+                                    ▼
+                         [POST /api/session/[id]/scan]
+                                    │
+                                    ▼
+                  [Pixtral 12B Multimodal Vision Model]
+         (Parses handwritten Rx, Sig frequencies, and lab tables)
+                                    │
+                                    ▼ (Raw Extracted Entities)
+                   [RapidFuzz CDSCO Drug Resolver]
+                (Fuzzy Levenshtein + Phonetic Match)
+                                    │
+                                    ▼ (Standardized Medications & LOINC Labs)
+              [INSERT INTO extracted_entities (Layer 2 Draft)]
+                                    │
+                                    ▼
+                     [RAM Buffer Garbage-Collected]
+                     (Zero physical disk residue)
+```
+
+#### D. Step-by-Step Module B User Flow
+1. **Document Capture Prompt**: Kiosk displays: *"Please place your previous doctor prescriptions or lab reports in front of the scanner."*
+2. **Interactive Positioning**: Patient sees a live camera preview with alignment guidelines and taps "Capture Document".
+3. **Multi-Document Support**: Patient can scan up to 5 documents sequentially (prescriptions, discharge summaries, blood test slips).
+4. **Volatile AI Digitization**: The image is streamed into RAM; Pixtral 12B extracts medicines, dosages, frequencies, and lab values in under 3 seconds.
+5. **Standardization**: RapidFuzz maps brands to generic molecules and standardizes lab parameters to LOINC codes.
+6. **Clinician Access**: Stored entities appear immediately on the doctor's workstation, with the high-resolution scan ready in the side-by-side drawer.
+
+---
+
+### 5.3 Module C: Multimodal Clinical Verification, Contradiction Engine & SBAR Synthesis
+
+#### A. Executive Summary & Purpose
+Module C acts as the intelligent clinical bridge. It compares spoken interview answers (Module A) against scanned physical documents (Module B) to detect dangerous contradictions, and synthesizes structured SBAR and AYUSH clinical notes.
+
+#### B. Complete Feature List
+1. **Deterministic Cross-Modal Contradiction Engine**:
+   - Cross-references patient statements against paper documents.
+   - Example: Patient states *"I don't have high blood pressure"*, but a prescription from 2 months ago shows active *Amlodipine 5mg OD*.
+2. **Three-Tier Clinical Safety Classification**:
+   - **Tier-1 (Red Alert / Immediate Clinical Safety)**: Contradictions threatening immediate harm (e.g., patient taking blood thinners while denying bleeding risk, or denying diabetes when lab shows glucose of 240 mg/dL).
+   - **Tier-2 (Clinical Inconsistency)**: Significant discrepancies in medication dosages, frequencies, or duration.
+   - **Tier-3 (Informational Discrepancy)**: Minor variations in brand names or non-critical timing.
+3. **Medical SBAR Summary Synthesis**: Synthesizes verified drafts into standardized medical SBAR format (Situation, Background, Assessment, Recommendation).
+4. **Ministry of AYUSH Clinical Synthesizer**: Formulates classical Ayurvedic assessments based on **Dashavidha Pariksha** (Prakriti, Vikriti, Agni, Koshtha, Bala, Ahara-shakti) and Tridosha balance.
+5. **Dual-Coding Engine**: Simultaneously binds diagnoses to Western allopathic codes (ICD-10, SNOMED-CT) and Indian traditional medicine codes (NAMASTE / AYUSH Morbidity Codes).
+6. **High-Yield 30–45s Spoken Audio Briefing**: Generates a concise spoken summary in English focused on patient demographics and current complaints, eliminating long-winded verbatim report reading.
+7. **Active Drug-Allergy Conflict Detection**: Continuously checks prescribed medications against patient allergy history (e.g., Penicillin, NSAIDs) with animated warning badges.
+
+#### C. Technical Architecture & Data Pipeline
+```
+[structured_history (Module A)]        [extracted_entities (Module B)]
+               │                                      │
+               └──────────────────┬───────────────────┘
+                                  ▼
+                    [POST /api/session/[id]/summary]
+                                  │
+                                  ▼
+           [Deterministic Contradiction Detection Engine]
+             - Compares Spoken Allergies vs Prescribed Drugs
+             - Compares Denied Conditions vs Diagnostic Labs
+             - Classifies into Tier-1, Tier-2, or Tier-3 Alerts
+                                  │
+                                  ▼
+       [Dual Multimodal Synthesizer: Allopathy & AYUSH]
+         ├── Clinical SBAR Note (Situation, Background, Assessment, Plan)
+         ├── Dashavidha Pariksha (Prakriti, Agni, Bala, Koshtha)
+         └── Dual Coding (ICD-10, SNOMED-CT, NAMASTE)
+                                  │
+                                  ▼
+             [INSERT INTO draft_summaries & contradictions]
+                                  │
+                                  ▼
+         [High-Yield 30-45s Spoken Briefing Audio Generated]
+                                  │
+                                  ▼
+            [Delivered to Attending Doctor's Workstation]
+```
+
+#### D. Step-by-Step Module C User Flow
+1. **Intake Completion**: Module A interview ends and Module B document scans complete.
+2. **Automated Cross-Referencing**: Module C background worker merges both data streams.
+3. **Contradiction Evaluation**: Evaluates clinical logic rules; any conflict is flagged with its safety tier and stored in the `contradictions` table.
+4. **Clinical Note Synthesis**: Generates the dual-coded SBAR / Dashavidha note.
+5. **Doctor Review & Resolution**:
+   - Attending doctor opens the patient record on `/clinician`.
+   - Listens to the 30–45s audio briefing.
+   - Sees visual red contradiction alerts with side-by-side evidence quotes.
+   - Doctor accepts, overrides, or annotates discrepancies with a single click.
+
+---
+
+### 5.4 Module D: ABDM Network, DPDP Privacy & HIS Integration
+
+#### A. Executive Summary & Purpose
+Module D ensures MediKiosk operates seamlessly within India's national digital health ecosystem (Ayushman Bharat Digital Mission - ABDM), satisfies legal DPDP 2023 requirements, and pushes attested data into hospital EMRs.
+
+#### B. Complete Feature List
+1. **ABDM Milestone 1 (M1) - National Identity & Authentication**:
+   - Scans and validates official 14-digit ABHA Numbers and ABHA Addresses (`user@abdm`).
+   - Parses official ABDM QR codes on physical Ayushman Bharat cards.
+2. **ABDM Milestone 2 (M2) - Health Information Provider (HIP)**:
+   - Packages doctor-attested clinical sessions into standardized **HL7 FHIR Release 4 JSON Document Bundles**.
+   - Includes structured FHIR resources: `Patient`, `Encounter`, `Condition`, `Observation`, `MedicationStatement`, `AllergyIntolerance`, and `Composition`.
+3. **ABDM Milestone 3 (M3) - Health Information User (HIU)**:
+   - Queries ABDM Consent Managers for external patient records.
+   - Implements the **Fidelius Encryption Suite** (ECDH on Curve25519 + HKDF + AES-256-GCM) for end-to-end encrypted record exchange between hospitals.
+4. **Three-Tier Immutable Architecture**:
+   - **Layer 1: Immutable Evidence Layer**: Raw transcripts and sensor inputs (INSERT only).
+   - **Layer 2: Mutable Draft Layer**: OCR text and AI suggestions (open to clinician edits).
+   - **Layer 3: Legally Binding Attested Layer**: Cryptographically signed clinical note created only when the doctor clicks "Sign & Attest".
+5. **Cryptographic Audit Logging**: Every physician edit, document access, and prescription change is permanently recorded in the `audit_log` table with timestamps, clinician ID, IP address, and diffs.
+6. **Universal Hospital HIS / EMR Webhook Bridge**: One-click REST/HL7 bridge (`/api/clinician/session/[id]/his-push`) pushing data directly into legacy hospital software (e-Hospital, NIC Medanta, Carestream).
+
+#### C. Technical Architecture & Data Pipeline
+```
+[Clinician Clicks "Sign & Attest"] ──> [POST /api/clinician/session/[id]/attest]
+                                                      │
+                                                      ▼
+                                       [Seals Layer 3 Attested Record]
+                                                      │
+                                                      ▼
+                                        [HL7 FHIR R4 Bundle Builder]
+                       (Generates Patient, Condition, Observation, MedStatement)
+                                                      │
+                                                      ▼
+                                    [POST /api/clinician/session/[id]/his-push]
+                                                      │
+                                   ┌──────────────────┴──────────────────┐
+                                   ▼                                     ▼
+                      [Hospital HIS / EMR Webhook]            [ABDM Consent Manager]
+                      (e-Hospital, NIC Medanta)           (Fidelius ECDH Encryption)
+                                   │                                     │
+                                   └──────────────────┬──────────────────┘
+                                                      ▼
+                                  [Cryptographically Signed audit_log Entry]
+```
+
+#### D. Step-by-Step Module D User Flow
+1. **Patient ABHA Association**: Patient checks in at kiosk or reception; ABHA ID is bound to the OPD session.
+2. **Consultation & Prescribing**: Doctor conducts examination, edits medications, and confirms the diagnosis.
+3. **Digital Attestation**: Doctor clicks `Sign & Attest`. The system validates all required clinical fields and applies the clinician's digital signature and timestamp.
+4. **FHIR R4 Generation**: Backend automatically compiles the consultation into an ABDM-compliant FHIR R4 bundle.
+5. **Hospital HIS Push**: Doctor clicks `Push to HIS`. MediKiosk dispatches the payload to the hospital's central EMR server.
+6. **Audit Sealing**: The transaction is recorded in the immutable audit log, and the patient is discharged from the active queue.
+
+---
+
+## 6. End-to-End User Workflows (Step-by-Step Journeys)
+
+### 6.1 Workflow 1: Hospital Facility Admin Setup & Portal Unlocking
 1. **Initial State**: Kiosk terminals and Clinician dashboards load in a protected locked state.
 2. **Admin Action**: Hospital administrator navigates to `/hospital-login`.
 3. **Selection**: Selects facility (`AIIMS New Delhi` or `AIIA Medical Center`).
@@ -329,7 +577,7 @@ When a patient logs into the **Patient Portal** (`/patient`) or a clinician revi
    - Unlocks the on-site kiosk (`/kiosk`) and clinician suite (`/clinician`).
    - Displays green "Facility Active: AIIMS New Delhi (Integrated Multi-Specialty)" in the global header.
 
-### 5.2 Workflow 2: Walk-In Patient Kiosk Registration & Voice Intake
+### 6.2 Workflow 2: Walk-In Patient Kiosk Registration & Voice Intake
 1. **Arrival**: Patient arrives in the OPD waiting area and touches the MediKiosk screen (`/kiosk`).
 2. **Language Pick**: Patient selects their native tongue (e.g., Marathi or Bengali).
 3. **DPDP Notice**: Kiosk displays and reads aloud the data privacy consent notice; patient taps "Accept & Proceed".
@@ -347,7 +595,7 @@ When a patient logs into the **Patient Portal** (`/patient`) or a clinician revi
    - Kiosk assigns queue token `A-12` and displays: *"Thank you. Please proceed to Room 101 for General Medicine."*
    - Patient record is saved into the database and immediately appears on the doctor's screen.
 
-### 5.3 Workflow 3: Emergency Red-Flag Interception (Zero-LLM Fast Path)
+### 6.3 Workflow 3: Emergency Red-Flag Interception (Zero-LLM Fast Path)
 1. **Intake in Progress**: Patient begins voice questionnaire.
 2. **Trigger Event**: Patient states: *"I have sudden crushing chest pain radiating to my left arm and I cannot breathe."*
 3. **Immediate Detection**: The deterministic regex scanner intercepts keywords (`crushing chest pain`, `radiating to left arm`) in under 10 milliseconds.
@@ -358,7 +606,7 @@ When a patient logs into the **Patient Portal** (`/patient`) or a clinician revi
 5. **Patient Routing**: Screen flashes bold directions: *"CRITICAL EMERGENCY DETECTED — PROCEED IMMEDIATELY TO RESUSCITATION BAY (ROOM 001) — ORDERLY DISPATCHED"*.
 6. **Clinician Notification**: Doctor's dashboard immediately highlights patient token with a pulsing red `EMERGENCY_RED_FLAG` banner.
 
-### 5.4 Workflow 4: Patient Portal Login, Record History & OPD Booking
+### 6.4 Workflow 4: Patient Portal Login, Record History & OPD Booking
 1. **Access**: Patient opens `/patient` on their smartphone or home computer.
 2. **Login**: Patient enters their ABHA ID and demo password.
 3. **Cross-Facility History Review**:
@@ -371,7 +619,7 @@ When a patient logs into the **Patient Portal** (`/patient`) or a clinician revi
    - System assigns Doctor (`Dr. Vikram Sharma`), Room (`Room 204`), and issues Token `CARDIO-08`.
 5. **Confirmation**: Token is added to their active appointments tab, ready for their hospital arrival.
 
-### 5.5 Workflow 5: Attending Clinician Consultation, Prescription & HIS Push
+### 6.5 Workflow 5: Attending Clinician Consultation, Prescription & HIS Push
 1. **Session Selection**: Doctor views the live queue on `/clinician` and clicks on Patient `Ramesh Sharma (Token A-12)`.
 2. **30–45s Audio Briefing**:
    - Doctor clicks `🎙️ Listen to Clinical Briefing [30-45s]`.
@@ -392,28 +640,28 @@ When a patient logs into the **Patient Portal** (`/patient`) or a clinician revi
 
 ---
 
-## 6. Security, Privacy Architecture & DPDP Act 2023 Compliance
+## 7. Security, Privacy Architecture & DPDP Act 2023 Compliance
 
 MediKiosk was engineered from the ground up to adhere to India's **Digital Personal Data Protection (DPDP) Act 2023**:
 
-### 6.1 Consent Architecture
+### 7.1 Consent Architecture
 - **Informed & Granular**: Explains exactly what data is collected and for what single purpose (clinical OPD consultation).
 - **Multilingual Delivery**: Consent notice is delivered visually and via voice synthesis in the patient's selected Indian language.
 - **Easy Revocation**: A "Decline" button allows patients to opt out at any time without penalty, routing them to traditional physical paperwork.
 
-### 6.2 Ephemeral RAM Processing (Zero-Disk Storage)
+### 7.2 Ephemeral RAM Processing (Zero-Disk Storage)
 - **Volatile Document Handling**: Uploaded photos of prescriptions and lab slips are buffered solely in Node.js / Python memory buffers.
 - **No Disk Caching**: Images are never written to physical hard disks or persistent S3 buckets without explicit institutional consent.
 - **RAM Flush**: Image buffers are garbage-collected immediately after entity extraction.
 
-### 6.3 Three-Tier Immutable Record Structure
+### 7.3 Three-Tier Immutable Record Structure
 1. **Layer 1 (Immutable Evidence Layer)**: Raw transcripts and timestamped patient statements (INSERT only).
 2. **Layer 2 (Mutable Draft Layer)**: AI-synthesized summaries, OCR extractions, marked `UNVERIFIED / DRAFT`.
 3. **Layer 3 (Legally Binding Attested Layer)**: Created only upon physician sign-off, containing doctor digital signature and final prescription.
 
 ---
 
-## 7. Technology Stack & Dependency Inventory
+## 8. Technology Stack & Dependency Inventory
 
 | Layer | Component | Version | Role in Architecture |
 |---|---|---|---|
