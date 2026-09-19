@@ -403,21 +403,26 @@ Exposes a configurable REST / HL7 webhook that pushes the final attested SBAR no
 
 ## 10. Clinician Suite & Specialized Interactive Components
 
-### 10.1 Spoken Doctor Audio Briefing (`🎙️ Listen to Clinical Briefing`)
-- Embedded directly on the One-Page History sheet and Structured Note tab in [`app/clinician/page.tsx`](file:///c:/medikiosk-main/app/clinician/page.tsx).
-- Synthesizes high-yield clinical briefing in English (`/api/tts?lang=en`) detailing patient chief complaints, onset, vitals, and current medication regimen.
-- Includes Play, Pause, Stop, animated audio equalizer waveform, and speed adjustments (**1.0x, 1.25x, 1.5x**).
+### 10.1 Spoken Doctor Audio Briefing (`🎙️ Listen to Clinical Briefing [30-45s]`)
+- **Concise 30–45 Second Synthesis**: Rather than a robotic, verbatim recitation of every section in the report (which previously took almost 2 minutes to drone through family history, surgical history, and negative review of systems), the engine synthesizes a high-yield clinical briefing designed to be heard in **30 to 45 seconds** (~60 to 75 words).
+- **Core Information Delivered**:
+  1. **Patient Identification**: Full patient name, age, gender, and OPD queue token.
+  2. **Current Complaints & Presentation**: Chief complaints and primary symptom progression/duration cleanly extracted from the HPI.
+  3. **High-Priority Safety Alerts**: Immediate verbal callout of severe documented drug allergies or critical abnormal lab findings if present.
+  4. **Direct Handoff**: Hands off directly to the attending clinician for physical examination.
+- **Playback Architecture**: Synthesized via `/api/tts?lang=en`, featuring Play/Pause/Stop, live animated equalizer waveform, speed adjustments (**1.0x, 1.25x, 1.5x**), and dedicated `[30-45s]` badges across both allopathic and ayurvedic clinical sheets.
 
 ### 10.2 Scanned Document Side-by-Side Cross-Checking Drawer
 - Slide-out drawer accessible via `Cross-Check Prescriptions / Docs` button.
 - Displays original uploaded handwritten prescriptions alongside digital extractions.
 - Controls: **Zoom In / Out (up to 3x)**, **90° rotation** for sideways mobile photos, and **high-contrast filter** to read faint thermal paper receipts.
 
-### 10.3 Digitalized & Editable Prescription Table ([`DigitalPrescriptionEditor.tsx`](file:///c:/medikiosk-main/components/clinician/DigitalPrescriptionEditor.tsx))
-- **Tabular Fields**: Medicine Name, Dosage (e.g. 500mg), Frequency (`1-0-1`, `OD`, `BD`, `TDS`, `SOS`), Timing (`After Meals`, `Before Meals`, `Bedtime`), and Duration (Days).
-- **Inline Actions**: Add new medication row, edit existing lines, delete medications.
-- **Out-of-Range Lab Highlights**: Prominently displays abnormal parameters (e.g., HbA1c 9.2% [High], Creatinine 1.8 mg/dL [High], Hemoglobin 9.4 g/dL [Low]) with normal reference ranges, abnormal badges, and doctor annotation inputs.
-- **Active Allergy Conflict Detection**: Automatically scans prescribed medicines against patient allergies (e.g. Penicillin, Sulfa, NSAIDs) and triggers an animated red alert badge if a contraindication is detected.
+### 10.3 Digitalized & Editable Prescription Table & Out-of-Range Clinical Findings ([`DigitalPrescriptionEditor.tsx`](file:///c:/medikiosk-main/components/clinician/DigitalPrescriptionEditor.tsx))
+- **Zero Mock Data & Authentic Extractions Only**: All placeholder mock labs (`HbA1c 9.2%`, `FBG 184 mg/dL`, `Creatinine 1.8 mg/dL`, `Hemoglobin 9.4 g/dL`) and demo medications have been purged from the codebase.
+- **Genuine Report-Driven Out-of-Range Highlights**: Clinical parameters are strictly extracted from uploaded patient investigation reports (`extracted_entities` and `/clinical-safety`). Findings are only flagged when genuine abnormal/panic indicators exist (`HIGH`, `LOW`, `PANIC`, `CRITICAL`, `is_panic`, `severity === 'panic' | 'abnormal'`).
+- **Conditional Rendering (Zero Phantom Cards)**: If a patient has no out-of-range findings or has not uploaded any lab reports, the entire out-of-range clinical details container is **completely omitted** from the DOM (`{outOfRangeLabs.length > 0 && (...) }`), preventing phantom alert cards from cluttering the physician's workspace.
+- **Editable Prescriptions**: Tabular fields for Medicine Name, Dosage, Frequency (`1-0-1`, `OD`, `BD`, `TDS`, `SOS`), Timing (`After Meals`, `Before Meals`, `Bedtime`), and Duration (Days) with inline row addition, editing, and deletion.
+- **Active Allergy Conflict Detection**: Automatically cross-checks prescribed medicines against patient allergies (e.g., Penicillin, Sulfa, NSAIDs) and triggers an animated red alert badge if a contraindication is detected.
 
 ### 10.4 FHIR R4 Resource Inspector ([`FhirResourceInspector.tsx`](file:///c:/medikiosk-main/components/clinician/FhirResourceInspector.tsx))
 - Replaces unformatted JSON dumps with clean, color-coded ABDM FHIR R4 cards:
