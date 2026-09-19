@@ -8,23 +8,19 @@ import re
 import json
 import urllib.request
 from typing import Dict, Any, Optional
+from pathlib import Path
 
-# Mappings of regional Indic digits to standard Arabic numerals
-VERNACULAR_DIGITS_MAP = {
-    # Bengali / Assamese
+# Fallback in-memory mappings if YAML is absent
+FALLBACK_DIGITS_MAP = {
     '০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4',
     '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9',
-    # Devanagari (Hindi, Marathi)
     '०': '0', '१': '1', '२': '2', '३': '3', '४': '4',
     '५': '5', '६': '6', '७': '7', '८': '8', '९': '9',
-    # Gujarati
     '૦': '0', '૧': '1', '૨': '2', '૩': '3', '૪': '4',
     '૫': '5', '૬': '6', '૭': '7', '૮': '8', '૯': '9'
 }
 
-# Clinical Sig terms dictionary for deterministic resolution
-VERNACULAR_SIG_DICTIONARY = {
-    # Bengali terms
+FALLBACK_SIG_DICTIONARY = {
     'খাওয়ার পর': 'After Meals (PC)',
     'খাওয়ার পর': 'After Meals (PC)',
     'খাওয়ার আগে': 'Before Meals (AC)',
@@ -38,8 +34,6 @@ VERNACULAR_SIG_DICTIONARY = {
     'ভরা পেটে': 'After Meals (PC)',
     'ব্যথা হলে': 'As Needed for Pain (PRN)',
     'জ্বর আসলে': 'As Needed for Fever (PRN)',
-
-    # Hindi terms
     'खाने के बाद': 'After Meals (PC)',
     'खाने से पहले': 'Before Meals (AC)',
     'रात को सोते समय': 'At Bedtime (HS)',
@@ -49,19 +43,46 @@ VERNACULAR_SIG_DICTIONARY = {
     'खाली पेट': 'On Empty Stomach',
     'दर्द होने पर': 'As Needed for Pain (PRN)',
     'बुखार आने पर': 'As Needed for Fever (PRN)',
-
-    # Tamil terms
     'சாப்பாட்டுக்கு பின்': 'After Meals (PC)',
     'சாப்பாட்டுக்கு முன்': 'Before Meals (AC)',
     'ஒரு நாளைக்கு ஒரு முறை': 'Once Daily (OD)',
     'ஒரு நாளைக்கு இரு முறை': 'Twice Daily (BD)',
-
-    # Telugu terms
     'భోజనం తర్వాత': 'After Meals (PC)',
     'భోజనానికి ముందు': 'Before Meals (AC)',
     'రోజుకు ఒకసారి': 'Once Daily (OD)',
     'రోజుకు రెండుసార్లు': 'Twice Daily (BD)'
 }
+
+def load_sig_lexicon() -> Dict[str, Any]:
+    """Loads externalized sig lexicon YAML file with fallback to in-memory dictionaries."""
+    lexicon_path = Path(__file__).resolve().parent / "sig_lexicon.yaml"
+    if lexicon_path.exists():
+        try:
+            import yaml
+            with open(lexicon_path, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                if isinstance(data, dict):
+                    return data
+        except Exception:
+            pass
+    return {
+        "numeral_mappings": FALLBACK_DIGITS_MAP,
+        "frequency": {},
+        "duration": {"patterns": []},
+        "timing_hi_bn": FALLBACK_SIG_DICTIONARY
+    }
+
+SIG_LEXICON = load_sig_lexicon()
+
+# Expose backward-compatible global mappings
+VERNACULAR_DIGITS_MAP = SIG_LEXICON.get("numeral_mappings", FALLBACK_DIGITS_MAP)
+_timing_raw = SIG_LEXICON.get("timing_hi_bn", FALLBACK_SIG_DICTIONARY)
+VERNACULAR_SIG_DICTIONARY = {}
+for k, v in _timing_raw.items():
+    if isinstance(v, dict):
+        VERNACULAR_SIG_DICTIONARY[k] = v.get("english", str(v))
+    else:
+        VERNACULAR_SIG_DICTIONARY[k] = str(v)
 
 
 def normalize_vernacular_numerals(text: str) -> str:
@@ -90,14 +111,68 @@ def detect_script_language(text: str) -> str:
     return "English"
 
 
-def translate_vernacular_sig(text: str) -> Dict[str, Any]:
+def regex_preprocess_sig(text: str) -> Dict[str, Any]:
+    """
+    Pre-processes raw sig strings using compiled regex patterns for standard clinical shorthand:
+    - Normalizes Indic numerals
+    - Resolves duration patterns (e.g., 3/7 -> 3 days, 1/52 -> 1 week)
+    - Resolves frequency patterns (e.g., 1+0+1 -> 1-0-1, BD -> Twice Daily)
+    """
+    normalized = normalize_vernacular_numerals(text)
+    detected_duration = None
+    standardized_duration = None
+
+    # Check duration patterns from lexicon
+    duration_patterns = SIG_LEXICON.get("duration", {}).get("patterns", [])
+    for pat in duration_patterns:
+        rgx = pat.get("regex")
+        unit = pat.get("unit", "")
+        if rgx:
+            m = re.search(rgx, normalized)
+            if m:
+                val = m.group(1)
+                detected_duration = m.group(0)
+                standardized_duration = f"{val} {unit}"
+                # Replace notation in text with standardized phrase
+                normalized = re.sub(rgx, standardized_duration, normalized)
+                break
+
+    # Standardize plus/slash notation: 1+0+1, 1/0/1, 1-0-1
+    shorthand_match = re.search(r'([0-9])\s*[\+\-\/]\s*([0-9])\s*[\+\-\/]\s*([0-9])', normalized)
+    standardized_code = None
+    if shorthand_match:
+        m, a, n = shorthand_match.groups()
+        standardized_code = f"{m}-{a}-{n}"
+        normalized = re.sub(r'([0-9])\s*[\+\-\/]\s*([0-9])\s*[\+\-\/]\s*([0-9])', standardized_code, normalized)
+
+    # Check frequency regex patterns
+    freq_entries = SIG_LEXICON.get("frequency", {})
+    detected_freq = None
+    for key, f_data in freq_entries.items():
+        rgx = f_data.get("regex")
+        if rgx and re.search(rgx, normalized):
+            detected_freq = f_data
+            if not standardized_code and f_data.get("code"):
+                standardized_code = f_data.get("code")
+            break
+
+    return {
+        "preprocessed_text": normalized,
+        "standardized_code": standardized_code,
+        "detected_duration": standardized_duration or detected_duration,
+        "detected_frequency": detected_freq
+    }
+
+
+def translate_vernacular_sig(text: str, source: str = "primary_vlm") -> Dict[str, Any]:
     """
     Translates vernacular clinical instructions and sig codes into standardized
     English clinical syntax, including 'standardized_sig' in hyphenated format (e.g. '1-0-1 After Meals').
+    Includes source attribution ("primary_vlm" or "bhashini_ocr").
     """
     detected_lang = detect_script_language(text)
-    normalized_digits = normalize_vernacular_numerals(text)
-    translated_text = normalized_digits
+    preproc = regex_preprocess_sig(text)
+    translated_text = preproc["preprocessed_text"]
     matches_found = []
 
     # Map colloquial timing phrases to standard sigs
@@ -124,7 +199,7 @@ def translate_vernacular_sig(text: str) -> Dict[str, Any]:
         sig_explanation = f"Morning: {m}, Afternoon: {a}, Night: {n}"
         translated_text = f"{translated_text} [{sig_explanation}]"
 
-    was_translated = len(matches_found) > 0 or normalized_digits != text or detected_lang != "English"
+    was_translated = len(matches_found) > 0 or translated_text != text or detected_lang != "English"
 
     # Compute standardized hyphenated code (e.g. '1-0-1 After Meals')
     clean_base = translated_text.split(" [")[0].strip()
@@ -137,6 +212,9 @@ def translate_vernacular_sig(text: str) -> Dict[str, Any]:
         m, a, n = shorthand_norm.groups()
         remainder = clean_base_clean.replace(shorthand_norm.group(0), "").strip()
         standardized_hyphen = f"{m}-{a}-{n} {remainder}".strip()
+    elif preproc.get("standardized_code"):
+        remainder = clean_base_clean.replace(preproc["standardized_code"], "").strip()
+        standardized_hyphen = f"{preproc['standardized_code']} {remainder}".strip()
 
     # Determine frequency category
     freq_cat = "UNKNOWN"
@@ -148,6 +226,8 @@ def translate_vernacular_sig(text: str) -> Dict[str, Any]:
         freq_cat = "OD"
     elif "1-1-1-1" in standardized_hyphen or "Four Times Daily" in translated_text:
         freq_cat = "QID"
+    elif preproc.get("detected_frequency"):
+        freq_cat = preproc["detected_frequency"].get("category", "UNKNOWN")
 
     return {
         "original_text": text,
@@ -155,8 +235,10 @@ def translate_vernacular_sig(text: str) -> Dict[str, Any]:
         "standardized_sig": standardized_hyphen,
         "detected_language": detected_lang,
         "frequency_category": freq_cat,
+        "duration": preproc.get("detected_duration"),
         "was_translated": was_translated,
-        "vernacular_terms_resolved": matches_found
+        "vernacular_terms_resolved": matches_found,
+        "source": source
     }
 
 
@@ -233,7 +315,7 @@ def route_indic_crop_to_bhashini(
             "sig_result": None
         }
 
-    sig_res = translate_vernacular_sig(ocr_text)
+    sig_res = translate_vernacular_sig(ocr_text, source="bhashini_ocr")
     return {
         "ocr_success": True,
         "raw_transcription": ocr_text,

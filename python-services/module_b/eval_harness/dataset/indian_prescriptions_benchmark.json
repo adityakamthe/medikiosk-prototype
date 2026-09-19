@@ -1,0 +1,452 @@
+[
+  {
+    "id": "item_001",
+    "raw_ocr_or_transcription": "Tab Ultrafen Plus 1-0-1",
+    "expected_brand": "Ultrafen Plus",
+    "expected_generic": "Diclofenac Sodium + Paracetamol",
+    "expected_sig": "1-0-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_002",
+    "raw_ocr_or_transcription": "Tab Augmentin 625 1-0-1 x 5/7",
+    "expected_brand": "Augmentin",
+    "expected_generic": "Amoxicillin + Clavulanic Acid",
+    "expected_sig": "1-0-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_003",
+    "raw_ocr_or_transcription": "Tab Pantocid 40 1-0-0 खाली पेट",
+    "expected_brand": "Pantocid",
+    "expected_generic": "Pantoprazole",
+    "expected_sig": "1-0-0 On Empty Stomach",
+    "expected_form": "TABLET",
+    "language_or_script": "Hindi"
+  },
+  {
+    "id": "item_004",
+    "raw_ocr_or_transcription": "Cap Pan-D 1-0-0 Before Meals",
+    "expected_brand": "Pan-D",
+    "expected_generic": "Pantoprazole + Domperidone",
+    "expected_sig": "1-0-0",
+    "expected_form": "CAP",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_005",
+    "raw_ocr_or_transcription": "Tab Calpol 650 1-0-1 জ্বর আসলে",
+    "expected_brand": "Calpol",
+    "expected_generic": "Paracetamol (Acetaminophen)",
+    "expected_sig": "1-0-1 As Needed for Fever (PRN)",
+    "expected_form": "TABLET",
+    "language_or_script": "Bengali"
+  },
+  {
+    "id": "item_006",
+    "raw_ocr_or_transcription": "Tab Dolo 650 TDS",
+    "expected_brand": "Dolo 650",
+    "expected_generic": "Paracetamol (Acetaminophen)",
+    "expected_sig": "1-1-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_007",
+    "raw_ocr_or_transcription": "Tab Telma 40 1-0-0 Morning",
+    "expected_brand": "Telma",
+    "expected_generic": "Telmisartan",
+    "expected_sig": "1-0-0",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_008",
+    "raw_ocr_or_transcription": "Tab Glycomet 500 1-0-1 After Meals",
+    "expected_brand": "Glycomet",
+    "expected_generic": "Metformin Hydrochloride",
+    "expected_sig": "1-0-1 After Meals",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_009",
+    "raw_ocr_or_transcription": "Tab Atorva 20 0-0-1 At Bedtime",
+    "expected_brand": "Atorva",
+    "expected_generic": "Atorvastatin",
+    "expected_sig": "0-0-1 At Bedtime (HS)",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_010",
+    "raw_ocr_or_transcription": "Tab Cartilix 1-0-1 x 1/52",
+    "expected_brand": "Cartilix",
+    "expected_generic": "Diacerein + Glucosamine Sulfate + Methylsulfonylmethane (MSM)",
+    "expected_sig": "1-0-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_011",
+    "raw_ocr_or_transcription": "Tab Relentus 1-0-1",
+    "expected_brand": "Relentus",
+    "expected_generic": "Cetirizine Hydrochloride + Ambroxol Hydrochloride",
+    "expected_sig": "1-0-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_012",
+    "raw_ocr_or_transcription": "Cap Progut 1-0-1",
+    "expected_brand": "Progut",
+    "expected_generic": "Probiotic & Prebiotic Consortium",
+    "expected_sig": "1-0-1",
+    "expected_form": "CAP",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_013",
+    "raw_ocr_or_transcription": "Tab Baclofen 10 1-0-1",
+    "expected_brand": "Baclofen",
+    "expected_generic": "Baclofen",
+    "expected_sig": "1-0-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_014",
+    "raw_ocr_or_transcription": "Tab Bactrim DS 1-0-1",
+    "expected_brand": "Bactrim",
+    "expected_generic": "Sulfamethoxazole + Trimethoprim (Co-Trimoxazole)",
+    "expected_sig": "1-0-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_015",
+    "raw_ocr_or_transcription": "Tab Cifran 500 BD x 3/7",
+    "expected_brand": "Ciprofloxacin",
+    "expected_generic": "Ciprofloxacin",
+    "expected_sig": "1-0-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_016",
+    "raw_ocr_or_transcription": "Cap Omez 20 1-0-0",
+    "expected_brand": "Omez",
+    "expected_generic": "Omeprazole",
+    "expected_sig": "1-0-0",
+    "expected_form": "CAP",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_017",
+    "raw_ocr_or_transcription": "Cap Tetracycline 500 QID",
+    "expected_brand": "Tetracycline",
+    "expected_generic": "Tetracycline Hydrochloride",
+    "expected_sig": "1-1-1-1",
+    "expected_form": "CAP",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_018",
+    "raw_ocr_or_transcription": "Tab Ibuprofen 400 BD pain",
+    "expected_brand": "Ibuprofen",
+    "expected_generic": "Ibuprofen",
+    "expected_sig": "1-0-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_019",
+    "raw_ocr_or_transcription": "Tab Diclofenac 50 1-0-1",
+    "expected_brand": "Diclofenac",
+    "expected_generic": "Diclofenac Sodium",
+    "expected_sig": "1-0-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_020",
+    "raw_ocr_or_transcription": "Tab Pantocid 40mg দিনে একবার",
+    "expected_brand": "Pantocid",
+    "expected_generic": "Pantoprazole",
+    "expected_sig": "1-0-0",
+    "expected_form": "TABLET",
+    "language_or_script": "Bengali"
+  },
+  {
+    "id": "item_021",
+    "raw_ocr_or_transcription": "Ultrafen + 50mg 1+0+1",
+    "expected_brand": "Ultrafen Plus",
+    "expected_generic": "Diclofenac Sodium + Paracetamol",
+    "expected_sig": "1-0-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_022",
+    "raw_ocr_or_transcription": "Tab Dolo-650 दिन में दो बार",
+    "expected_brand": "Dolo 650",
+    "expected_generic": "Paracetamol (Acetaminophen)",
+    "expected_sig": "1-0-1",
+    "expected_form": "TABLET",
+    "language_or_script": "Hindi"
+  },
+  {
+    "id": "item_023",
+    "raw_ocr_or_transcription": "Tab Augmentin 625mg BD",
+    "expected_brand": "Augmentin",
+    "expected_generic": "Amoxicillin + Clavulanic Acid",
+    "expected_sig": "1-0-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_024",
+    "raw_ocr_or_transcription": "Tab Telma 40mg OD",
+    "expected_brand": "Telma",
+    "expected_generic": "Telmisartan",
+    "expected_sig": "1-0-0",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_025",
+    "raw_ocr_or_transcription": "Tab Glycomet 500mg 1-0-1",
+    "expected_brand": "Glycomet",
+    "expected_generic": "Metformin Hydrochloride",
+    "expected_sig": "1-0-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_026",
+    "raw_ocr_or_transcription": "Tab Cartilix 750mg 1-0-1",
+    "expected_brand": "Cartilix",
+    "expected_generic": "Diacerein + Glucosamine Sulfate + Methylsulfonylmethane (MSM)",
+    "expected_sig": "1-0-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_027",
+    "raw_ocr_or_transcription": "Tab Relentus 1-0-1 खाने के बाद",
+    "expected_brand": "Relentus",
+    "expected_generic": "Cetirizine Hydrochloride + Ambroxol Hydrochloride",
+    "expected_sig": "1-0-1 After Meals (PC)",
+    "expected_form": "TABLET",
+    "language_or_script": "Hindi"
+  },
+  {
+    "id": "item_028",
+    "raw_ocr_or_transcription": "Cap Progut 1-0-0",
+    "expected_brand": "Progut",
+    "expected_generic": "Probiotic & Prebiotic Consortium",
+    "expected_sig": "1-0-0",
+    "expected_form": "CAP",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_029",
+    "raw_ocr_or_transcription": "Tab Calpol 500mg SOS",
+    "expected_brand": "Calpol",
+    "expected_generic": "Paracetamol (Acetaminophen)",
+    "expected_sig": "PRN",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_030",
+    "raw_ocr_or_transcription": "Tab Pan 40 1-0-0",
+    "expected_brand": "Pantocid",
+    "expected_generic": "Pantoprazole",
+    "expected_sig": "1-0-0",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_031",
+    "raw_ocr_or_transcription": "Tab Atorva 10mg HS",
+    "expected_brand": "Atorva",
+    "expected_generic": "Atorvastatin",
+    "expected_sig": "0-0-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_032",
+    "raw_ocr_or_transcription": "Tab Baclofen 20mg BD",
+    "expected_brand": "Baclofen",
+    "expected_generic": "Baclofen",
+    "expected_sig": "1-0-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_033",
+    "raw_ocr_or_transcription": "Tab Cifran 250mg BD",
+    "expected_brand": "Ciprofloxacin",
+    "expected_generic": "Ciprofloxacin",
+    "expected_sig": "1-0-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_034",
+    "raw_ocr_or_transcription": "Cap Omez 40mg OD",
+    "expected_brand": "Omez",
+    "expected_generic": "Omeprazole",
+    "expected_sig": "1-0-0",
+    "expected_form": "CAP",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_035",
+    "raw_ocr_or_transcription": "Tab Diclofenac 75mg 1-0-1",
+    "expected_brand": "Diclofenac",
+    "expected_generic": "Diclofenac Sodium",
+    "expected_sig": "1-0-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_036",
+    "raw_ocr_or_transcription": "Tab Ibuprofen 200mg TDS",
+    "expected_brand": "Ibuprofen",
+    "expected_generic": "Ibuprofen",
+    "expected_sig": "1-1-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_037",
+    "raw_ocr_or_transcription": "Tab Dolo 650 1-0-1 x 3/7",
+    "expected_brand": "Dolo 650",
+    "expected_generic": "Paracetamol (Acetaminophen)",
+    "expected_sig": "1-0-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_038",
+    "raw_ocr_or_transcription": "Tab Augmentin 375mg TDS",
+    "expected_brand": "Augmentin",
+    "expected_generic": "Amoxicillin + Clavulanic Acid",
+    "expected_sig": "1-1-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_039",
+    "raw_ocr_or_transcription": "Cap Pan D 1-0-0 খালি পেটে",
+    "expected_brand": "Pan-D",
+    "expected_generic": "Pantoprazole + Domperidone",
+    "expected_sig": "1-0-0 On Empty Stomach",
+    "expected_form": "CAP",
+    "language_or_script": "Bengali"
+  },
+  {
+    "id": "item_040",
+    "raw_ocr_or_transcription": "Tab Telma 20mg OD",
+    "expected_brand": "Telma",
+    "expected_generic": "Telmisartan",
+    "expected_sig": "1-0-0",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_041",
+    "raw_ocr_or_transcription": "Tab Glycomet 850mg BD",
+    "expected_brand": "Glycomet",
+    "expected_generic": "Metformin Hydrochloride",
+    "expected_sig": "1-0-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_042",
+    "raw_ocr_or_transcription": "Tab Atorva 40mg HS",
+    "expected_brand": "Atorva",
+    "expected_generic": "Atorvastatin",
+    "expected_sig": "0-0-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_043",
+    "raw_ocr_or_transcription": "Tab Ultrafen Plus 1-0-0",
+    "expected_brand": "Ultrafen Plus",
+    "expected_generic": "Diclofenac Sodium + Paracetamol",
+    "expected_sig": "1-0-0",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_044",
+    "raw_ocr_or_transcription": "Tab Calpol 250mg TDS",
+    "expected_brand": "Calpol",
+    "expected_generic": "Paracetamol (Acetaminophen)",
+    "expected_sig": "1-1-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_045",
+    "raw_ocr_or_transcription": "Tab Cartilix 250mg 1-0-1",
+    "expected_brand": "Cartilix",
+    "expected_generic": "Diacerein + Glucosamine Sulfate + Methylsulfonylmethane (MSM)",
+    "expected_sig": "1-0-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_046",
+    "raw_ocr_or_transcription": "Tab Relentus BD",
+    "expected_brand": "Relentus",
+    "expected_generic": "Cetirizine Hydrochloride + Ambroxol Hydrochloride",
+    "expected_sig": "1-0-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_047",
+    "raw_ocr_or_transcription": "Tab Pantocid 20mg OD",
+    "expected_brand": "Pantocid",
+    "expected_generic": "Pantoprazole",
+    "expected_sig": "1-0-0",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_048",
+    "raw_ocr_or_transcription": "Tab Baclofen 10mg TDS",
+    "expected_brand": "Baclofen",
+    "expected_generic": "Baclofen",
+    "expected_sig": "1-1-1",
+    "expected_form": "TABLET",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_049",
+    "raw_ocr_or_transcription": "Cap Tetracycline 250mg QID",
+    "expected_brand": "Tetracycline",
+    "expected_generic": "Tetracycline Hydrochloride",
+    "expected_sig": "1-1-1-1",
+    "expected_form": "CAP",
+    "language_or_script": "English"
+  },
+  {
+    "id": "item_050",
+    "raw_ocr_or_transcription": "Tab Dolo 650mg 1-0-1 ভরা পেটে",
+    "expected_brand": "Dolo 650",
+    "expected_generic": "Paracetamol (Acetaminophen)",
+    "expected_sig": "1-0-1 After Meals (PC)",
+    "expected_form": "TABLET",
+    "language_or_script": "Bengali"
+  }
+]

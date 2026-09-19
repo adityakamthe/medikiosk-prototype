@@ -1,0 +1,219 @@
+# MediKiosk Module B - Externalized Vernacular Sig Lexicon
+# Standardized Indian Clinical Prescriptions Lexicon
+
+numeral_mappings:
+  # Bengali / Assamese
+  '০': '0'
+  '১': '1'
+  '২': '2'
+  '৩': '3'
+  '৪': '4'
+  '৫': '5'
+  '৬': '6'
+  '৭': '7'
+  '৮': '8'
+  '৯': '9'
+  # Devanagari (Hindi, Marathi)
+  '०': '0'
+  '१': '1'
+  '२': '2'
+  '३': '3'
+  '४': '4'
+  '५': '5'
+  '६': '6'
+  '७': '7'
+  '८': '8'
+  '९': '9'
+  # Gujarati
+  '૦': '0'
+  '૧': '1'
+  '૨': '2'
+  '૩': '3'
+  '૪': '4'
+  '૫': '5'
+  '૬': '6'
+  '૭': '7'
+  '૮': '8'
+  '૯': '9'
+
+frequency:
+  # Latin / Clinical Abbreviations
+  'OD':
+    english: 'Once Daily (OD)'
+    code: '1-0-0'
+    category: 'OD'
+    regex: '(?i)\b(OD|QD|ONCE\s+DAILY|ONCE\s+A\s+DAY)\b'
+  'BD':
+    english: 'Twice Daily (BD)'
+    code: '1-0-1'
+    category: 'BID'
+    regex: '(?i)\b(BD|BID|TWICE\s+DAILY|TWICE\s+A\s+DAY)\b'
+  'TDS':
+    english: 'Three Times Daily (TDS)'
+    code: '1-1-1'
+    category: 'TDS'
+    regex: '(?i)\b(TDS|TID|THRICE\s+DAILY|THREE\s+TIMES\s+DAILY)\b'
+  'QID':
+    english: 'Four Times Daily (QID)'
+    code: '1-1-1-1'
+    category: 'QID'
+    regex: '(?i)\b(QID|FOUR\s+TIMES\s+DAILY)\b'
+  'HS':
+    english: 'At Bedtime (HS)'
+    code: '0-0-1'
+    category: 'HS'
+    regex: '(?i)\b(HS|BEDTIME|AT\s+BEDTIME|HORA\s+SOMNI)\b'
+  'SOS':
+    english: 'As Needed (SOS / PRN)'
+    code: 'PRN'
+    category: 'PRN'
+    regex: '(?i)\b(SOS|PRN|AS\s+NEEDED|WHEN\s+REQUIRED)\b'
+  'STAT':
+    english: 'Immediately (STAT)'
+    code: 'STAT'
+    category: 'STAT'
+    regex: '(?i)\b(STAT|IMMEDIATELY)\b'
+  'QAM':
+    english: 'Every Morning'
+    code: '1-0-0'
+    category: 'OD'
+    regex: '(?i)\b(QAM|EVERY\s+MORNING)\b'
+  'QPM':
+    english: 'Every Evening'
+    code: '0-0-1'
+    category: 'OD'
+    regex: '(?i)\b(QPM|EVERY\s+EVENING)\b'
+
+duration:
+  # Standard Indian clinical duration notations:
+  # X/7 = X days, X/52 = X weeks, X/12 = X months
+  patterns:
+    - regex: '(?i)(?:^|[\s,xX])(\d+)\s*/\s*7(?:\s|$|[,\.])'
+      unit: 'days'
+      description: 'Days notation (e.g., 3/7 = 3 days)'
+    - regex: '(?i)(?:^|[\s,xX])(\d+)\s*/\s*52(?:\s|$|[,\.])'
+      unit: 'weeks'
+      description: 'Weeks notation (e.g., 1/52 = 1 week)'
+    - regex: '(?i)(?:^|[\s,xX])(\d+)\s*/\s*12(?:\s|$|[,\.])'
+      unit: 'months'
+      description: 'Months notation (e.g., 1/12 = 1 month)'
+    - regex: '(?i)\b(\d+)\s*(?:days?|d)\b'
+      unit: 'days'
+      description: 'Standard day string'
+    - regex: '(?i)\b(\d+)\s*(?:weeks?|wk|wks)\b'
+      unit: 'weeks'
+      description: 'Standard week string'
+    - regex: '(?i)\b(\d+)\s*(?:months?|mo|mth)\b'
+      unit: 'months'
+      description: 'Standard month string'
+
+timing_hi_bn:
+  # Bengali terms
+  'খাওয়ার পর':
+    english: 'After Meals (PC)'
+    standard_sig: 'PC'
+  'খাওয়ার পর':
+    english: 'After Meals (PC)'
+    standard_sig: 'PC'
+  'খাওয়ার আগে':
+    english: 'Before Meals (AC)'
+    standard_sig: 'AC'
+  'খাওয়ার আগে':
+    english: 'Before Meals (AC)'
+    standard_sig: 'AC'
+  'রাতে শোয়ার আগে':
+    english: 'At Bedtime (HS)'
+    standard_sig: 'HS'
+  'রাতে শোওয়ার আগে':
+    english: 'At Bedtime (HS)'
+    standard_sig: 'HS'
+  'দিনে একবার':
+    english: 'Once Daily (OD)'
+    standard_sig: '1-0-0'
+  'দিনে দুইবার':
+    english: 'Twice Daily (BD)'
+    standard_sig: '1-0-1'
+  'দিনে তিনবার':
+    english: 'Three Times Daily (TDS)'
+    standard_sig: '1-1-1'
+  'খালি পেটে':
+    english: 'On Empty Stomach'
+    standard_sig: 'Empty Stomach'
+  'ভরা পেটে':
+    english: 'After Meals (PC)'
+    standard_sig: 'PC'
+  'ব্যথা হলে':
+    english: 'As Needed for Pain (PRN)'
+    standard_sig: 'PRN'
+  'জ্বর আসলে':
+    english: 'As Needed for Fever (PRN)'
+    standard_sig: 'PRN'
+
+  # Hindi terms
+  'खाने के बाद':
+    english: 'After Meals (PC)'
+    standard_sig: 'PC'
+  'खाने से पहले':
+    english: 'Before Meals (AC)'
+    standard_sig: 'AC'
+  'भोजन के बाद':
+    english: 'After Meals (PC)'
+    standard_sig: 'PC'
+  'भोजन से पहले':
+    english: 'Before Meals (AC)'
+    standard_sig: 'AC'
+  'रात को सोते समय':
+    english: 'At Bedtime (HS)'
+    standard_sig: 'HS'
+  'दिन में एक बार':
+    english: 'Once Daily (OD)'
+    standard_sig: '1-0-0'
+  'दिन में दो बार':
+    english: 'Twice Daily (BD)'
+    standard_sig: '1-0-1'
+  'दिन में तीन बार':
+    english: 'Three Times Daily (TDS)'
+    standard_sig: '1-1-1'
+  'सुबह और शाम':
+    english: 'Morning and Evening (BD)'
+    standard_sig: '1-0-1'
+  'सुबह खाली पेट':
+    english: 'Morning Empty Stomach'
+    standard_sig: 'Empty Stomach'
+  'खाली पेट':
+    english: 'On Empty Stomach'
+    standard_sig: 'Empty Stomach'
+  'दर्द होने पर':
+    english: 'As Needed for Pain (PRN)'
+    standard_sig: 'PRN'
+  'बुखार आने पर':
+    english: 'As Needed for Fever (PRN)'
+    standard_sig: 'PRN'
+
+  # Tamil terms
+  'சாப்பாட்டுக்கு பின்':
+    english: 'After Meals (PC)'
+    standard_sig: 'PC'
+  'சாப்பாட்டுக்கு முன்':
+    english: 'Before Meals (AC)'
+    standard_sig: 'AC'
+  'ஒரு நாளைக்கு ஒரு முறை':
+    english: 'Once Daily (OD)'
+    standard_sig: '1-0-0'
+  'ஒரு நாளைக்கு இரு முறை':
+    english: 'Twice Daily (BD)'
+    standard_sig: '1-0-1'
+
+  # Telugu terms
+  'భోజనం తర్వాత':
+    english: 'After Meals (PC)'
+    standard_sig: 'PC'
+  'భోజనానికి ముందు':
+    english: 'Before Meals (AC)'
+    standard_sig: 'AC'
+  'రోజుకు ఒకసారి':
+    english: 'Once Daily (OD)'
+    standard_sig: '1-0-0'
+  'రోజుకు రెండుసార్లు':
+    english: 'Twice Daily (BD)'
+    standard_sig: '1-0-1'

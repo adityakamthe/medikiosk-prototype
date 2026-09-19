@@ -1,0 +1,565 @@
+{
+  "evaluation_summary": {
+    "total_benchmark_records": 50,
+    "top_1_drug_accuracy": 0.92,
+    "top_3_drug_accuracy": 0.96,
+    "average_cer": 0.08,
+    "vernacular_sig_accuracy": 1.0,
+    "auto_approved_count": 41,
+    "auto_approved_precision": 1.0,
+    "manual_review_count": 9
+  },
+  "calibration_profile": {
+    "profile": "standard",
+    "auto_approval_threshold": 0.88,
+    "total_samples": 50,
+    "top_1_accuracy": 0.92,
+    "top_3_accuracy": 0.92,
+    "average_cer": 0.0,
+    "auto_approved_count": 41,
+    "auto_approved_precision": 1.0,
+    "manual_review_count": 9
+  },
+  "sample_item_evaluations": [
+    {
+      "id": "item_001",
+      "raw_text": "Tab Ultrafen Plus 1-0-1",
+      "expected_brand": "Ultrafen Plus",
+      "matched_brand": "Ultrafen Plus",
+      "is_top_1": true,
+      "is_top_3": true,
+      "cer": 0.0,
+      "composite_score": 1.0,
+      "action_gate": "AUTO_APPROVED",
+      "signal_breakdown": {
+        "levenshtein_similarity": 1.0,
+        "phonetic_similarity": 1.0,
+        "strength_form_boost": 0.0,
+        "verbal_soft_boost": 0.0
+      },
+      "candidates": [
+        {
+          "brand_name": "Ultrafen Plus",
+          "generic_name": "Diclofenac Sodium + Paracetamol",
+          "score": 1.0,
+          "levenshtein_similarity": 1.0,
+          "phonetic_similarity": 1.0
+        },
+        {
+          "brand_name": "Ibuprofen",
+          "generic_name": "Ibuprofen",
+          "score": 0.486,
+          "levenshtein_similarity": 0.4545454545454546,
+          "phonetic_similarity": 0.5333333333333333
+        },
+        {
+          "brand_name": "Relentus",
+          "generic_name": "Cetirizine Hydrochloride + Ambroxol Hydrochloride",
+          "score": 0.457,
+          "levenshtein_similarity": 0.4761904761904761,
+          "phonetic_similarity": 0.4285714285714286
+        },
+        {
+          "brand_name": "Atorva",
+          "generic_name": "Atorvastatin",
+          "score": 0.486,
+          "levenshtein_similarity": 0.3157894736842105,
+          "phonetic_similarity": 0.6153846153846154
+        },
+        {
+          "brand_name": "Baclofen",
+          "generic_name": "Baclofen",
+          "score": 0.45,
+          "levenshtein_similarity": 0.38095238095238093,
+          "phonetic_similarity": 0.4285714285714286
+        }
+      ]
+    },
+    {
+      "id": "item_002",
+      "raw_text": "Tab Augmentin 625 1-0-1 x 5/7",
+      "expected_brand": "Augmentin",
+      "matched_brand": "Augmentin",
+      "is_top_1": true,
+      "is_top_3": true,
+      "cer": 0.0,
+      "composite_score": 1.0,
+      "action_gate": "AUTO_APPROVED",
+      "signal_breakdown": {
+        "levenshtein_similarity": 0.9,
+        "phonetic_similarity": 0.8571428571428572,
+        "strength_form_boost": 0.05,
+        "verbal_soft_boost": 0.0
+      },
+      "candidates": [
+        {
+          "brand_name": "Augmentin",
+          "generic_name": "Amoxicillin + Clavulanic Acid",
+          "score": 1.0,
+          "levenshtein_similarity": 0.9,
+          "phonetic_similarity": 0.8571428571428572
+        },
+        {
+          "brand_name": "Cartilix",
+          "generic_name": "Diacerein + Glucosamine Sulfate + Methylsulfonylmethane (MSM)",
+          "score": 0.481,
+          "levenshtein_similarity": 0.42105263157894735,
+          "phonetic_similarity": 0.5714285714285714
+        },
+        {
+          "brand_name": "Pantocid",
+          "generic_name": "Pantoprazole",
+          "score": 0.437,
+          "levenshtein_similarity": 0.42105263157894735,
+          "phonetic_similarity": 0.46153846153846156
+        },
+        {
+          "brand_name": "Glycomet",
+          "generic_name": "Metformin Hydrochloride",
+          "score": 0.437,
+          "levenshtein_similarity": 0.42105263157894735,
+          "phonetic_similarity": 0.46153846153846156
+        },
+        {
+          "brand_name": "Ultrafen Plus",
+          "generic_name": "Diclofenac Sodium + Paracetamol",
+          "score": 0.388,
+          "levenshtein_similarity": 0.33333333333333337,
+          "phonetic_similarity": 0.47058823529411764
+        }
+      ]
+    },
+    {
+      "id": "item_003",
+      "raw_text": "Tab Pantocid 40 1-0-0 \u0916\u093e\u0932\u0940 \u092a\u0947\u091f",
+      "expected_brand": "Pantocid",
+      "matched_brand": "Pantocid",
+      "is_top_1": true,
+      "is_top_3": true,
+      "cer": 0.0,
+      "composite_score": 1.0,
+      "action_gate": "AUTO_APPROVED",
+      "signal_breakdown": {
+        "levenshtein_similarity": 0.7272727272727273,
+        "phonetic_similarity": 0.7142857142857143,
+        "strength_form_boost": 0.05,
+        "verbal_soft_boost": 0.0
+      },
+      "candidates": [
+        {
+          "brand_name": "Pantocid",
+          "generic_name": "Pantoprazole",
+          "score": 1.0,
+          "levenshtein_similarity": 0.7272727272727273,
+          "phonetic_similarity": 0.7142857142857143
+        },
+        {
+          "brand_name": "Pan-D",
+          "generic_name": "Pantoprazole + Domperidone",
+          "score": 0.503,
+          "levenshtein_similarity": 0.42105263157894735,
+          "phonetic_similarity": 0.5
+        },
+        {
+          "brand_name": "Augmentin",
+          "generic_name": "Amoxicillin + Clavulanic Acid",
+          "score": 0.315,
+          "levenshtein_similarity": 0.34782608695652173,
+          "phonetic_similarity": 0.2666666666666667
+        },
+        {
+          "brand_name": "Bactrim",
+          "generic_name": "Sulfamethoxazole + Trimethoprim (Co-Trimoxazole)",
+          "score": 0.286,
+          "levenshtein_similarity": 0.2857142857142857,
+          "phonetic_similarity": 0.2857142857142857
+        },
+        {
+          "brand_name": "Relentus",
+          "generic_name": "Cetirizine Hydrochloride + Ambroxol Hydrochloride",
+          "score": 0.281,
+          "levenshtein_similarity": 0.18181818181818177,
+          "phonetic_similarity": 0.4285714285714286
+        }
+      ]
+    },
+    {
+      "id": "item_004",
+      "raw_text": "Cap Pan-D 1-0-0 Before Meals",
+      "expected_brand": "Pan-D",
+      "matched_brand": null,
+      "is_top_1": null,
+      "is_top_3": true,
+      "cer": 1.0,
+      "composite_score": 0.4182,
+      "action_gate": "MANUAL_REVIEW_REQUIRED",
+      "signal_breakdown": {
+        "levenshtein_similarity": 0.36363636363636365,
+        "phonetic_similarity": 0.5,
+        "strength_form_boost": 0.0,
+        "verbal_soft_boost": 0.0
+      },
+      "candidates": [
+        {
+          "brand_name": "Pan-D",
+          "generic_name": "Pantoprazole + Domperidone",
+          "score": 0.418,
+          "levenshtein_similarity": 0.36363636363636365,
+          "phonetic_similarity": 0.5
+        },
+        {
+          "brand_name": "Omez",
+          "generic_name": "Omeprazole",
+          "score": 0.382,
+          "levenshtein_similarity": 0.3703703703703704,
+          "phonetic_similarity": 0.4
+        },
+        {
+          "brand_name": "Tetracycline",
+          "generic_name": "Tetracycline Hydrochloride",
+          "score": 0.316,
+          "levenshtein_similarity": 0.27586206896551724,
+          "phonetic_similarity": 0.375
+        },
+        {
+          "brand_name": "Cartilix",
+          "generic_name": "Diacerein + Glucosamine Sulfate + Methylsulfonylmethane (MSM)",
+          "score": 0.304,
+          "levenshtein_similarity": 0.24,
+          "phonetic_similarity": 0.4
+        },
+        {
+          "brand_name": "Progut",
+          "generic_name": "Probiotic & Prebiotic Consortium",
+          "score": 0.277,
+          "levenshtein_similarity": 0.17391304347826086,
+          "phonetic_similarity": 0.3076923076923077
+        }
+      ]
+    },
+    {
+      "id": "item_005",
+      "raw_text": "Tab Calpol 650 1-0-1 \u099c\u09cd\u09ac\u09b0 \u0986\u09b8\u09b2\u09c7",
+      "expected_brand": "Calpol",
+      "matched_brand": "Calpol",
+      "is_top_1": true,
+      "is_top_3": true,
+      "cer": 0.0,
+      "composite_score": 1.0,
+      "action_gate": "AUTO_APPROVED",
+      "signal_breakdown": {
+        "levenshtein_similarity": 0.6,
+        "phonetic_similarity": 0.5714285714285714,
+        "strength_form_boost": 0.05,
+        "verbal_soft_boost": 0.0
+      },
+      "candidates": [
+        {
+          "brand_name": "Calpol",
+          "generic_name": "Paracetamol (Acetaminophen)",
+          "score": 1.0,
+          "levenshtein_similarity": 0.6,
+          "phonetic_similarity": 0.5714285714285714
+        },
+        {
+          "brand_name": "Baclofen",
+          "generic_name": "Baclofen",
+          "score": 0.27,
+          "levenshtein_similarity": 0.2727272727272727,
+          "phonetic_similarity": 0.2666666666666667
+        },
+        {
+          "brand_name": "Cartilix",
+          "generic_name": "Diacerein + Glucosamine Sulfate + Methylsulfonylmethane (MSM)",
+          "score": 0.264,
+          "levenshtein_similarity": 0.2727272727272727,
+          "phonetic_similarity": 0.25
+        },
+        {
+          "brand_name": "Cifran",
+          "generic_name": "Ciprofloxacin",
+          "score": 0.262,
+          "levenshtein_similarity": 0.2962962962962963,
+          "phonetic_similarity": 0.21052631578947367
+        },
+        {
+          "brand_name": "Ultrafen Plus",
+          "generic_name": "Diclofenac Sodium + Paracetamol",
+          "score": 0.26,
+          "levenshtein_similarity": 0.2222222222222222,
+          "phonetic_similarity": 0.3157894736842105
+        }
+      ]
+    },
+    {
+      "id": "item_006",
+      "raw_text": "Tab Dolo 650 TDS",
+      "expected_brand": "Dolo 650",
+      "matched_brand": "Dolo 650",
+      "is_top_1": true,
+      "is_top_3": true,
+      "cer": 0.0,
+      "composite_score": 0.6917000000000001,
+      "action_gate": "AMBIGUOUS_REQUIRES_CONFIRMATION",
+      "signal_breakdown": {
+        "levenshtein_similarity": 0.625,
+        "phonetic_similarity": 0.6666666666666667,
+        "strength_form_boost": 0.05,
+        "verbal_soft_boost": 0.0
+      },
+      "candidates": [
+        {
+          "brand_name": "Dolo 650",
+          "generic_name": "Paracetamol (Acetaminophen)",
+          "score": 0.692,
+          "levenshtein_similarity": 0.625,
+          "phonetic_similarity": 0.6666666666666667
+        },
+        {
+          "brand_name": "Relentus",
+          "generic_name": "Cetirizine Hydrochloride + Ambroxol Hydrochloride",
+          "score": 0.492,
+          "levenshtein_similarity": 0.375,
+          "phonetic_similarity": 0.6666666666666667
+        },
+        {
+          "brand_name": "Glycomet",
+          "generic_name": "Metformin Hydrochloride",
+          "score": 0.403,
+          "levenshtein_similarity": 0.375,
+          "phonetic_similarity": 0.4444444444444444
+        },
+        {
+          "brand_name": "Diclofenac",
+          "generic_name": "Diclofenac Sodium",
+          "score": 0.36,
+          "levenshtein_similarity": 0.33333333333333337,
+          "phonetic_similarity": 0.4
+        },
+        {
+          "brand_name": "Ultrafen Plus",
+          "generic_name": "Diclofenac Sodium + Paracetamol",
+          "score": 0.356,
+          "levenshtein_similarity": 0.2857142857142857,
+          "phonetic_similarity": 0.46153846153846156
+        }
+      ]
+    },
+    {
+      "id": "item_007",
+      "raw_text": "Tab Telma 40 1-0-0 Morning",
+      "expected_brand": "Telma",
+      "matched_brand": "Telma",
+      "is_top_1": true,
+      "is_top_3": true,
+      "cer": 0.0,
+      "composite_score": 1.0,
+      "action_gate": "AUTO_APPROVED",
+      "signal_breakdown": {
+        "levenshtein_similarity": 0.5555555555555556,
+        "phonetic_similarity": 0.5454545454545454,
+        "strength_form_boost": 0.05,
+        "verbal_soft_boost": 0.0
+      },
+      "candidates": [
+        {
+          "brand_name": "Telma",
+          "generic_name": "Telmisartan",
+          "score": 1.0,
+          "levenshtein_similarity": 0.5555555555555556,
+          "phonetic_similarity": 0.5454545454545454
+        },
+        {
+          "brand_name": "Augmentin",
+          "generic_name": "Amoxicillin + Clavulanic Acid",
+          "score": 0.444,
+          "levenshtein_similarity": 0.4545454545454546,
+          "phonetic_similarity": 0.4285714285714286
+        },
+        {
+          "brand_name": "Tetracycline",
+          "generic_name": "Tetracycline Hydrochloride",
+          "score": 0.4,
+          "levenshtein_similarity": 0.4,
+          "phonetic_similarity": 0.4
+        },
+        {
+          "brand_name": "Diclofenac",
+          "generic_name": "Diclofenac Sodium",
+          "score": 0.385,
+          "levenshtein_similarity": 0.26086956521739135,
+          "phonetic_similarity": 0.5714285714285714
+        },
+        {
+          "brand_name": "Cartilix",
+          "generic_name": "Diacerein + Glucosamine Sulfate + Methylsulfonylmethane (MSM)",
+          "score": 0.343,
+          "levenshtein_similarity": 0.2857142857142857,
+          "phonetic_similarity": 0.4285714285714286
+        }
+      ]
+    },
+    {
+      "id": "item_008",
+      "raw_text": "Tab Glycomet 500 1-0-1 After Meals",
+      "expected_brand": "Glycomet",
+      "matched_brand": "Glycomet",
+      "is_top_1": true,
+      "is_top_3": true,
+      "cer": 0.0,
+      "composite_score": 1.0,
+      "action_gate": "AUTO_APPROVED",
+      "signal_breakdown": {
+        "levenshtein_similarity": 0.5714285714285714,
+        "phonetic_similarity": 0.625,
+        "strength_form_boost": 0.05,
+        "verbal_soft_boost": 0.0
+      },
+      "candidates": [
+        {
+          "brand_name": "Glycomet",
+          "generic_name": "Metformin Hydrochloride",
+          "score": 1.0,
+          "levenshtein_similarity": 0.5714285714285714,
+          "phonetic_similarity": 0.625
+        },
+        {
+          "brand_name": "Ultrafen Plus",
+          "generic_name": "Diclofenac Sodium + Paracetamol",
+          "score": 0.491,
+          "levenshtein_similarity": 0.48484848484848486,
+          "phonetic_similarity": 0.5
+        },
+        {
+          "brand_name": "Bactrim",
+          "generic_name": "Sulfamethoxazole + Trimethoprim (Co-Trimoxazole)",
+          "score": 0.378,
+          "levenshtein_similarity": 0.2962962962962963,
+          "phonetic_similarity": 0.5
+        },
+        {
+          "brand_name": "Tetracycline",
+          "generic_name": "Tetracycline Hydrochloride",
+          "score": 0.415,
+          "levenshtein_similarity": 0.3125,
+          "phonetic_similarity": 0.4444444444444444
+        },
+        {
+          "brand_name": "Cartilix",
+          "generic_name": "Diacerein + Glucosamine Sulfate + Methylsulfonylmethane (MSM)",
+          "score": 0.36,
+          "levenshtein_similarity": 0.2857142857142857,
+          "phonetic_similarity": 0.47058823529411764
+        }
+      ]
+    },
+    {
+      "id": "item_009",
+      "raw_text": "Tab Atorva 20 0-0-1 At Bedtime",
+      "expected_brand": "Atorva",
+      "matched_brand": "Atorva",
+      "is_top_1": true,
+      "is_top_3": true,
+      "cer": 0.0,
+      "composite_score": 1.0,
+      "action_gate": "AUTO_APPROVED",
+      "signal_breakdown": {
+        "levenshtein_similarity": 0.5217391304347826,
+        "phonetic_similarity": 0.6666666666666667,
+        "strength_form_boost": 0.05,
+        "verbal_soft_boost": 0.0
+      },
+      "candidates": [
+        {
+          "brand_name": "Atorva",
+          "generic_name": "Atorvastatin",
+          "score": 1.0,
+          "levenshtein_similarity": 0.5217391304347826,
+          "phonetic_similarity": 0.6666666666666667
+        },
+        {
+          "brand_name": "Bactrim",
+          "generic_name": "Sulfamethoxazole + Trimethoprim (Co-Trimoxazole)",
+          "score": 0.435,
+          "levenshtein_similarity": 0.41666666666666663,
+          "phonetic_similarity": 0.46153846153846156
+        },
+        {
+          "brand_name": "Ultrafen Plus",
+          "generic_name": "Diclofenac Sodium + Paracetamol",
+          "score": 0.395,
+          "levenshtein_similarity": 0.2666666666666667,
+          "phonetic_similarity": 0.5882352941176471
+        },
+        {
+          "brand_name": "Pantocid",
+          "generic_name": "Pantoprazole",
+          "score": 0.365,
+          "levenshtein_similarity": 0.31999999999999995,
+          "phonetic_similarity": 0.3076923076923077
+        },
+        {
+          "brand_name": "Tetracycline",
+          "generic_name": "Tetracycline Hydrochloride",
+          "score": 0.314,
+          "levenshtein_similarity": 0.3448275862068966,
+          "phonetic_similarity": 0.2666666666666667
+        }
+      ]
+    },
+    {
+      "id": "item_010",
+      "raw_text": "Tab Cartilix 1-0-1 x 1/52",
+      "expected_brand": "Cartilix",
+      "matched_brand": "Cartilix",
+      "is_top_1": true,
+      "is_top_3": true,
+      "cer": 0.0,
+      "composite_score": 0.95,
+      "action_gate": "AUTO_APPROVED",
+      "signal_breakdown": {
+        "levenshtein_similarity": 0.8888888888888888,
+        "phonetic_similarity": 0.8571428571428572,
+        "strength_form_boost": 0.0,
+        "verbal_soft_boost": 0.0
+      },
+      "candidates": [
+        {
+          "brand_name": "Cartilix",
+          "generic_name": "Diacerein + Glucosamine Sulfate + Methylsulfonylmethane (MSM)",
+          "score": 0.95,
+          "levenshtein_similarity": 0.8888888888888888,
+          "phonetic_similarity": 0.8571428571428572
+        },
+        {
+          "brand_name": "Cifran",
+          "generic_name": "Ciprofloxacin",
+          "score": 0.444,
+          "levenshtein_similarity": 0.34782608695652173,
+          "phonetic_similarity": 0.5882352941176471
+        },
+        {
+          "brand_name": "Calpol",
+          "generic_name": "Paracetamol (Acetaminophen)",
+          "score": 0.408,
+          "levenshtein_similarity": 0.375,
+          "phonetic_similarity": 0.33333333333333337
+        },
+        {
+          "brand_name": "Bactrim",
+          "generic_name": "Sulfamethoxazole + Trimethoprim (Co-Trimoxazole)",
+          "score": 0.385,
+          "levenshtein_similarity": 0.3529411764705882,
+          "phonetic_similarity": 0.3076923076923077
+        },
+        {
+          "brand_name": "Tetracycline",
+          "generic_name": "Tetracycline Hydrochloride",
+          "score": 0.324,
+          "levenshtein_similarity": 0.2727272727272727,
+          "phonetic_similarity": 0.4
+        }
+      ]
+    }
+  ]
+}

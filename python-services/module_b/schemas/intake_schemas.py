@@ -64,3 +64,24 @@ class DocumentIntakePayload(BaseModel):
     metadata: Optional[DocumentMetadata] = None
     medications: List[ExtractedMedication] = []
     labs: List[ExtractedLabResult] = []
+
+
+class ConstrainedMedicationExtraction(BaseModel):
+    """Constrained schema for individual medication extraction with explicit structural fields."""
+    drug_candidate: str = Field(..., description="Transcribed brand or generic name as deciphered")
+    dosage_form: Optional[str] = Field(None, description="Dosage form e.g. Tab, Cap, Syr, Inj, Oint")
+    strength: Optional[str] = Field(None, description="Strength or concentration e.g. 500mg, 650mg, 50mcg")
+    frequency: Optional[str] = Field(None, description="Frequency or sig instruction e.g. 1-0-1, OD, BD, TDS")
+    duration: Optional[str] = Field(None, description="Duration of treatment e.g. 5 days, 3/7, 1/52")
+    raw_sig: Optional[str] = Field(None, description="Raw transcription instruction fragment")
+    confidence_self_assessment: Optional[float] = Field(0.85, ge=0.0, le=1.0, description="Self-reported model confidence")
+
+
+class ConstrainedPrescriptionExtraction(BaseModel):
+    """Constrained schema for whole prescription extraction enforcing strict output format."""
+    medications: List[ConstrainedMedicationExtraction] = Field(default_factory=list)
+    is_rx_symbol_present: bool = Field(True, description="Whether Rx symbol was identified")
+    doctor_notes: Optional[str] = Field(None, description="Clinical notes or remarks")
+    validation_error: Optional[str] = Field(None, description="Validation error message if schema parsing was corrected")
+    schema_retry_attempted: bool = Field(False, description="Whether schema format retry was executed")
+

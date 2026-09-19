@@ -27,6 +27,8 @@ try:
     from module_b.intelligence.lab_verifier import lab_verifier
     from module_b.intelligence.med_verifier import medication_verifier
     from module_b.intelligence.timeline_cluster import cluster_into_episodes
+    from module_b.ocr.secondary_recognizer import secondary_recognizer, apply_disagreement_gate
+    from module_b.ocr.schema_parser import parse_vlm_output_with_retry
     from module_b.fhir.bundle_builder import fhir_builder
 except (ImportError, ValueError):
     try:
@@ -42,6 +44,8 @@ except (ImportError, ValueError):
         from .cv.preprocessor import cv_preprocessor
         from .ocr.line_extractor import line_extractor
         from .ocr.vlm_ensemble import vlm_ensemble, resolve_token_agreement
+        from .ocr.secondary_recognizer import secondary_recognizer, apply_disagreement_gate
+        from .ocr.schema_parser import parse_vlm_output_with_retry
         from .vernacular.bhashini_service import bhashini_translator
         from .normalizers.cdsco_normalizer import cdsco_matcher
         from .normalizers.loinc_mapper import loinc_mapper
@@ -62,6 +66,8 @@ except (ImportError, ValueError):
         from cv.preprocessor import cv_preprocessor
         from ocr.line_extractor import line_extractor
         from ocr.vlm_ensemble import vlm_ensemble, resolve_token_agreement
+        from ocr.secondary_recognizer import secondary_recognizer, apply_disagreement_gate
+        from ocr.schema_parser import parse_vlm_output_with_retry
         from vernacular.bhashini_service import bhashini_translator
         from normalizers.cdsco_normalizer import cdsco_matcher
         from normalizers.loinc_mapper import loinc_mapper
@@ -160,8 +166,18 @@ class PipelineCoordinator:
                 inferred_dosage_form=raw_med.get("form") or "TABLET"
             )
 
-            # Map to NormalizedMedicationItem
-            gate = VerificationActionGate(cdsco_match.get("action_gate", "AUTO_APPROVED"))
+            # Cross-Model Disagreement Gate (Primary VLM vs Secondary Recognizer)
+            sec_candidate = raw_med.get("secondary_candidate")
+            initial_gate_val = cdsco_match.get("action_gate", "AUTO_APPROVED")
+
+            item_gate_holder = {"action_gate": initial_gate_val}
+            apply_disagreement_gate(
+                medication_item=item_gate_holder,
+                primary_candidate=raw_name,
+                secondary_candidate=sec_candidate,
+                current_action_gate=initial_gate_val
+            )
+            final_gate = VerificationActionGate(item_gate_holder["action_gate"])
             cat = cdsco_match.get("category")
             req_ppi = (cat == "NSAID")
 
@@ -178,8 +194,12 @@ class PipelineCoordinator:
                 rxcui=cdsco_match.get("rxcui"),
                 requires_ppi_warning=req_ppi,
                 composite_score=cdsco_match.get("composite_score", 0.0),
-                action_gate=gate,
-                top_candidates=cdsco_match.get("top_candidates", [])
+                action_gate=final_gate,
+                top_candidates=cdsco_match.get("top_candidates", []),
+                candidates=cdsco_match.get("candidates", []),
+                recognizer_outputs=item_gate_holder.get("recognizer_outputs"),
+                verification_pass=cdsco_match.get("verification_pass", "pass_3_closed_set"),
+                signal_breakdown=cdsco_match.get("signal_breakdown")
             )
             normalized_medications.append(norm_item)
 

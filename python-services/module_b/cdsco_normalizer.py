@@ -355,48 +355,27 @@ def calculate_metaphone_similarity(query: str, candidate: str) -> float:
 def compute_composite_score(query: str, candidate: str) -> float:
     """
     Computes composite similarity score:
-    Composite_Score = (0.6 * Token_Sort_Ratio) + (0.4 * Metaphone_Similarity)
+    Composite_Score = (0.6 * Levenshtein_Ratio) + (0.4 * Metaphone_Similarity)
+    Uses raw edit distance (fuzz.ratio), strictly avoiding token_sort_ratio
+    which under-penalizes character-level OCR errors on single-token drug names.
     """
-    token_sort = float(fuzz.token_sort_ratio(query, candidate)) / 100.0
+    lev_ratio = float(fuzz.ratio(query, candidate)) / 100.0
     meta_sim = calculate_metaphone_similarity(query, candidate)
-    return round((0.6 * token_sort) + (0.4 * meta_sim), 4)
+    return round((0.6 * lev_ratio) + (0.4 * meta_sim), 4)
 
 
-def match_against_cdsco(
-    raw_name: str,
-    verbal_context: Optional[str] = None,
-    raw_image_crop_ref: Optional[str] = None,
+def retrieve_candidate_shortlist(
+    cleaned_query: str,
+    top_k: int = 5,
     form_filter: Optional[str] = None
-) -> Dict[str, Any]:
+) -> List[Dict[str, Any]]:
     """
-    Matches raw OCR text against the CDSCO Indian National Formulary using:
-    1. Dosage-form and strength filtering.
-    2. Composite RapidFuzz + Double Metaphone scoring:
-       Composite_Score = (0.6 * Token_Sort_Ratio) + (0.4 * Metaphone_Similarity).
-    3. Verbal context anchoring (chief complaints) to re-weight clinical indications.
-    4. 3-Tier Confidence Tiers:
-       - Score >= 0.88: Auto-approve (AUTO_APPROVED / auto_accepted)
-       - 0.65 <= Score < 0.88: AMBIGUOUS_REQUIRES_CONFIRMATION (with top 3 matches)
-       - Score < 0.65: MANUAL_REVIEW_REQUIRED
+    Pass 2: Shortlist-then-verify candidate retrieval.
+    Retrieves the top-k closest CDSCO candidates using raw edit distance and Double Metaphone.
     """
-    cleaned = clean_medicine_string(raw_name)
-    if not cleaned:
-        return {
-            "matched": False,
-            "raw_input": raw_name,
-            "confidence": 0.0,
-            "verification_status": "unmatched",
-            "status_tier": "MANUAL_REVIEW_REQUIRED",
-            "top_candidates": []
-        }
-
-    detected_form, detected_strength = extract_dosage_form_and_strength(raw_name)
-
-    # 1. Candidate Filtering by Dosage Form to avoid global fuzzy matching
-    target_form = form_filter or (detected_form.form if hasattr(detected_form, "form") else detected_form)
     candidate_pool = list(CDSCO_MASTER_REGISTRY.items())
-    if target_form:
-        tf_lower = str(target_form).lower()
+    if form_filter:
+        tf_lower = str(form_filter).lower()
         if tf_lower in ["tablet", "tab"]:
             form_keys = ["tab", "tablet"]
         elif tf_lower in ["capsule", "cap"]:
@@ -419,59 +398,104 @@ def match_against_cdsco(
         if form_filtered:
             candidate_pool = form_filtered
 
-    # 2. Score Candidates
-    scored_candidates = []
+    candidates = []
     for key, data in candidate_pool:
-        score = compute_composite_score(cleaned, key)
+        lev_sim = float(fuzz.ratio(cleaned_query, key)) / 100.0
+        meta_sim = calculate_metaphone_similarity(cleaned_query, key)
+        base_score = round((0.6 * lev_sim) + (0.4 * meta_sim), 4)
 
-        # Exact / Substring override boost
-        if key == cleaned or cleaned in key or key in cleaned:
-            score = max(score, 0.95)
+        if key == cleaned_query or cleaned_query in key or key in cleaned_query:
+            base_score = max(base_score, 0.95)
 
-        # Strength alignment boost
-        if detected_strength:
-            registered_strengths = [s.lower().replace(" ", "") for s in data.get("strengths", [])]
-            if any(detected_strength in s or s in detected_strength for s in registered_strengths):
-                score = min(1.0, score + 0.05)
-
-        # 3. Verbal Context Anchoring: Boost if clinical indication aligns with chief complaint
-        if verbal_context:
-            vc_lower = verbal_context.lower()
-            indications = [ind.lower() for ind in data.get("indications", [])]
-            category = data.get("category", "").lower()
-            if any(ind in vc_lower for ind in indications) or any(w in category for w in vc_lower.split()):
-                score = min(1.0, score + 0.10)
-
-        scored_candidates.append({
+        candidates.append({
             "key": key,
-            "score": round(score, 3),
+            "brand_name": data.get("brand_name"),
+            "generic_name": data.get("generic_name"),
+            "base_score": base_score,
+            "lev_sim": lev_sim,
+            "meta_sim": meta_sim,
             "formulary_entry": data
         })
 
-    # Sort descending by composite score
-    scored_candidates.sort(key=lambda x: x["score"], reverse=True)
+    candidates.sort(key=lambda x: x["base_score"], reverse=True)
+    return candidates[:top_k]
 
-    best_match = None
-    best_score = 0.0
-    if scored_candidates:
-        best_candidate = scored_candidates[0]
-        best_score = best_candidate["score"]
-        best_match = best_candidate["formulary_entry"]
 
-    # Top 3 candidates for ambiguity resolution
-    top_3 = [
-        {
-            "brand_name": c["formulary_entry"]["brand_name"],
-            "generic_name": c["formulary_entry"]["generic_name"],
-            "score": c["score"]
+def match_against_cdsco(
+    raw_name: str,
+    verbal_context: Optional[str] = None,
+    raw_image_crop_ref: Optional[str] = None,
+    form_filter: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Matches raw OCR text against the CDSCO Indian National Formulary using:
+    - Pass 1: Extract candidate token.
+    - Pass 2: Retrieve Top-5 candidate shortlist (raw edit distance + phonetic).
+    - Pass 3: Closed-set verification with calibrated scoring and signal breakdown.
+    """
+    cleaned = clean_medicine_string(raw_name)
+    if not cleaned:
+        return {
+            "matched": False,
+            "raw_input": raw_name,
+            "confidence": 0.0,
+            "verification_status": "unmatched",
+            "status_tier": "MANUAL_REVIEW_REQUIRED",
+            "top_candidates": [],
+            "candidates": [],
+            "verification_pass": "pass_3_closed_set",
+            "signal_breakdown": None
         }
-        for c in scored_candidates[:3]
-    ]
 
-    # 4. Confidence Scoring Tiers
-    # Score >= 0.88: Auto-approve
-    # 0.65 <= Score < 0.88: AMBIGUOUS_REQUIRES_CONFIRMATION
-    # Score < 0.65: MANUAL_REVIEW_REQUIRED
+    detected_form, detected_strength = extract_dosage_form_and_strength(raw_name)
+    target_form = form_filter or (detected_form.form if hasattr(detected_form, "form") else detected_form)
+
+    # Pass 2: Retrieve Top-5 candidate shortlist
+    shortlist = retrieve_candidate_shortlist(cleaned, top_k=5, form_filter=target_form)
+
+    # Pass 3: Closed-set verification and calibration
+    best_candidate = None
+    best_score = 0.0
+    signal_breakdown = None
+
+    for item in shortlist:
+        data = item["formulary_entry"]
+        score = item["base_score"]
+        form_boost = 0.0
+        verbal_boost = 0.0
+
+        if detected_strength:
+            registered_strengths = [s.lower().replace(" ", "") for s in data.get("strengths", [])]
+            if any(detected_strength in s or s in detected_strength for s in registered_strengths):
+                form_boost = 0.05
+                score = min(1.0, score + form_boost)
+
+        # Clinical Prior Guardrail: Restricted to small soft boost (+0.05 max for plausibility),
+        # only applied if candidate already has base recognition plausibility (score >= 0.60)
+        # to prevent verbal history from hallucinating non-existent drugs.
+        if verbal_context and score >= 0.55:
+            vc_lower = verbal_context.lower()
+            indications = [ind.lower() for ind in data.get("indications", [])]
+            category = data.get("category", "").lower()
+            brand_words = data.get("brand_name", "").lower().split()
+            if any(ind in vc_lower for ind in indications) or any(w in category for w in vc_lower.split()) or any(bw in vc_lower for bw in brand_words):
+                verbal_boost = 0.10
+                score = min(1.0, score + verbal_boost)
+
+        item["final_score"] = round(score, 3)
+        if score > best_score:
+            best_score = score
+            best_candidate = item
+            signal_breakdown = {
+                "levenshtein_similarity": item["lev_sim"],
+                "phonetic_similarity": item["meta_sim"],
+                "strength_form_boost": form_boost,
+                "verbal_soft_boost": verbal_boost
+            }
+
+    best_match = best_candidate["formulary_entry"] if best_candidate else None
+
+    # Decision action gate
     if best_match and best_score >= 0.88:
         verification_status = "auto_accepted"
         status_tier = "AUTO_APPROVED"
@@ -483,6 +507,26 @@ def match_against_cdsco(
         status_tier = "MANUAL_REVIEW_REQUIRED"
         best_match = None
 
+    top_candidates = [
+        {
+            "brand_name": c["formulary_entry"]["brand_name"],
+            "generic_name": c["formulary_entry"]["generic_name"],
+            "score": c.get("final_score", c["base_score"])
+        }
+        for c in shortlist[:3]
+    ]
+
+    candidates_list = [
+        {
+            "brand_name": c["formulary_entry"]["brand_name"],
+            "generic_name": c["formulary_entry"]["generic_name"],
+            "score": c.get("final_score", c["base_score"]),
+            "levenshtein_similarity": c["lev_sim"],
+            "phonetic_similarity": c["meta_sim"]
+        }
+        for c in shortlist
+    ]
+
     return {
         "matched": best_match is not None,
         "raw_input": raw_name,
@@ -492,7 +536,10 @@ def match_against_cdsco(
         "verification_status": verification_status,
         "status_tier": status_tier,
         "formulary_entry": best_match,
-        "top_candidates": top_3,
+        "top_candidates": top_candidates,
+        "candidates": candidates_list,
+        "verification_pass": "pass_3_closed_set",
+        "signal_breakdown": signal_breakdown,
         "detected_form": detected_form,
         "detected_strength": detected_strength,
         "raw_image_crop": raw_image_crop_ref if status_tier == "MANUAL_REVIEW_REQUIRED" else None

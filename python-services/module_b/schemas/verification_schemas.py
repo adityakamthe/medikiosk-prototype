@@ -44,6 +44,10 @@ class NormalizedMedicationItem(BaseModel):
     composite_score: float = 0.0
     action_gate: VerificationActionGate = VerificationActionGate.AUTO_APPROVED
     top_candidates: List[Dict[str, Any]] = []
+    candidates: List[Dict[str, Any]] = []
+    recognizer_outputs: Optional[Dict[str, Any]] = None
+    verification_pass: Optional[str] = "pass_3_closed_set"
+    signal_breakdown: Optional[Dict[str, float]] = None
     raw_image_crop: Optional[str] = None
 
 
