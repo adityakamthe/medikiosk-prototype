@@ -12,8 +12,19 @@ Endpoints:
 - POST /api/v1/full-pipeline: Complete end-to-end processing
 """
 
+import sys
+import os
 import base64
 from typing import List, Dict, Any, Optional
+
+# Ensure module_b directory and python-services are on sys.path
+_CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+if _CURRENT_DIR not in sys.path:
+    sys.path.insert(0, _CURRENT_DIR)
+_PARENT_DIR = os.path.abspath(os.path.join(_CURRENT_DIR, ".."))
+if _PARENT_DIR not in sys.path:
+    sys.path.insert(0, _PARENT_DIR)
+
 from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel

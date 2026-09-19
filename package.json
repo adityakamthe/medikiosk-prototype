@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "module-b": "python python-services/module_b/main.py",
-    "test:module-b": "python python-services/module_b/tests/test_module_b.py"
+    "test:module-b": "python -m pytest python-services/module_b/tests/ -v"
   },
   "dependencies": {
     "@mistralai/mistralai": "^1.5.0",

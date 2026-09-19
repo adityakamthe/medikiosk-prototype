@@ -211,3 +211,8 @@ def test_vlm_ensemble_agreement_and_conflict_forwarding():
     assert res_conflict[0]["cdsco_grounding"]["formulary_entry"]["brand_name"] == "Baclofen"
     assert "vlm1_candidate" in res_conflict[0]
     assert "vlm2_candidate" in res_conflict[0]
+
+
+if __name__ == "__main__":
+    import pytest
+    sys.exit(pytest.main(["-v", __file__]))

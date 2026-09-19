@@ -18,6 +18,7 @@ class RawPrescriptionLine(BaseModel):
     raw_text: Optional[str] = None
     confidence: float = 0.90
     crop_shape: Optional[Dict[str, int]] = None
+    crop_base64: Optional[str] = None
 
 
 class ExtractedMedication(BaseModel):
