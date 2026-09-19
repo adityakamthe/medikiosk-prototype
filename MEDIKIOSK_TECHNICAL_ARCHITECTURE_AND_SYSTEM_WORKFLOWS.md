@@ -55,7 +55,7 @@ MediKiosk is built on an enterprise-grade, high-concurrency, asynchronous web ar
 | **Conversational AI** | Mistral Small              | `mistral-small-latest`            | Employs chain-of-thought clinical prompting for multi-turn SOCRATES intake and SBAR summaries. |
 | **Vision AI**         | Pixtral 12B Vision         | `pixtral-12b-2409`                | High-accuracy multimodal OCR and clinical entity extraction directly from base64 RAM buffers.  |
 | **Speech-to-Text**    | Web Speech API             | Native Browser                      | Zero-latency browser speech recognition with BCP-47 regional Indian language tags.             |
-| **Text-to-Speech**    | Google Translate TTS Proxy | Dual-tier (`/api/tts`)            | Server-streamed audio endpoint providing natural regional vernacular speech for 10 languages.  |
+| **Text-to-Speech**    | Google Translate TTS Proxy | Dual-tier (`/api/tts`)            | Server-streamed audio endpoint providing natural regional vernacular speech for 22 languages.  |
 | **Audio Synthesis**   | Web Audio API              | Native Browser                      | Procedural synthesis of 800Hz/600Hz emergency sirens and 523Hz/659Hz hospital chimes.          |
 
 ---

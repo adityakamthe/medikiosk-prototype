@@ -1,5 +1,6 @@
 import { Mistral } from '@mistralai/mistralai';
 import { LOCALIZED_LANGUAGES } from './languages';
+import { getStructuredClinicalQuestion, validateLanguageScript } from './clinicalQuestions';
 
 const mistralApiKey = process.env.MISTRAL_API_KEY || 'd9xYz8Z7MIeg2GhmP4CtW45kqKUkBKFP';
 export const mistralClient = new Mistral({ apiKey: mistralApiKey });
@@ -146,390 +147,24 @@ function evaluateDomainCoverage(
 
   const hasPastIllness = 
     history.some(h => (h.section || '').includes('past') || (h.field_name || '').includes('chronic') || (h.field_name || '').includes('past_illness')) ||
-    /(previous medical|chronic illness|past condition|diabetes|sugar|hypertension|blood pressure|thyroid|asthma|पुरानी बीमारी|मधुमेह|रक्तदाब|दमा|आजार)/i.test(historyText);
+    /(previous medical|chronic illness|past condition|diabetes|sugar|hypertension|bp|blood pressure|thyroid|asthma|पुरानी बीमारी|मधुमेह|रक्तदाब|दमा|आजार|পূর্ববর্তী রোগ|রোগ|ডায়াবেটিস|രോഗം|வியாதி|நோய்|ಅನಾರೋಗ್ಯ|ರೋಗ)/i.test(historyText);
 
   const hasMedications = 
     history.some(h => (h.section || '').includes('medication') || (h.field_name || '').includes('medication')) ||
-    /(regular prescription|daily tablet|taking any medicine|painkiller|dawa|दवाई|औषध|மருந்து)/i.test(historyText);
+    /(regular prescription|daily tablet|taking any medicine|painkiller|dawa|दवाई|औषध|மருந்து|ঔষধ|औषधे|మందులు|ಔಷಧಿ|മരുന്ന്)/i.test(historyText);
 
   const hasAllergies = 
     history.some(h => (h.section || '').includes('allerg') || (h.field_name || '').includes('allerg')) ||
-    /(known allerg|penicillin|drug reaction|food allergy|एलर्जी|ऍलर्जी|அலர்ஜி)/i.test(historyText);
+    /(known allerg|penicillin|drug reaction|food allergy|एलर्जी|ऍलर्जी|অ্যালার্জি|அலர்ஜி|ಅಲರ್ಜಿ|അലർജി|అలెర్జీ|ਅਲਰਜੀ)/i.test(historyText);
 
   const hasFamilyHistory = 
     history.some(h => (h.section || '').includes('family') || (h.field_name || '').includes('family')) ||
-    /(family history|parents or siblings|hereditary|परिवार|कुटुंब|குடும்ப)/i.test(historyText);
+    /(family history|parents or siblings|hereditary|परिवार|कुटुंब|குடும்ப|পারিবারিক|ಕುಟುಂಬ|കുടുംബം|కుటుంబ|ਪਰਿਵਾਰ)/i.test(historyText);
 
   return { hasPastIllness, hasMedications, hasAllergies, hasFamilyHistory };
 }
 
-/**
- * Deterministic Structured Clinical Questioning Generator covering 12 distinct turns without repetition.
- */
-function getStructuredClinicalQuestion(
-  turnCount: number,
-  patientLangCode: string = 'en',
-  patientName?: string,
-  chiefComplaintText: string = '',
-  domainOverride?: 'past_history' | 'allergies' | 'family_history' | 'medications'
-) {
-  const normLang = (patientLangCode || 'en').toLowerCase().trim();
-  const isEn = normLang === 'en';
-  const isMr = normLang === 'mr';
-  const isTa = normLang === 'ta';
-
-  const pName = patientName ? patientName.trim() : '';
-  const prefixEn = pName ? `Hello ${pName}, ` : '';
-  const prefixHi = pName ? `${pName} जी, ` : '';
-  const prefixMr = pName ? `${pName} जी, ` : '';
-  const prefixTa = pName ? `${pName} அவர்களே, ` : '';
-
-  const ccLower = chiefComplaintText.toLowerCase();
-  const isFever = /fever|chills|बुखार|ताप|জ্বর|జ్వరం|காய்ச்சல்|ಜ್ವರ|പനി|ਬੁਖ਼ਾਰ|ଜ୍ୱର|بخار|ज्वर|कंबणी/.test(ccLower);
-  const isRespiratory = /cough|breath|sputum|phlegm|खांसी|सांस|खोकला|কাশি|దగ్గు|இருமல்|ಕೆಮ್ಮು|ചുമ|ਖੰਘ|କାଶ|कাহ|کھانسی|कास|खोंखी|दम/.test(ccLower);
-  const isAbdominal = /stomach|abdomen|indigestion|belly|gastric|पेट|पोट|পেট|కడుపు|വയറു|ಹೊಟ್ಟೆ|ਪੇਟ|ପେଟ|পেটৰ|پیٹ|उदर|बदहजम|अपच|मरोड़/.test(ccLower);
-  const isHeadache = /headache|dizziness|vertigo|migraine|सिरदर्द|डोकेदुखी|মাথাব্যথা|తలనొప్పి|தலைவலி|ತಲೆನೋವು|തലവേദന|ਸਿਰਦਰਦ|ମୁଣ୍ଡବିନ୍ଧା|মূৰৰ বিষ|سر درد|शिरोवेदना|माथ दर्द|chक्कर/.test(ccLower);
-  const isJointBack = /back|joint|spine|knee|bone|कमर|जोड़|सांधे|কোমর|నడుము|కీళ్ల|மூட்டு|ಬೆನ್ನು|കീൽ|ਕਮਰ|ଗଣ୍ଠି|কঁকাল|جوڑوں|कटि|घुटने/.test(ccLower);
-
-  // If a specific domain override is requested (to enforce mandatory dimensions or replace duplicates)
-  const targetDomain = domainOverride || (
-    turnCount === 1 ? 'site_onset' :
-    turnCount === 2 ? 'character_radiation' :
-    turnCount === 3 ? 'associations_timing' :
-    turnCount === 4 ? 'triggers_relief' :
-    turnCount === 5 ? 'severity_functional' :
-    turnCount === 6 ? 'past_history' :
-    turnCount === 7 ? 'medications' :
-    turnCount === 8 ? 'allergies' :
-    turnCount === 9 ? 'family_history' :
-    turnCount === 10 ? 'lifestyle_exposures' :
-    turnCount === 11 ? 'systemic_review' : 'completed'
-  );
-
-  if (targetDomain === 'site_onset') {
-    let qEn = `${prefixEn}Where exactly in the body are you experiencing this discomfort, and when did it first start?`;
-    let qLoc = isEn ? qEn : `${prefixHi}यह तकलीफ आपको शरीर में ठीक किस जगह पर हो रही है, और यह कब से शुरू हुई?`;
-    let opts = isEn ? ['Started suddenly today', 'Past 2-3 days', 'More than a week ago', 'Chronic for months'] : ['आज अचानक शुरू हुआ या Started today', 'पिछले 2-3 दिनों से या Past 2-3 days', 'एक हफ्ते से अधिक समय से या Over a week', 'महीनों पुराना या Chronic'];
-
-    if (isFever) {
-      qEn = `${prefixEn}When did this fever start, and does it come with severe chills or shivering?`;
-      qLoc = isEn ? qEn : isMr ? `${prefixMr}हा ताप कधीपासून सुरू झाला आहे, आणि त्यासोबत खूप थंडी वा कंप भरतो का?` : isTa ? `${prefixTa}இந்த காய்ச்சல் எப்போது தொடங்கியது, இதனுடன் நடுக்கம் அல்லது குளிர் ஏற்படுகிறதா?` : `${prefixHi}यह बुखार कब से शुरू हुआ है, और क्या इसके साथ तेज ठंड या कंपकंपी भी होती है?`;
-      opts = isEn ? ['Started suddenly today with high fever', 'Past 2-3 days with chills', 'Low grade fever for over a week', 'Comes and goes, worse in evenings'] : ['आज अचानक तेज बुखार या Started today', 'पिछले 2-3 दिनों से ठंड लगकर या Past 2-3 days', 'हफ्ते भर से हल्का बुखार या Low grade', 'शाम को तेज बुखार चढ़ता है या Evening spike'];
-    } else if (isRespiratory) {
-      qEn = `${prefixEn}How long have you had this cough or breathing trouble, and is it dry or with phlegm/sputum?`;
-      qLoc = isEn ? qEn : isMr ? `${prefixMr}हा खोकला कधीपासून आहे, आणि कोरडा खोकला आहे की कफ पडतो?` : isTa ? `${prefixTa}இந்த இருமல் எப்போது தொடங்கியது, சளி வருகிறதா அல்லது வறட்டு இருமலா?` : `${prefixHi}यह खांसी या सांस की तकलीफ कब से है, और क्या खांसी सूखी है या कफ/बलगम आता है?`;
-      opts = isEn ? ['Dry irritating cough', 'Cough with clear white phlegm', 'Thick yellow or greenish sputum', 'Severe cough with breathlessness'] : ['सूखी खांसी या Dry cough', 'सफेद साफ कफ या Clear phlegm', 'गाढ़ा पीला बलगम या Thick sputum', 'खांसी के साथ सांस फूलना या Breathless'];
-    } else if (isAbdominal) {
-      qEn = `${prefixEn}Where in your stomach is the pain located (upper, near navel, or lower), and when did it start?`;
-      qLoc = isEn ? qEn : isMr ? `${prefixMr}पोटात नेमके कुठे दुखत आहे (वरच्या भागात, बेंबीजवळ, की खाली), आणि कधी सुरू झाले?` : `${prefixHi}पेट में ठीक किस हिस्से में दर्द हो रहा है (ऊपरी पेट, नाभि के पास, या नीचे), और कब से है?`;
-      opts = isEn ? ['Upper stomach with burning acidity', 'Sharp pain in lower right side', 'Cramping pain around navel', 'All over abdomen with heaviness'] : ['ऊपरी पेट में जलन या Upper stomach', 'निचले पेट में दर्द या Lower abdomen', 'नाभि के पास मरोड़ या Around navel', 'पूरे पेट में भारीपन या All over'];
-    }
-
-    return {
-      is_severe: false,
-      severity_level: 'moderate',
-      is_intake_complete: false,
-      current_framework_stage: 'socrates_site_onset',
-      question_localized: qLoc,
-      question_en: qEn,
-      section: 'hpi',
-      field_name: 'socrates_site_and_onset',
-      options: opts,
-      clinical_summary_note: 'SOCRATES: Site and onset documented'
-    };
-  } else if (targetDomain === 'character_radiation') {
-    let qEn = `${prefixEn}How does this sensation feel (sharp, heavy pressure, burning, throbbing), and does it radiate anywhere else?`;
-    let qLoc = isEn ? qEn : `${prefixHi}इस तकलीफ का अहसास कैसा है (चुभन, जलन, भारीपन, टीस मारना), और क्या यह किसी अन्य हिस्से में फैलता है?`;
-    let opts = isEn ? ['Sharp stabbing sensation', 'Heavy dull pressure', 'Burning sensation', 'Radiates to back, neck, or arm', 'Localized in one spot'] : ['चुभने वाला तीखा दर्द या Sharp', 'भारीपन व दबाव या Heavy pressure', 'जलन का अहसास या Burning', 'पीठ या हाथ में फैलता है या Radiating', 'एक ही जगह रहता है या Localized'];
-
-    if (isFever) {
-      qEn = `${prefixEn}Along with fever, do you feel intense body ache, severe headache, burning urination, or skin rash?`;
-      qLoc = isEn ? qEn : isMr ? `${prefixMr}तापासोबत अंगदुखी, डोकेदुखी, लघवी करताना जळजळ, किंवा अंगावर पुरळ आहे का?` : `${prefixHi}क्या बुखार के साथ बदन दर्द, सिरदर्द, पेशाब में जलन, या शरीर पर लाल दाने/चकत्ते हैं?`;
-      opts = isEn ? ['Severe body ache and joint pain', 'Intense headache behind eyes', 'Burning sensation during urination', 'Red spots or skin rash', 'Only fever without other signs'] : ['तेज बदन व जोड़ों का दर्द या Body ache', 'सिर में तेज दर्द या Headache', 'पेशाब में जलन या Burning urine', 'त्वचा पर लाल दाने या Rash', 'केवल बुखार है या Fever only'];
-    } else if (isRespiratory) {
-      qEn = `${prefixEn}Do you experience shortness of breath, wheezing whistling sounds, or chest tightness when walking or lying down?`;
-      qLoc = isEn ? qEn : `${prefixHi}क्या चलने या लेटने पर आपकी सांस फूलती है, सीने से सीटी जैसी आवाज आती है, या भारीपन लगता है?`;
-      opts = isEn ? ['Shortness of breath on walking', 'Chest tightness when lying down', 'Wheezing whistling sound in chest', 'No breathlessness, only cough'] : ['चलने पर सांस फूलती है या On exertion', 'रात को लेटने पर सांस रुकती है या When lying down', 'सीने से सीटी की आवाज या Wheezing', 'सांस सामान्य है केवल खांसी या Cough only'];
-    }
-
-    return {
-      is_severe: false,
-      severity_level: 'moderate',
-      is_intake_complete: false,
-      current_framework_stage: 'socrates_character_radiation',
-      question_localized: qLoc,
-      question_en: qEn,
-      section: 'hpi',
-      field_name: 'socrates_character_and_radiation',
-      options: opts,
-      clinical_summary_note: 'SOCRATES: Character and radiation documented'
-    };
-  } else if (targetDomain === 'associations_timing') {
-    let qEn = `${prefixEn}Are there any associated symptoms like nausea, dizziness, excessive sweating, or weakness?`;
-    let qLoc = isEn ? qEn : `${prefixHi}क्या इसके साथ जी मिचलाना, चक्कर आना, अत्यधिक पसीना, या कमजोरी जैसे कोई अन्य लक्षण हैं?`;
-    let opts = isEn ? ['Nausea or vomiting', 'Dizziness or lightheadedness', 'Excessive sweating and chills', 'Extreme fatigue or weakness', 'None of these'] : ['जी मिचलाना या उल्टी या Nausea', 'चक्कर आना या Dizziness', 'अत्यधिक पसीना व कंपकंपी या Sweating', 'अत्यधिक कमजोरी व थकान या Fatigue', 'इनमें से कोई नहीं या None'];
-
-    return {
-      is_severe: false,
-      severity_level: 'moderate',
-      is_intake_complete: false,
-      current_framework_stage: 'socrates_associations_timing',
-      question_localized: qLoc,
-      question_en: qEn,
-      section: 'hpi',
-      field_name: 'socrates_associations_and_timing',
-      options: opts,
-      clinical_summary_note: 'SOCRATES: Associated systemic symptoms evaluated'
-    };
-  } else if (targetDomain === 'triggers_relief') {
-    const qEn = `${prefixEn}Does anything specific make this symptom worse (movement, food, posture, exertion), or does anything relieve it?`;
-    const qLoc = isEn ? qEn : `${prefixHi}क्या किसी खास गतिविधि, खाने-पीने, झुकने या चलने से यह तकलीफ बढ़ती है, और क्या आराम से कुछ राहत मिलती है?`;
-    const opts = isEn ? ['Worsens with physical activity or exertion', 'Relieved by rest and lying down', 'Worsens after eating food', 'Constant regardless of rest'] : ['चलने या काम से बढ़ता है या Worsens with exertion', 'आराम करने से घटता है या Better with rest', 'खाना खाने के बाद बढ़ता है या Post-meal', 'लगातार बना रहता है या Constant'];
-
-    return {
-      is_severe: false,
-      severity_level: 'moderate',
-      is_intake_complete: false,
-      current_framework_stage: 'socrates_severity_triggers',
-      question_localized: qLoc,
-      question_en: qEn,
-      section: 'hpi',
-      field_name: 'socrates_triggers_and_relief',
-      options: opts,
-      clinical_summary_note: 'SOCRATES: Aggravating and relieving factors documented'
-    };
-  } else if (targetDomain === 'severity_functional') {
-    const qEn = `${prefixEn}On a scale of 1 to 10, how severe is this discomfort, and does it interfere with your sleep or daily routine?`;
-    const qLoc = isEn ? qEn : isMr ? `${prefixMr}१ ते १० च्या प्रमाणात हा त्रास किती तीव्र आहे, आणि यामुळे झोप किंवा दैनंदिन कामात अडथळा येतो का?` : `${prefixHi}1 से 10 के पैमाने पर यह तकलीफ कितनी तीव्र है, और क्या इससे आपकी नींद या रोजमर्रा के काम में रुकावट आ रही है?`;
-    const opts = isEn ? ['Mild (Score 1-3) - manageable', 'Moderate (Score 4-6) - affects routine', 'Significant (Score 7-8) - disturbs sleep', 'Severe pain (Score 9-10)', 'Able to work normally'] : ['हल्का (1-3) या Mild', 'मध्यम (4-6) रोजमर्रा में रुकावट या Moderate', 'तेज (7-8) नींद में खलल या Significant', 'अत्यधिक तीव्र (9-10) या Severe', 'सामान्य काम कर पा रहे हैं या Manageable'];
-
-    return {
-      is_severe: false,
-      severity_level: 'moderate',
-      is_intake_complete: false,
-      current_framework_stage: 'socrates_severity_triggers',
-      question_localized: qLoc,
-      question_en: qEn,
-      section: 'hpi',
-      field_name: 'socrates_severity_and_impact',
-      options: opts,
-      clinical_summary_note: 'SOCRATES: Severity score and functional impact documented'
-    };
-  } else if (targetDomain === 'past_history') {
-    // MANDATORY DIMENSION 1: PREVIOUS ILLNESSES / PAST MEDICAL HISTORY
-    const qEn = `${prefixEn}Do you have any previous medical conditions (such as Diabetes, High BP, Thyroid, Asthma, Heart disease) or past surgeries?`;
-    const qLoc = isEn ? qEn
-      : isMr ? `${prefixMr}तुम्हाला पूर्वीपासून मधुमेह (शुगर), रक्तदाब (BP), थायरॉईड, दमा किंवा हृदयाचा काही आजार आहे का, किंवा शस्त्रक्रिया झाली आहे?`
-      : isTa ? `${prefixTa}உங்களுக்கு சர்க்கரை நோய், உயர் ரத்த அழுத்தம், தைராய்டு, ஆஸ்துமா போன்ற முந்தைய நோய்கள் அல்லது அறுவை சிகிச்சை வரலாறு உள்ளதா?`
-      : `${prefixHi}क्या आपको पहले से कोई पुरानी बीमारी है (जैसे डायबिटीज/शुगर, बीपी, थायराइड, दमा, दिल की बीमारी) या कोई ऑपरेशन हुआ है?`;
-
-    return {
-      is_severe: false,
-      severity_level: 'moderate',
-      is_intake_complete: false,
-      current_framework_stage: 'past_medical_history',
-      question_localized: qLoc,
-      question_en: qEn,
-      section: 'past_history',
-      field_name: 'chronic_illnesses',
-      options: isEn ? [
-        'Diabetes (High Blood Sugar)',
-        'Hypertension (High BP)',
-        'Asthma or Respiratory condition',
-        'Thyroid condition',
-        'Heart disease or prior surgery',
-        'No chronic conditions'
-      ] : [
-        'डायबिटीज (शुगर) / Diabetes',
-        'उच्च रक्तचाप (High BP) / Hypertension',
-        'दमा या सांस की बीमारी / Asthma',
-        'थायराइड की समस्या / Thyroid condition',
-        'हृदय रोग या पूर्व ऑपरेशन / Heart or surgery',
-        'कोई पुरानी बीमारी नहीं / No chronic conditions'
-      ],
-      clinical_summary_note: 'Past medical history: Chronic illnesses and previous conditions documented'
-    };
-  } else if (targetDomain === 'medications') {
-    const qEn = `${prefixEn}Are you currently taking any regular prescription medications, daily tablets, or traditional remedies?`;
-    const qLoc = isEn ? qEn
-      : isMr ? `${prefixMr}तुम्ही सध्या नियमितपणे कोणती औषधे, गोळ्या किंवा आयुर्वेदिक/घरगुती उपचार घेत आहात का?`
-      : isTa ? `${prefixTa}நீங்கள் தற்போது வழக்கமாக ஏதேனும் பரிந்துரைக்கப்பட்ட மருந்துகள், மாத்திரைகள் உட்கொள்கிறீர்களா?`
-      : `${prefixHi}क्या आप अभी नियमित रूप से कोई दवाई, गोलियां या आयुर्वेदिक/घरेलू नुस्खे ले रहे हैं?`;
-
-    return {
-      is_severe: false,
-      severity_level: 'moderate',
-      is_intake_complete: false,
-      current_framework_stage: 'medications',
-      question_localized: qLoc,
-      question_en: qEn,
-      section: 'medications',
-      field_name: 'current_medications',
-      options: isEn ? [
-        'Regular BP or Diabetes pills',
-        'Pain medication or analgesics',
-        'Ayurvedic or herbal remedies',
-        'Antacids or gastric pills',
-        'No medications currently'
-      ] : [
-        'बीपी या शुगर की दवाएं / Regular BP or Diabetes pills',
-        'दर्द निवारक दवाएं / Pain medication',
-        'आयुर्वेदिक काढ़ा या चूर्ण / Ayurvedic remedies',
-        'गैस व पेट की दवाएं / Antacids',
-        'वर्तमान में कोई दवा नहीं / No medications currently'
-      ],
-      clinical_summary_note: 'Current active medications and treatments documented'
-    };
-  } else if (targetDomain === 'allergies') {
-    // MANDATORY DIMENSION 2: KNOWN ALLERGIES
-    const qEn = `${prefixEn}Do you have any known allergies to specific medicines (such as penicillin, pain relievers), foods, or dust?`;
-    const qLoc = isEn ? qEn
-      : isMr ? `${prefixMr}तुम्हाला कोणत्याही औषधाची (उदा. पेनिसिलिन, पेनकिलर), अन्नाची किंवा धुळीची ऍलर्जी आहे का?`
-      : isTa ? `${prefixTa}உங்களுக்கு குறிப்பிட்ட மருந்துகள் (பெனிசிலின், வலி நிவாரணி), உணவு அல்லது தூசியினால் ஏதேனும் அலர்ஜி உண்டா?`
-      : `${prefixHi}क्या आपको किसी खास दवा (जैसे पेनिसिलिन, दर्द की दवा), खाने-पीने की चीज या धूल से कोई एलर्जी है?`;
-
-    return {
-      is_severe: false,
-      severity_level: 'moderate',
-      is_intake_complete: false,
-      current_framework_stage: 'allergies',
-      question_localized: qLoc,
-      question_en: qEn,
-      section: 'allergies',
-      field_name: 'known_allergies',
-      options: isEn ? [
-        'Drug Allergy (Penicillin or Sulfa)',
-        'Painkiller Allergy (NSAIDs/Aspirin)',
-        'Food Allergy (Nuts, Milk, Gluten)',
-        'Dust, pollen, or seasonal allergy',
-        'No known allergies'
-      ] : [
-        'दवा से एलर्जी (पेनिसिलिन/सल्फा) / Drug Allergy',
-        'दर्द की दवा से एलर्जी / Painkiller Allergy',
-        'खाद्य पदार्थों से एलर्जी / Food Allergy',
-        'धूल व मौसम से एलर्जी / Dust or seasonal allergy',
-        'कोई एलर्जी नहीं है / No known allergies'
-      ],
-      clinical_summary_note: 'Documented patient allergy screening'
-    };
-  } else if (targetDomain === 'family_history') {
-    // MANDATORY DIMENSION 3: FAMILY MEDICAL HISTORY
-    const qEn = `${prefixEn}Is there any family history of heart disease, diabetes, high BP, asthma, stroke, or cancer in parents or siblings?`;
-    const qLoc = isEn ? qEn
-      : isMr ? `${prefixMr}तुमच्या कुटुंबात (आई-वडील किंवा भावंड) हृदयविकार, मधुमेह, उच्च रक्तदाब, दमा किंवा कर्करोग यांचा इतिहास आहे का?`
-      : isTa ? `${prefixTa}உங்கள் குடும்பத்தில் பெற்றோர் அல்லது உடன்பிறப்புகளுக்கு இதய நோய், சர்க்கரை நோய், புற்றுநோய் அல்லது ஆஸ்துமா உள்ளதா?`
-      : `${prefixHi}क्या आपके परिवार में (माता-पिता या भाई-बहन) दिल की बीमारी, डायबिटीज, बीपी, दमा या कैंसर का कोई इतिहास है?`;
-
-    return {
-      is_severe: false,
-      severity_level: 'moderate',
-      is_intake_complete: false,
-      current_framework_stage: 'family_history',
-      question_localized: qLoc,
-      question_en: qEn,
-      section: 'family_history',
-      field_name: 'family_medical_history',
-      options: isEn ? [
-        'Diabetes in parents',
-        'Heart disease in family',
-        'High BP in family',
-        'Asthma or respiratory disease in family',
-        'No hereditary diseases in family'
-      ] : [
-        'माता-पिता में डायबिटीज / Diabetes in parents',
-        'परिवार में दिल की बीमारी / Heart disease in family',
-        'परिवार में उच्च रक्तचाप (BP) / High BP in family',
-        'परिवार में दमा या सांस रोग / Asthma in family',
-        'परिवार में कोई गंभीर बीमारी नहीं / No hereditary diseases'
-      ],
-      clinical_summary_note: 'Hereditary family medical history documented'
-    };
-  } else if (targetDomain === 'lifestyle_exposures') {
-    // QUESTION 11: LIFESTYLE & ENVIRONMENTAL FACTORS
-    const qEn = `${prefixEn}Do you have any significant lifestyle habits (smoking, alcohol, tobacco), unusual physical stress, or dietary concerns?`;
-    const qLoc = isEn ? qEn
-      : isMr ? `${prefixMr}तुमच्या जीवनशैलीत काही सवयी (धूम्रपान, तंबाखू, मद्यपान), कामाचा अतिरिक्त शारीरिक ताण किंवा आहाराच्या तक्रारी आहेत का?`
-      : isTa ? `${prefixTa}உங்களுக்கு புகைபிடித்தல், புகையிலை அல்லது மது அருந்தும் பழக்கம், அல்லது கடுமையான வேலைப் பளு உள்ளதா?`
-      : `${prefixHi}क्या आपकी दिनचर्या में कोई विशेष आदत (धूम्रपान, तंबाकू, शराब), अत्यधिक शारीरिक तनाव या खान-पान की समस्या है?`;
-
-    return {
-      is_severe: false,
-      severity_level: 'moderate',
-      is_intake_complete: false,
-      current_framework_stage: 'lifestyle_exposures',
-      question_localized: qLoc,
-      question_en: qEn,
-      section: 'hpi',
-      field_name: 'lifestyle_and_exposures',
-      options: isEn ? [
-        'Regular smoking or tobacco use',
-        'Occasional alcohol consumption',
-        'Heavy physical work / fatigue',
-        'Irregular meals or high stress',
-        'Healthy lifestyle with no habits'
-      ] : [
-        'धूम्रपान या तंबाकू का सेवन / Tobacco or smoking',
-        'कभी-कभार शराब का सेवन / Alcohol consumption',
-        'अत्यधिक शारीरिक मेहनत व थकान / Heavy physical work',
-        'अनियमित भोजन या मानसिक तनाव / Irregular meals or stress',
-        'स्वस्थ दिनचर्या, कोई नशा नहीं / Healthy lifestyle'
-      ],
-      clinical_summary_note: 'Lifestyle and environmental risk factors evaluated'
-    };
-  } else if (targetDomain === 'systemic_review') {
-    // QUESTION 12: SYSTEMIC REVIEW & FINAL CLEARANCE
-    const qEn = `${prefixEn}Before we conclude, have you noticed any unexplained weight loss, night sweats, persistent fatigue, or other symptoms for the doctor?`;
-    const qLoc = isEn ? qEn
-      : isMr ? `${prefixMr}मुलाखत पूर्ण करण्यापूर्वी, अचानक वजन कमी होणे, रात्री घाम येणे, किंवा डॉक्टरांना सांगण्यासारखी इतर काही महत्त्वाची तक्रार आहे का?`
-      : isTa ? `${prefixTa}முடிப்பதற்கு முன், திடீர் எடை இழப்பு, இரவு வியர்வை, அல்லது மருத்துவரிடம் கூற விரும்பும் வேறு ஏதேனும் உடல்நலக் குறைவு உள்ளதா?`
-      : `${prefixHi}मुलाकात पूरी करने से पहले, क्या आपको अचानक वजन घटना, रात में पसीना, अत्यधिक थकान या कोई अन्य लक्षण महसूस हुआ है जो डॉक्टर को बताना चाहें?`;
-
-    return {
-      is_severe: false,
-      severity_level: 'moderate',
-      is_intake_complete: false,
-      current_framework_stage: 'systemic_review',
-      question_localized: qLoc,
-      question_en: qEn,
-      section: 'hpi',
-      field_name: 'systemic_review_and_clearance',
-      options: isEn ? [
-        'Unexplained weight loss or appetite drop',
-        'Night sweats or recurrent chills',
-        'Extreme tiredness or low energy',
-        'Sleep difficulties due to symptom',
-        'No other symptoms to report'
-      ] : [
-        'वजन कम होना या भूख में कमी / Weight or appetite loss',
-        'रात में पसीना या ठंड लगना / Night sweats or chills',
-        'अत्यधिक थकान व कमजोरी / Extreme tiredness',
-        'तकलीफ की वजह से नींद न आना / Sleep difficulties',
-        'कोई अन्य लक्षण नहीं है / No other symptoms'
-      ],
-      clinical_summary_note: 'Review of systems and final clinical clearance recorded'
-    };
-  } else {
-    // INTAKE COMPLETED (Turn >= 12)
-    const qEn = `${prefixEn}Your complete clinical intake of 10–12 questions has been successfully recorded. Thank you.`;
-    const qLoc = isEn ? qEn
-      : isMr ? `${prefixMr}तुमची संपूर्ण १०-१२ प्रश्नांची वैद्यकीय माहिती यशस्वीरीत्या नोंदवली गेली आहे. धन्यवाद.`
-      : isTa ? `${prefixTa}உங்கள் 10-12 மருத்துவக் கேள்விகளுக்கான விவரங்கள் வெற்றிகரமாக பதிவு செய்யப்பட்டன. நன்றி.`
-      : `${prefixHi}आपकी संपूर्ण 10-12 प्रश्नों की स्वास्थ्य जानकारी सफलतापूर्वक दर्ज कर ली गई है। धन्यवाद।`;
-
-    return {
-      is_severe: false,
-      severity_level: 'moderate',
-      is_intake_complete: true,
-      current_framework_stage: 'intake_completed',
-      question_localized: qLoc,
-      question_en: qEn,
-      section: 'completed',
-      field_name: 'intake_completed',
-      options: isEn ? ['Proceed to Document Scan', 'Review Medical Summary'] : ['दस्तावेज़ स्कैन के लिए आगे बढ़ें / Proceed', 'स्वास्थ्य विवरण देखें / Review'],
-      clinical_summary_note: 'Comprehensive 10-12 question clinical evaluation fully complete'
-    };
-  }
-}
+export { getStructuredClinicalQuestion, validateLanguageScript };
 
 /**
  * Module A: Multi-Language Conversational Intelligent Follow-Up AI Agent
@@ -771,6 +406,28 @@ export async function generateConversationalFollowUp(
         // Hard maximum cap at 12 questions
         parsed.is_intake_complete = true;
       }
+    }
+
+    
+    // Language Consistency Guardrail: verify script matches patientLangCode
+    if (!validateLanguageScript(parsed.question_localized || "", patientLangCode)) {
+      console.warn(`[Language Guardrail] Script mismatch for ${patientLangCode} in: "${parsed.question_localized}". Using localized clinical question.`);
+      const localizedFallback = getStructuredClinicalQuestion(turnCount, patientLangCode, patientName, chiefComplaintItem);
+      parsed.question_localized = localizedFallback.question_localized;
+      parsed.question_en = parsed.question_en || localizedFallback.question_en;
+      parsed.options = localizedFallback.options;
+      parsed.section = parsed.section || localizedFallback.section;
+      parsed.field_name = parsed.field_name || localizedFallback.field_name;
+    }
+
+    // Ensure intake completion message is fully localized
+    if (parsed.is_intake_complete) {
+      const completedInfo = getStructuredClinicalQuestion(12, patientLangCode, patientName, chiefComplaintItem);
+      parsed.question_localized = completedInfo.question_localized;
+      parsed.question_en = completedInfo.question_en;
+      parsed.options = completedInfo.options;
+      parsed.section = "completed";
+      parsed.field_name = "intake_completed";
     }
 
     return parsed;

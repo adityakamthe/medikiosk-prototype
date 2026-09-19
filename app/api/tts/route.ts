@@ -137,6 +137,18 @@ export async function GET(req: Request) {
     cleanText = cleanText.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
     cleanText = cleanText.replace(/[*_#`~]/g, '').trim();
 
+    // Remove all exclamation marks and replace with a gentle pause '.'
+    // Crucial: TTS models (Google TTS & Bhashini) interpret '!' as mathematical "factorial" after names/words
+    cleanText = cleanText.replace(/!+/g, '. ');
+
+    // Convert ALL-CAPS words to Title Case (e.g., "RAHUL SHARMA" -> "Rahul Sharma")
+    // Prevents TTS from spelling capitalized names letter-by-letter as acronyms
+    cleanText = cleanText.replace(/\b([A-Z]{2,})\b/g, (match) => {
+      const medicalAcronyms = ['ECG', 'BP', 'OPD', 'ABHA', 'ABDM', 'USG', 'CBC', 'ICD', 'SOS', 'OD', 'BD', 'TDS'];
+      if (medicalAcronyms.includes(match)) return match;
+      return match.charAt(0).toUpperCase() + match.slice(1).toLowerCase();
+    });
+
     if (rawLang === 'en') {
       cleanText = cleanText.replace(/[\u0900-\u0D7F]/g, ' ').replace(/\s+/g, ' ').trim();
     }
@@ -173,7 +185,9 @@ export async function GET(req: Request) {
 
     // 3. Primary: Attempt Bhashini Indic-TTS Inference Pipeline (if endpoint is healthy)
     const canTryBhashini = shouldAttemptBhashini(rawLang);
-    const bhashiniTimeoutMs = KNOWN_DEGRADED_BHASHINI_LANGS.has(rawLang) ? 1200 : 3500;
+    // Healthy Indic languages (like Bengali, Hindi, Tamil) require ~3-4s under load; use 6500ms so they never abort prematurely
+    // Stalled upstream workers (like Marathi/mr) use 1200ms to immediately fall back to Google TTS without freezing the Kiosk
+    const bhashiniTimeoutMs = KNOWN_DEGRADED_BHASHINI_LANGS.has(rawLang) ? 1200 : 6500;
 
     if (canTryBhashini) {
       try {
@@ -229,6 +243,7 @@ export async function GET(req: Request) {
                 'Content-Type': 'audio/wav',
                 'Content-Length': String(audioBuffer.length),
                 'X-TTS-Engine': 'Bhashini-IndicTTS-22Lang',
+                'X-TTS-Engine-Status': 'Bhashini-Native-Success',
                 'Cache-Control': 'public, max-age=86400, stale-while-revalidate=43200'
               }
             });

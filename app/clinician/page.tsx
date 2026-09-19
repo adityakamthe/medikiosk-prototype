@@ -6,7 +6,7 @@ import {
   Stethoscope, User, Clock, AlertTriangle, CheckCircle2,
   ShieldCheck, Download, Eye, Info, RefreshCw, FileText, Lock, Unlock,
   ChevronDown, Printer, Save, Trash2, UserCheck, Activity, ShieldAlert, Calendar,
-  Camera, ScanLine
+  Camera, ScanLine, Play, Pause, Square, Volume2, RotateCw, ZoomIn, ZoomOut, Maximize2, X
 } from '@/components/Icons';
 import { computeDashavidhaPariksha, DashavidhaPariksha } from '@/lib/ayush';
 import { generateTextualClinicalReport } from '@/lib/fhir';
@@ -15,6 +15,8 @@ import { MedicalTimeline } from '@/components/clinician/MedicalTimeline';
 import { LabOutRangeVisualizer } from '@/components/clinician/LabOutRangeVisualizer';
 import { DrugSafetyCard } from '@/components/clinician/DrugSafetyCard';
 import { ScannedDocumentsViewer } from '@/components/clinician/ScannedDocumentsViewer';
+import { DigitalPrescriptionEditor, PrescribedMedicine, OutOfRangeLabItem } from '@/components/clinician/DigitalPrescriptionEditor';
+import { FhirResourceInspector } from '@/components/clinician/FhirResourceInspector';
 
 // Helper function to safely convert any clinical value (string, object, array) into a string to prevent React child object errors
 function formatClinicalText(val: any): string {
@@ -92,6 +94,95 @@ export default function ClinicianDashboard() {
   // Source Drilldown State
   const [drilldownData, setDrilldownData] = useState<any>(null);
   const selectedSessionIdRef = useRef<string | null>(null);
+
+  // Doctor English Audio Briefing State (Spoken Clinical Briefing)
+  const [isBriefingPlaying, setIsBriefingPlaying] = useState<boolean>(false);
+  const [isLoadingBriefing, setIsLoadingBriefing] = useState<boolean>(false);
+  const [briefingSpeed, setBriefingSpeed] = useState<number>(1);
+  const briefingAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Scanned Document Cross-Check Side-by-Side Drawer State
+  const [isDocCrossCheckOpen, setIsDocCrossCheckOpen] = useState<boolean>(false);
+  const [crossCheckDocIndex, setCrossCheckDocIndex] = useState<number>(0);
+  const [crossCheckZoom, setCrossCheckZoom] = useState<number>(1);
+  const [crossCheckRotation, setCrossCheckRotation] = useState<number>(0);
+  const [crossCheckContrast, setCrossCheckContrast] = useState<boolean>(false);
+
+  // Generate high-yield, fluent English clinical briefing text for attending physician
+  const generateEnglishClinicalBriefing = () => {
+    if (!selectedSession) return '';
+    const pName = selectedSession.patient_name || selectedSession.patient_ref || 'Patient';
+    const ageGender = `${selectedSession.age ? `${selectedSession.age} year old` : ''} ${selectedSession.gender || 'patient'}`.trim();
+    const queueId = selectedSession.queue_id || 'OPD Token';
+    const isAyurveda = selectedSession.clinical_mode === 'ayurveda';
+    const draft = sessionDetail?.latest_draft?.clinician_summary || {};
+    const cc = formatClinicalText(draft.chief_complaint) || (isAyurveda ? 'Ayurvedic consultation' : 'Outpatient consultation');
+    const hpi = formatClinicalText(draft.hpi) || '';
+    const past = formatClinicalText(draft.past_medical_surgical) || 'no prior chronic illnesses reported';
+    const allergies = formatClinicalText(draft.allergies) || 'no known drug allergies';
+    const meds = formatClinicalText(draft.medications) || 'no active prescription medications';
+    const family = formatClinicalText(draft.family_history) || 'unremarkable family medical history';
+    const labs = formatClinicalText(draft.prior_investigations) || '';
+
+    let text = `Clinical intake briefing for ${pName}, ${ageGender}, token ${queueId}. Chief complaint: ${cc}. `;
+    if (hpi) text += `History of presenting illness: ${hpi.slice(0, 180)}. `;
+    text += `Medical history: ${past.slice(0, 100)}. `;
+    text += `Documented allergies: ${allergies}. `;
+    text += `Current medications: ${meds.slice(0, 100)}. `;
+    text += `Family history: ${family.slice(0, 80)}. `;
+    if (labs && !/no previous/i.test(labs)) text += `Diagnostic investigations: ${labs.slice(0, 100)}. `;
+    text += `Review of systems complete without acute decompensation. Ready for physician review.`;
+    return text;
+  };
+
+  // Play / Pause English Audio Briefing
+  const handleToggleDoctorBriefing = async () => {
+    if (isBriefingPlaying && briefingAudioRef.current) {
+      briefingAudioRef.current.pause();
+      setIsBriefingPlaying(false);
+      return;
+    }
+    if (briefingAudioRef.current && briefingAudioRef.current.src) {
+      briefingAudioRef.current.playbackRate = briefingSpeed;
+      await briefingAudioRef.current.play();
+      setIsBriefingPlaying(true);
+      return;
+    }
+    setIsLoadingBriefing(true);
+    try {
+      const briefingText = generateEnglishClinicalBriefing();
+      const res = await fetch(`/api/tts?text=${encodeURIComponent(briefingText)}&lang=en`);
+      if (!res.ok) throw new Error('Failed to fetch briefing audio');
+      const blob = await res.blob();
+      const audioUrl = URL.createObjectURL(blob);
+      const audio = new Audio(audioUrl);
+      audio.playbackRate = briefingSpeed;
+      audio.onended = () => setIsBriefingPlaying(false);
+      audio.onerror = () => setIsBriefingPlaying(false);
+      briefingAudioRef.current = audio;
+      await audio.play();
+      setIsBriefingPlaying(true);
+    } catch (err) {
+      console.error('Doctor audio briefing error:', err);
+    } finally {
+      setIsLoadingBriefing(false);
+    }
+  };
+
+  const handleStopDoctorBriefing = () => {
+    if (briefingAudioRef.current) {
+      briefingAudioRef.current.pause();
+      briefingAudioRef.current.currentTime = 0;
+    }
+    setIsBriefingPlaying(false);
+  };
+
+  const handleSpeedChange = (speed: number) => {
+    setBriefingSpeed(speed);
+    if (briefingAudioRef.current) {
+      briefingAudioRef.current.playbackRate = speed;
+    }
+  };
 
   // Fetch Full Details for a Selected Session
   const loadSessionDetails = async (sessionId: string) => {
@@ -275,6 +366,8 @@ export default function ClinicianDashboard() {
   const handleSelectSession = (session: any) => {
     selectedSessionIdRef.current = session.id;
     setSelectedSession(session);
+    handleStopDoctorBriefing();
+    briefingAudioRef.current = null;
     setSectionActions({});
     setEditedValues({});
     setFhirBundle(null);
@@ -1154,6 +1247,79 @@ export default function ClinicianDashboard() {
                       </div>
                     )}
 
+                    {/* DOCTOR ENGLISH CLINICAL VOICE BRIEFING TOOLBAR */}
+                    <div className="no-print bg-gradient-to-r from-slate-900 via-teal-950 to-slate-900 p-3.5 rounded-2xl border border-teal-500/30 text-white flex flex-wrap items-center justify-between gap-3 shadow-md mb-4">
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={handleToggleDoctorBriefing}
+                          disabled={isLoadingBriefing}
+                          className={`px-4 py-2 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-sm active:scale-95 ${
+                            isBriefingPlaying ? 'bg-amber-400 text-slate-950 hover:bg-amber-300' : 'bg-[#004643] text-white hover:bg-teal-700 border border-teal-400/40'
+                          }`}
+                        >
+                          {isLoadingBriefing ? (
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                          ) : isBriefingPlaying ? (
+                            <Pause className="w-4 h-4" />
+                          ) : (
+                            <Play className="w-4 h-4" />
+                          )}
+                          <span>{isLoadingBriefing ? 'Synthesizing...' : isBriefingPlaying ? 'Pause Briefing' : '🎙️ Listen to Clinical Briefing (English)'}</span>
+                        </button>
+
+                        {isBriefingPlaying && (
+                          <button
+                            type="button"
+                            onClick={handleStopDoctorBriefing}
+                            className="p-2 rounded-xl bg-slate-800 text-rose-400 hover:bg-slate-700 hover:text-rose-300 border border-slate-700 cursor-pointer"
+                            title="Stop briefing"
+                          >
+                            <Square className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+
+                        {isBriefingPlaying && (
+                          <div className="flex items-center gap-1 px-2.5 py-1 bg-slate-800/80 rounded-lg border border-teal-500/30">
+                            <span className="w-1 h-3.5 bg-teal-400 rounded-full animate-bounce" />
+                            <span className="w-1 h-5 bg-teal-300 rounded-full animate-pulse" />
+                            <span className="w-1 h-2.5 bg-emerald-400 rounded-full animate-bounce" />
+                            <span className="w-1 h-4 bg-teal-400 rounded-full animate-pulse" />
+                            <span className="text-[10px] font-mono font-bold text-teal-300 ml-1">Spoken Briefing</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center bg-slate-800/90 rounded-xl p-1 border border-slate-700 text-xs">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 px-2">Speed:</span>
+                          {[1, 1.25, 1.5].map((spd) => (
+                            <button
+                              key={spd}
+                              type="button"
+                              onClick={() => handleSpeedChange(spd)}
+                              className={`px-2 py-0.5 rounded-lg font-bold text-xs transition-colors cursor-pointer ${
+                                briefingSpeed === spd ? 'bg-[#004643] text-white' : 'text-slate-400 hover:text-white'
+                              }`}
+                            >
+                              {spd}x
+                            </button>
+                          ))}
+                        </div>
+
+                        {(sessionDetail?.documents?.length || 0) > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setIsDocCrossCheckOpen(true)}
+                            className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-300 border border-teal-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                          >
+                            <Camera className="w-3.5 h-3.5 text-amber-300" />
+                            <span>Cross-Check Uploaded Docs ({sessionDetail.documents.length})</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
                     {/* TEMPLATE A: PURE ALLOPATHIC ONE-PAGE CLINICAL SHEET */}
                     {!isAyurveda ? (
                       <div id="one-page-clinical-sheet" className="printable-area bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
@@ -1351,6 +1517,31 @@ export default function ClinicianDashboard() {
                               </p>
                             </div>
                           </div>
+                        </div>
+
+                        {/* 10. DIGITALIZED & EDITABLE PRESCRIPTION WITH HIGHLIGHTED OUT-OF-RANGE DETAILS */}
+                        <div className="no-print pt-2">
+                          <DigitalPrescriptionEditor
+                            initialMedicationsText={medsText}
+                            extractedMedications={sessionDetail?.extracted_entities?.filter((e: any) => e.entity_type === 'medication')?.map((e: any) => ({
+                              name: e.fields?.name || e.raw_text,
+                              dosage: e.fields?.dosage || '500 mg',
+                              frequency: e.fields?.frequency || '1-0-1',
+                              timing: e.fields?.timing || 'After Meals (PC)',
+                              duration: e.fields?.duration || '5 days'
+                            })) || []}
+                            safetyAlerts={safetyData?.safety_audit?.alerts || []}
+                            patientAllergiesText={allergyText}
+                            extractedLabs={safetyData?.labs || []}
+                            onUpdateMedications={(medsList, formattedText) => {
+                              handleSectionAction('medications', 'edited', medsText, formattedText, 'Physician updated digitalized prescription');
+                            }}
+                            onUpdateLabs={(labsList) => {
+                              const labsSummary = labsList.map(l => `${l.test_name}: ${l.value} ${l.unit} [${l.clinical_flag}] - ${l.doctor_note || ''}`).join('; ');
+                              handleSectionAction('prior_investigations', 'edited', labsText, labsSummary, 'Physician verified out-of-range lab findings');
+                            }}
+                            onOpenDocCrossCheck={() => setIsDocCrossCheckOpen(true)}
+                          />
                         </div>
 
                         {/* Sheet Footer & Physician Attestation Block */}
@@ -1712,6 +1903,79 @@ export default function ClinicianDashboard() {
                           <Printer className="w-3.5 h-3.5 text-slate-700" />
                           <span>Print {noteFormat.toUpperCase()} Note</span>
                         </button>
+                      </div>
+                    </div>
+
+                    {/* DOCTOR ENGLISH CLINICAL VOICE BRIEFING TOOLBAR */}
+                    <div className="no-print bg-gradient-to-r from-slate-900 via-teal-950 to-slate-900 p-3.5 rounded-2xl border border-teal-500/30 text-white flex flex-wrap items-center justify-between gap-3 shadow-md">
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={handleToggleDoctorBriefing}
+                          disabled={isLoadingBriefing}
+                          className={`px-4 py-2 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-sm active:scale-95 ${
+                            isBriefingPlaying ? 'bg-amber-400 text-slate-950 hover:bg-amber-300' : 'bg-[#004643] text-white hover:bg-teal-700 border border-teal-400/40'
+                          }`}
+                        >
+                          {isLoadingBriefing ? (
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                          ) : isBriefingPlaying ? (
+                            <Pause className="w-4 h-4" />
+                          ) : (
+                            <Play className="w-4 h-4" />
+                          )}
+                          <span>{isLoadingBriefing ? 'Synthesizing...' : isBriefingPlaying ? 'Pause Briefing' : '🎙️ Listen to Clinical Briefing (English)'}</span>
+                        </button>
+
+                        {isBriefingPlaying && (
+                          <button
+                            type="button"
+                            onClick={handleStopDoctorBriefing}
+                            className="p-2 rounded-xl bg-slate-800 text-rose-400 hover:bg-slate-700 hover:text-rose-300 border border-slate-700 cursor-pointer"
+                            title="Stop briefing"
+                          >
+                            <Square className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+
+                        {isBriefingPlaying && (
+                          <div className="flex items-center gap-1 px-2.5 py-1 bg-slate-800/80 rounded-lg border border-teal-500/30">
+                            <span className="w-1 h-3.5 bg-teal-400 rounded-full animate-bounce" />
+                            <span className="w-1 h-5 bg-teal-300 rounded-full animate-pulse" />
+                            <span className="w-1 h-2.5 bg-emerald-400 rounded-full animate-bounce" />
+                            <span className="w-1 h-4 bg-teal-400 rounded-full animate-pulse" />
+                            <span className="text-[10px] font-mono font-bold text-teal-300 ml-1">Spoken Briefing</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center bg-slate-800/90 rounded-xl p-1 border border-slate-700 text-xs">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 px-2">Speed:</span>
+                          {[1, 1.25, 1.5].map((spd) => (
+                            <button
+                              key={spd}
+                              type="button"
+                              onClick={() => handleSpeedChange(spd)}
+                              className={`px-2 py-0.5 rounded-lg font-bold text-xs transition-colors cursor-pointer ${
+                                briefingSpeed === spd ? 'bg-[#004643] text-white' : 'text-slate-400 hover:text-white'
+                              }`}
+                            >
+                              {spd}x
+                            </button>
+                          ))}
+                        </div>
+
+                        {(sessionDetail?.documents?.length || 0) > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setIsDocCrossCheckOpen(true)}
+                            className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-300 border border-teal-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                          >
+                            <Camera className="w-3.5 h-3.5 text-amber-300" />
+                            <span>Cross-Check Uploaded Docs ({sessionDetail.documents.length})</span>
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -2226,26 +2490,14 @@ export default function ClinicianDashboard() {
                     )}
                   </div>
 
-                  {/* Textual Clinical Report Display */}
-                  <div className="bg-slate-900 rounded-2xl p-4 text-emerald-400 font-mono text-xs overflow-x-auto max-h-80 whitespace-pre leading-relaxed border border-slate-800">
-                    {textualReport ? (
-                      <code>{textualReport}</code>
-                    ) : (
-                      <p className="text-slate-400 italic">Click "Generate / Refresh Report" to compile the textual note and FHIR bundle.</p>
-                    )}
-                  </div>
-
-                  {/* FHIR JSON Inspector */}
-                  {fhirBundle && (
-                    <div>
-                      <span className="text-[11px] font-bold text-slate-500 uppercase block mb-1">
-                        Raw FHIR R4 Bundle JSON:
-                      </span>
-                      <pre className="bg-slate-950 text-emerald-300 p-4 rounded-2xl text-xs font-mono overflow-x-auto max-h-64 border border-slate-800">
-                        {JSON.stringify(fhirBundle, null, 2)}
-                      </pre>
-                    </div>
-                  )}
+                  {/* Modern ABDM / NRCeS Dual-Coded FHIR R4 Resource Inspector */}
+                  <FhirResourceInspector
+                    bundle={fhirBundle}
+                    patientName={selectedSession.patient_name || selectedSession.patient_ref}
+                    onDownloadText={handleDownloadOnePageText}
+                    onPushToHIS={handlePushToHIS}
+                    isPushing={hisPushStatus.state === 'pushing'}
+                  />
                 </div>
               )}
 
@@ -2439,6 +2691,134 @@ export default function ClinicianDashboard() {
             >
               Close Drill-Down
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* SCANNED DOCUMENT CROSS-CHECK MODAL / DRAWER */}
+      {isDocCrossCheckOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="p-2 rounded-xl bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                  <Camera className="w-5 h-5" />
+                </span>
+                <div>
+                  <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
+                    <span>Uploaded Medical Documents & Scanned Prescriptions Cross-Check</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                      {sessionDetail?.documents?.length || 0} Document{sessionDetail?.documents?.length === 1 ? '' : 's'}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Visually cross-check original paper records against digitalized prescriptions and extracted values.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCrossCheckZoom(prev => Math.min(prev + 0.25, 2.5))}
+                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold cursor-pointer"
+                  title="Zoom In"
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCrossCheckZoom(prev => Math.max(prev - 0.25, 0.75))}
+                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold cursor-pointer"
+                  title="Zoom Out"
+                >
+                  <ZoomOut className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCrossCheckRotation(prev => (prev + 90) % 360)}
+                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold cursor-pointer"
+                  title="Rotate"
+                >
+                  <RotateCw className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCrossCheckContrast(prev => !prev)}
+                  className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                    crossCheckContrast ? 'bg-amber-400 text-slate-950 border-amber-300' : 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white'
+                  }`}
+                >
+                  {crossCheckContrast ? 'High Contrast On' : 'Enhance Contrast'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsDocCrossCheckOpen(false)}
+                  className="p-2 rounded-xl bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-200 border border-slate-700 transition-colors ml-2 cursor-pointer"
+                  title="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Document Viewer Content */}
+            <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+              {(sessionDetail?.documents?.length || 0) > 1 && (
+                <div className="w-full md:w-56 bg-slate-950 border-r border-slate-800 p-3 overflow-y-auto space-y-2 shrink-0">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Select Document</span>
+                  {sessionDetail.documents.map((doc: any, dIdx: number) => (
+                    <button
+                      key={doc.id || dIdx}
+                      type="button"
+                      onClick={() => setCrossCheckDocIndex(dIdx)}
+                      className={`w-full p-2.5 rounded-xl text-left border transition-all cursor-pointer ${
+                        crossCheckDocIndex === dIdx
+                          ? 'bg-teal-950/60 border-teal-500/50 text-white'
+                          : 'bg-slate-900/70 border-slate-800 text-slate-300 hover:bg-slate-900'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-xs font-bold">
+                        <span>Doc #{dIdx + 1}</span>
+                        <span className="text-[10px] text-teal-400 uppercase">{doc.mime_type?.includes('pdf') ? 'PDF' : 'IMAGE'}</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                        {doc.quality_check_result?.extracted_summary?.doctor_or_hospital || 'Prescription / Lab'}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Document View Canvas */}
+              <div className="flex-1 bg-slate-950 p-4 flex items-center justify-center overflow-auto relative">
+                {sessionDetail?.documents?.[crossCheckDocIndex]?.file_ref ? (
+                  <div
+                    style={{
+                      transform: `scale(${crossCheckZoom}) rotate(${crossCheckRotation}deg)`,
+                      filter: crossCheckContrast ? 'contrast(160%) brightness(110%) grayscale(20%)' : 'none',
+                      transition: 'transform 0.15s ease-out, filter 0.2s ease-in-out'
+                    }}
+                    className="max-w-full max-h-full flex items-center justify-center select-none"
+                  >
+                    <img
+                      src={sessionDetail.documents[crossCheckDocIndex].file_ref}
+                      alt="Uploaded Medical Document"
+                      className="max-h-[65vh] object-contain rounded-xl shadow-2xl border border-slate-800"
+                    />
+                  </div>
+                ) : (
+                  <div className="text-center p-8 space-y-3">
+                    <Camera className="w-12 h-12 text-slate-600 mx-auto" />
+                    <p className="text-sm font-bold text-slate-400">No scanned document image available for this session.</p>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                      Documents uploaded at the patient kiosk appear here for physician verification.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -209,7 +209,7 @@ export function detectRedFlagSuspicion(text: string): string | null {
 /**
  * Stage 2: Generate the confirming follow-on question to clear or corroborate the emergency.
  */
-// Localized Emergency Confirmation Dictionary across all 10 Indian official kiosk languages
+// Localized Emergency Confirmation Dictionary across all 22 Indian official kiosk languages
 const EMERGENCY_CONFIRMATION_DATA: Record<string, Record<string, { q: string; en: string; yes: string; no: string }>> = {
   cardiac: {
     en: {

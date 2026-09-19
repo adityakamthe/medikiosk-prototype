@@ -22,7 +22,7 @@ As a direct consequence, critical medical history is routinely missed, clinical 
 **MediKiosk** is a patient-facing hardware/web terminal paired with an ambient clinician dashboard. Placed in the outpatient waiting area, MediKiosk intercepts patients *before* they enter the consultation room.
 
 Key capabilities:
-- **Vernacular Voice & Touch Intake**: Patients converse naturally using their native language (10 Indian languages supported) or interact via high-contrast touch screens.
+- **Vernacular Voice & Touch Intake**: Patients converse naturally using their native language (22 Indian languages supported) or interact via high-contrast touch screens.
 - **Dynamic Clinical Questioning**: Using Mistral AI (`mistral-small-latest`), the system conducts an empathetic, context-aware interview following clinical frameworks (SOCRATES, chronic disease screening, family history, and classical Ayurvedic Dashavidha Pariksha).
 - **Deterministic Red-Flag Safety Net**: Hard-coded, zero-LLM safety algorithms immediately flag emergency symptoms (stroke, heart attack, anaphylaxis) and redirect the patient with high-decibel audio alerts and staff notifications.
 - **Zero-Disk Multimodal Document Extraction**: High-speed OCR and clinical entity extraction using Pixtral 12B Vision (`pixtral-12b-2409`) processes prescriptions, lab reports, and discharge summaries in volatile RAM—never persisting patient document images to disk.
@@ -38,7 +38,7 @@ Key capabilities:
 ```
 +-----------------------------------------------------------------------------------------+
 |                                    PATIENT KIOSK PORTAL                                  |
-|  - 10 Indian Languages (Voice STT + Server-Streamed Regional TTS)                         |
+|  - 22 Indian Languages (Voice STT + Server-Streamed Regional TTS)                         |
 |  - DPDP Consent Recording (Touch/Voice/Guardian) & ABHA Token Identification             |
 |  - Adaptive SOCRATES / Dashavidha Conversational Intake (Mistral AI)                     |
 |  - Zero-Disk Document Scanner (Pixtral 12B Vision via RAM Buffers)                       |
@@ -123,9 +123,9 @@ LLMs hallucinate and can fail unpredictably. MediKiosk enforces a **zero-trust s
 
 ---
 
-## 4. Multilingual Engine (10 Indian Languages)
+## 4. Multilingual Engine (22 Indian Languages)
 
-MediKiosk provides end-to-end voice and touch support across 10 official Indian languages:
+MediKiosk provides end-to-end voice and touch support across 22 official Indian languages:
 
 | Code | Language | Native Script | BCP-47 Code | Honorific | TTS Support |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -496,7 +496,7 @@ CREATE TABLE audit_log (
 PATIENT FLOW                              CLINICIAN FLOW
 +---------------------------+             +---------------------------+
 | 1. Language Selection     |             | 1. Live Queue Polling     |
-|    (10 Indian Languages)  |             |    (4s auto-refresh)      |
+|    (22 Indian Languages)  |             |    (4s auto-refresh)      |
 +-------------+-------------+             +-------------+-------------+
               |                                         |
               v                                         v
@@ -538,7 +538,7 @@ PATIENT FLOW                              CLINICIAN FLOW
 
 ### 9.1 Patient Kiosk Intake Journey
 1. **Screen 1: Language Selection (`language`)**:
-   - The kiosk displays 10 language tiles. The patient taps their language or uses voice to select.
+   - The kiosk displays 22 language tiles. The patient taps their language or uses voice to select.
    - The UI immediately updates all labels, prompts, and audio to the chosen language.
 2. **Screen 2: Digital Health Data Consent (`consent`)**:
    - DPDP 2023 notice plays aloud via server TTS.
@@ -716,7 +716,7 @@ Synthesizes the bilingual patient recap and clinician SBAR report over recorded 
 - **Response**: Returns `draft_summary` and active `contradictions`.
 
 #### `GET /api/tts`
-Streams server-synthesized regional audio MP3s across all 10 Indian languages.
+Streams server-synthesized regional audio MP3s across all 22 Indian languages.
 - **Parameters**: `?lang=hi&text=कृपया+ध्यान+दें`
 - **Response**: `Content-Type: audio/mpeg`
 
@@ -776,7 +776,7 @@ Generates a synthetic HL7 FHIR R4 Bundle and human-readable consultation report.
 - **Full-Stack Next.js 15 Application**: Clean separation between patient `/kiosk` and doctor `/clinician` interfaces.
 - **Live Database Connection**: Connected to a cloud Neon Serverless PostgreSQL database with all tables, constraints, and audit logging.
 - **Mistral AI Integration**: Live connection using `@mistralai/mistralai` with dynamic structured JSON prompts for `mistral-small-latest` and zero-disk vision OCR with `pixtral-12b-2409`.
-- **Bilingual & Multilingual Engine**: 10 Indian languages with native scripts, translated UI packs, BCP-47 speech recognition, and regional audio synthesis.
+- **Bilingual & Multilingual Engine**: 22 Indian languages with native scripts, translated UI packs, BCP-47 speech recognition, and regional audio synthesis.
 - **Deterministic Red-Flag Safety Engine**: Instant emergency alerts for acute cardiac events, FAST stroke symptoms, respiratory failure, and anaphylaxis.
 - **Zero-Disk OCR & Document Parsing**: Image processing in RAM with patient-context infusion to decipher handwritten doctor notes and lab tests.
 - **Live Clinician Dashboard**: Polling patient queue, priority triage badges, SBAR layout, side-by-side contradiction cards, audit-logging edit modals, and attestation gates.

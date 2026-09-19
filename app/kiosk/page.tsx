@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import jsQR from 'jsqr';
 import { 
   Volume2, Mic, MicOff, Camera, Upload, CheckCircle2 as CheckCircle, AlertTriangle, 
   ChevronRight, HeartPulse, User, Clock, ShieldCheck,
@@ -54,7 +55,7 @@ export default function KioskPortal() {
   const [patientGender, setPatientGender] = useState<string>('Male');
   const [isListeningForName, setIsListeningForName] = useState<boolean>(false);
   const [isListeningForAge, setIsListeningForAge] = useState<boolean>(false);
-  const [selectedRegionalLang, setSelectedRegionalLang] = useState<string>('mr');
+  const [selectedRegionalLang, setSelectedRegionalLang] = useState<string>('hi');
   
   const currentLang = LOCALIZED_LANGUAGES[language] || LOCALIZED_LANGUAGES.hi;
 
@@ -210,7 +211,12 @@ export default function KioskPortal() {
       }
     }
 
-    if (parsedName) setPatientName(parsedName);
+    if (parsedName) {
+      const formattedName = (parsedName === parsedName.toUpperCase() && parsedName.length > 2)
+        ? parsedName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')
+        : parsedName;
+      setPatientName(formattedName);
+    }
     if (parsedAge) setPatientAge(parsedAge);
     if (parsedGender) setPatientGender(parsedGender);
     if (parsedAbha) setAbhaId(parsedAbha);
@@ -220,9 +226,10 @@ export default function KioskPortal() {
     setShowAbhaScannerModal(false);
     playHospitalChime();
 
+    const cleanSpokenName = (parsedName || 'Patient').replace(/!+/g, '');
     const ack = language === 'hi'
-      ? `आभा स्वास्थ्य कार्ड सत्यापित हुआ। स्वागत है ${parsedName || 'रोगी'}!`
-      : `ABHA Health Card Verified Successfully. Welcome ${parsedName || 'Patient'}!`;
+      ? `आभा स्वास्थ्य कार्ड सत्यापित हुआ। स्वागत है ${cleanSpokenName || 'रोगी'}।`
+      : `ABHA Health Card Verified Successfully. Welcome ${cleanSpokenName || 'Patient'}.`;
     speakPrompt(ack);
   };
 
@@ -499,7 +506,7 @@ export default function KioskPortal() {
     setLiveTranscript('');
   };
 
-  // Universal Instant High-Fidelity Audio Synthesis across all 10 Indian Languages
+  // Universal Instant High-Fidelity Audio Synthesis across all 22 Indian Languages
   const playServerTTS = (cleanText: string, targetLang: string) => {
     const audioUrl = `/api/tts?lang=${encodeURIComponent(targetLang)}&text=${encodeURIComponent(cleanText)}`;
     const audio = new Audio(audioUrl);
@@ -562,6 +569,16 @@ export default function KioskPortal() {
     // 3. Remove emojis, markdown formatting, and trailing pause punctuation
     cleanText = cleanText.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
     cleanText = cleanText.replace(/[*_`~]/g, '').replace(/[\/,;:]\s*$/g, '').replace(/\s+/g, ' ').trim();
+
+    // 4. Strip exclamation marks so TTS engines (Google TTS & Bhashini) never pronounce "!" as "factorial"
+    cleanText = cleanText.replace(/!+/g, '. ');
+
+    // 5. Convert ALL-CAPS words (e.g. "RAHUL SHARMA") to Title Case so names are read as words, not spelled out
+    cleanText = cleanText.replace(/\b([A-Z]{2,})\b/g, (match) => {
+      const medicalAcronyms = ['ECG', 'BP', 'OPD', 'ABHA', 'ABDM', 'USG', 'CBC', 'ICD', 'SOS', 'OD', 'BD', 'TDS'];
+      if (medicalAcronyms.includes(match)) return match;
+      return match.charAt(0).toUpperCase() + match.slice(1).toLowerCase();
+    });
 
     if (!cleanText) return;
 
@@ -1049,7 +1066,11 @@ export default function KioskPortal() {
 
   // Start Consultation after Demographics Intake & Personalize Initial Question
   const handleStartConsultation = async () => {
-    const cleanName = patientName.trim();
+    const rawCleanName = patientName.trim();
+    const formattedName = (rawCleanName === rawCleanName.toUpperCase() && rawCleanName.length > 2)
+      ? rawCleanName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')
+      : rawCleanName;
+    const cleanName = formattedName;
     const effectiveName = cleanName || 'PATIENT_GUEST';
     const effectiveAge = patientAge || '35';
     const effectiveGender = patientGender || 'Male';
@@ -1532,23 +1553,57 @@ export default function KioskPortal() {
                   onChange={(e) => {
                     if (e.target.files && e.target.files[0]) {
                       const file = e.target.files[0];
-                      if ('BarcodeDetector' in window) {
-                        const img = new Image();
-                        img.src = URL.createObjectURL(file);
-                        img.onload = async () => {
-                          try {
-                            const bd = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
-                            const codes = await bd.detect(img);
-                            if (codes.length > 0 && codes[0].rawValue) {
-                              handleParseAbhaQR(codes[0].rawValue);
+                      const img = new Image();
+                      img.src = URL.createObjectURL(file);
+                      img.onload = async () => {
+                        try {
+                          // 1. Primary: Canvas pixel extraction + jsQR decoding (works in 100% of browsers)
+                          const canvas = document.createElement('canvas');
+                          const ctx = canvas.getContext('2d');
+                          if (ctx) {
+                            canvas.width = img.naturalWidth || img.width;
+                            canvas.height = img.naturalHeight || img.height;
+                            ctx.drawImage(img, 0, 0);
+                            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                            const qrResult = jsQR(imgData.data, imgData.width, imgData.height, {
+                              inversionAttempts: "dontInvert",
+                            });
+                            if (qrResult && qrResult.data && qrResult.data.trim()) {
+                              handleParseAbhaQR(qrResult.data);
                               return;
                             }
-                          } catch {}
-                          handleUseSampleAbhaCard();
-                        };
-                      } else {
-                        handleUseSampleAbhaCard();
-                      }
+                            // Inverted attempt for dark backgrounds
+                            const qrInverted = jsQR(imgData.data, imgData.width, imgData.height, {
+                              inversionAttempts: "onlyInvert",
+                            });
+                            if (qrInverted && qrInverted.data && qrInverted.data.trim()) {
+                              handleParseAbhaQR(qrInverted.data);
+                              return;
+                            }
+                          }
+
+                          // 2. Secondary fallback: BarcodeDetector API if available
+                          if ('BarcodeDetector' in window) {
+                            try {
+                              const bd = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
+                              const codes = await bd.detect(img);
+                              if (codes.length > 0 && codes[0].rawValue) {
+                                handleParseAbhaQR(codes[0].rawValue);
+                                return;
+                              }
+                            } catch {}
+                          }
+
+                          // Failed to detect QR -> inform user cleanly; NEVER overwrite with sample Rahul Sharma!
+                          setAbhaScanError('Could not detect a valid QR code from this image. Please ensure the QR is well-lit and clear, or enter details manually.');
+                        } catch (qrErr) {
+                          console.warn('QR file parse error:', qrErr);
+                          setAbhaScanError('Could not parse the QR code image. Please try another image or enter manually.');
+                        }
+                      };
+                      img.onerror = () => {
+                        setAbhaScanError('Failed to load image file. Please select a valid QR code image.');
+                      };
                     }
                   }} 
                   className="hidden" 
@@ -2243,9 +2298,9 @@ export default function KioskPortal() {
                 <button
                   type="button"
                   onClick={() => {
-                    const targetLang = selectedRegionalLang || (language !== 'en' ? language : 'mr');
-                    setLanguage(targetLang);
-                    speakPrompt(currentQuestion.question_localized || currentQuestion.question_en, targetLang);
+                    const activeRegional = selectedRegionalLang || (language !== 'en' ? language : 'hi');
+                    setLanguage(activeRegional);
+                    speakPrompt(currentQuestion.question_localized || currentQuestion.question_en, activeRegional);
                   }}
                   className={`px-2.5 py-1 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
                     language !== 'en' 
@@ -2254,7 +2309,7 @@ export default function KioskPortal() {
                   }`}
                   title={`Switch interview to ${(LOCALIZED_LANGUAGES[selectedRegionalLang] || currentLang).name}`}
                 >
-                  {(LOCALIZED_LANGUAGES[selectedRegionalLang] || currentLang).native || 'मराठी'}
+                  {(LOCALIZED_LANGUAGES[selectedRegionalLang] || currentLang).native}
                 </button>
                 <button
                   type="button"
@@ -3137,7 +3192,7 @@ export default function KioskPortal() {
 
       {/* Footer */}
       <footer className="text-center text-xs text-ink-black/60 py-2 font-medium">
-        {currentLang.app_title} • 10 Major Indian Languages • DPDP Compliant
+        {currentLang.app_title} • 22 Indian Major Languages • DPDP Compliant
       </footer>
       </main>
     </div>

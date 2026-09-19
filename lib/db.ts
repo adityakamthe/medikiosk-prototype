@@ -4,19 +4,39 @@ import { Pool } from '@neondatabase/serverless';
 const DEFAULT_DATABASE_URL =
   'postgresql://neondb_owner:npg_JnF8RD2TNPdp@ep-spring-sunset-a6k5fwq8-pooler.us-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require';
 
-const dbConnectionString = process.env.DATABASE_URL || DEFAULT_DATABASE_URL;
+const DEFAULT_DATABASE_URL_AYUSH =
+  'postgresql://neondb_owner:npg_QDi1xY3gbTVr@ep-little-tooth-b3h1z201-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require';
 
-let pool: Pool | null = null;
+const dbConnectionStringAiims = process.env.DATABASE_URL || DEFAULT_DATABASE_URL;
+const dbConnectionStringAyush = process.env.DATABASE_URL_AYUSH || DEFAULT_DATABASE_URL_AYUSH;
+
+let poolAiims: Pool | null = null;
+let poolAyush: Pool | null = null;
+
 try {
-  if (dbConnectionString) {
-    pool = new Pool({
-      connectionString: dbConnectionString,
+  if (dbConnectionStringAiims) {
+    poolAiims = new Pool({
+      connectionString: dbConnectionStringAiims,
       connectionTimeoutMillis: 5000,
     });
   }
 } catch (err) {
-  console.warn('[DB] Failed to initialize Neon connection pool, using in-memory store:', err);
+  console.warn('[DB AIIMS] Failed to initialize Neon connection pool:', err);
 }
+
+try {
+  if (dbConnectionStringAyush) {
+    poolAyush = new Pool({
+      connectionString: dbConnectionStringAyush,
+      connectionTimeoutMillis: 5000,
+    });
+  }
+} catch (err) {
+  console.warn('[DB AYUSH] Failed to initialize Neon connection pool:', err);
+}
+
+// Backward compatibility default pool reference
+const pool = poolAiims;
 
 // -------------------------------------------------------------
 // Resilient In-Memory Mock Store for Demo Profiles & Offline Mode
@@ -362,24 +382,71 @@ function queryMock(text: string, params: any[] = []): { rows: any[]; rowCount: n
 }
 
 // -------------------------------------------------------------
-// Unified Resilient Query Function
+// Unified Resilient Multi-Hospital Query Functions
 // -------------------------------------------------------------
-export async function query(text: string, params?: any[]) {
-  if (pool) {
+
+export function getHospitalPool(hospitalId?: string | null): Pool | null {
+  if (!hospitalId) return poolAiims || poolAyush;
+  const hid = hospitalId.toLowerCase().trim();
+  if (hid === 'aiia' || hid === 'ayush' || hid.includes('ayurveda')) {
+    return poolAyush || poolAiims;
+  }
+  return poolAiims || poolAyush;
+}
+
+export async function queryHospital(hospitalId: string | null | undefined, text: string, params?: any[]) {
+  const targetPool = getHospitalPool(hospitalId);
+  const isAyush = hospitalId && (hospitalId.toLowerCase().includes('ayush') || hospitalId.toLowerCase().includes('aiia'));
+
+  if (targetPool) {
     try {
       const start = Date.now();
-      const res = await pool.query(text, params);
+      const res = await targetPool.query(text, params);
       const duration = Date.now() - start;
       if (duration > 500) {
-        console.log('[Neon SQL] Executed slow query:', { text, duration, rows: res.rowCount });
+        console.log(`[Neon SQL - ${hospitalId || 'AIIMS'}] Executed slow query:`, { text, duration, rows: res.rowCount });
       }
-      // If table returned 0 rows for a session lookup, fallback to mock if query looks for demo patients
-      if (res.rowCount === 0 && (text.includes('Q-101') || text.includes('91-8822-1144-5566') || text.includes('Q-105'))) {
+      if (res.rowCount === 0 && (text.includes('Q-101') || text.includes('91-8822-1144-5566') || text.includes('Q-105') || text.includes('91-4433-2211-7788'))) {
         return queryMock(text, params);
       }
       return res;
     } catch (err: any) {
-      console.warn('[Neon SQL] Live query error, serving from resilient mock store:', err.message);
+      console.warn(`[Neon SQL - ${hospitalId || 'Default'}] Live query error, serving from mock store:`, err.message);
+      return queryMock(text, params);
+    }
+  }
+
+  return queryMock(text, params);
+}
+
+export async function query(text: string, params?: any[], hospitalId?: string | null) {
+  // If hospitalId is explicitly provided, route to that hospital's database
+  if (hospitalId) {
+    return queryHospital(hospitalId, text, params);
+  }
+
+  // Automatic heuristic: If query is explicitly looking for Priya Sharma or AYUSH queue Q-105, also check AYUSH pool
+  if (poolAiims) {
+    try {
+      const start = Date.now();
+      const res = await poolAiims.query(text, params);
+      const duration = Date.now() - start;
+      if (duration > 500) {
+        console.log('[Neon SQL AIIMS] Executed slow query:', { text, duration, rows: res.rowCount });
+      }
+      if (res.rowCount === 0 && (text.includes('Q-101') || text.includes('91-8822-1144-5566') || text.includes('Q-105') || text.includes('91-4433-2211-7788'))) {
+        // Check AYUSH database if looking for AYUSH records
+        if (poolAyush && (text.includes('Q-105') || text.includes('91-4433-2211-7788') || text.includes('PATIENT_AYUSH_DEMO'))) {
+          try {
+            const ayushRes = await poolAyush.query(text, params);
+            if (ayushRes.rowCount && ayushRes.rowCount > 0) return ayushRes;
+          } catch {}
+        }
+        return queryMock(text, params);
+      }
+      return res;
+    } catch (err: any) {
+      console.warn('[Neon SQL AIIMS] Live query error, serving from resilient mock store:', err.message);
       return queryMock(text, params);
     }
   }
@@ -388,4 +455,5 @@ export async function query(text: string, params?: any[]) {
   return queryMock(text, params);
 }
 
-export default pool;
+export { poolAiims, poolAyush };
+export default poolAiims;

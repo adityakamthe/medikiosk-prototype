@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+import { query, queryHospital } from '@/lib/db';
 import { allocateDoctorAndRoom } from '@/lib/doctors';
+import { queryCentralHealthExchange } from '@/lib/centralExchange';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -12,9 +13,8 @@ export async function GET(req: Request) {
   const isSunil = abhaId === '91-9988-7766-5544' || queueId === 'Q-ER-1' || patientRef.includes('EMERGENCY');
 
   try {
-    // Fetch all sessions matching this patient
-    const sessionsRes = await query(
-      `SELECT s.*,
+    // 1. Fetch sessions from Primary DB (AIIMS) and Ayush DB (AIIA)
+    const sql = `SELECT s.*,
               (SELECT count(*) FROM document_uploads d WHERE d.session_id = s.id) as document_count,
               (SELECT count(*) FROM red_flag_events r WHERE r.session_id = s.id) as red_flag_count,
               (SELECT content FROM draft_summaries ds WHERE ds.session_id = s.id ORDER BY ds.generated_at DESC LIMIT 1) as draft_summary,
@@ -23,14 +23,32 @@ export async function GET(req: Request) {
               (SELECT attested_at FROM attested_records ar WHERE ar.session_id = s.id ORDER BY ar.attested_at DESC LIMIT 1) as attested_at
        FROM sessions s
        WHERE s.patient_ref = $1 OR s.queue_id = $2 OR (s.abha_mock_id IS NOT NULL AND s.abha_mock_id = $3)
-       ORDER BY s.started_at DESC`,
-      [patientRef || 'PATIENT_GUEST', queueId || 'Q-101', abhaId || '91-8822-1144-5566']
-    );
+       ORDER BY s.started_at DESC`;
 
-    let sessions = sessionsRes.rows;
-    if (sessions.length === 0) {
-      const fallbackRes = await query(`SELECT * FROM sessions ORDER BY started_at DESC LIMIT 5`);
-      sessions = fallbackRes.rows;
+    const params = [patientRef || 'PATIENT_GUEST', queueId || 'Q-101', abhaId || '91-8822-1144-5566'];
+
+    // Query primary DB
+    const sessionsRes = await query(sql, params);
+    let sessions = [...sessionsRes.rows];
+
+    // If looking for Ayush patient or cross-hospital history, query Ayush DB (DB 2)
+    try {
+      const ayushRes = await queryHospital('aiia', sql, params);
+      if (ayushRes.rows && ayushRes.rows.length > 0) {
+        // Merge without duplicating existing IDs
+        const existingIds = new Set(sessions.map(s => s.id));
+        for (const row of ayushRes.rows) {
+          if (!existingIds.has(row.id)) {
+            sessions.push({
+              ...row,
+              facility_source: 'All India Institute of Ayurveda (AIIA)'
+            });
+            existingIds.add(row.id);
+          }
+        }
+      }
+    } catch (ayushErr) {
+      console.warn('Error querying Ayush DB for previous records:', ayushErr);
     }
 
     // Enrich sessions with doctor and room allocations
@@ -67,10 +85,13 @@ export async function GET(req: Request) {
       // Ignore doc lookup error
     }
 
+    const longitudinalExchange = await queryCentralHealthExchange(abhaId);
+
     return NextResponse.json({
       success: true,
       sessions: enrichedSessions,
       documents,
+      longitudinal_exchange: longitudinalExchange,
       consent: {
         notice_version: 'v1.0',
         language: 'hi',

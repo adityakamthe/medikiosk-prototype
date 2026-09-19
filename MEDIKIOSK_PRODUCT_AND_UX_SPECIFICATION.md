@@ -31,7 +31,7 @@ Within this brief, high-pressure window, the physician must simultaneously:
 **MediKiosk** is a patient-facing physical/web terminal paired with an ambient physician review dashboard. Installed in the outpatient waiting area, MediKiosk intercepts patients *before* they enter the consultation room.
 
 In **under 3 to 4 minutes of waiting time**, MediKiosk:
-- Engages the patient in their native language (10 Indian vernaculars supported).
+- Engages the patient in their native language (22 Indian vernaculars supported).
 - Collects legal DPDP consent (via touch, voice, or guardian delegation).
 - Captures demographics and assigns a continuous queue token (e.g. `Q-101`, `Q-102`).
 - Conducts a multi-turn, adaptive clinical intake following the **SOCRATES** framework, chronic disease screening, medication intake, allergy checks, and family history.
@@ -46,7 +46,7 @@ In **under 3 to 4 minutes of waiting time**, MediKiosk:
 
 | Feature | Why It Exists (Clinical & Practical Rationale) |
 | :--- | :--- |
-| **Vernacular Voice STT + Server TTS** | Over 60% of outpatient attendees in Indian public hospitals have limited written literacy. Spoken audio in regional vernaculars (Hindi, Bengali, Marathi, Telugu, Tamil, Gujarati, Kannada, Malayalam, Punjabi, English) enables independent patient self-intake without requiring hospital staff assistance. |
+| **Vernacular Voice STT + Server TTS** | Over 60% of outpatient attendees in Indian public hospitals have limited written literacy. Spoken audio in regional vernaculars enables independent patient self-intake without requiring hospital staff assistance. |
 | **8–9 Question SOCRATES Intake** | Prevents premature 2–3 question drop-offs. Clinicians need structured symptom dimensions (Site, Onset, Character, Radiation, Associations, Timing, Exacerbating/Relieving, Severity) plus past illnesses, current drugs, allergies, and family history to make safe diagnostic decisions. |
 | **Deterministic Red-Flag Safety Net** | LLMs are inherently non-deterministic and can miss critical symptoms or hallucinate. Emergency triage MUST be 100% deterministic, immediate, and hard-coded to trigger hospital sirens and immediate rerouting to Emergency Resuscitation Bay (Room ER-1) under Dr. Priya Nair. |
 | **Zero-Disk RAM Vision Extraction** | Under the Digital Personal Data Protection Act (DPDP 2023), storing unencrypted patient document scans on hospital kiosk hard drives creates severe data breach liability. Processing images in volatile RAM buffers and discarding them immediately eliminates physical disk exposure. |
@@ -62,7 +62,7 @@ In **under 3 to 4 minutes of waiting time**, MediKiosk:
 [Attractor Screen: Multilingual Indian Vernacular Welcome]
                          │
                          ▼
-[Screen 1: Language Selection (10 Indian Languages with Audio Greetings)]
+[Screen 1: Language Selection (22 Indian Languages with Audio Greetings)]
                          │
                          ▼
 [Screen 2: DPDP Digital Health Consent (Patient / Guardian / Paper Decline)]

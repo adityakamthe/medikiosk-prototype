@@ -205,7 +205,7 @@ MediKiosk was engineered to serve simultaneously as an **intelligent patient int
 |   +--------------------------+           +--------------------------+        +-------------------+ |
 |   | Patient Smartphone /     |           | Attending Doctor         |        | ABDM National     | |
 |   | Tablet Kiosk Terminal    |           | Consultation Desk        |        | Health Gateway    | |
-|   | - 10 Indian Languages    |           | - Sub-60s SBAR Review    |        | (ABHA ID Network) | |
+|   | - 22 Indian Languages    |           | - Sub-60s SBAR Review    |        | (ABHA ID Network) | |
 |   | - Adaptive SOCRATES      | --------> | - Resolves Contradictions| -----> | - Pushes FHIR R4  | |
 |   | - Zero-Disk RAM OCR Scan |           | - Signs Attestation      |        |   to Patient PHR  | |
 |   | - Red-Flag Safety Net    |           +------------+-------------+        | - Pulls Cross-    | |

@@ -68,7 +68,26 @@ VERNACULAR_SIG_DICTIONARY = {
     'భోజనం తర్వాత': 'After Meals (PC)',
     'భోజనానికి ముందు': 'Before Meals (AC)',
     'రోజుకు ఒకసారి': 'Once Daily (OD)',
-    'రోజుకు రెండుసార్లు': 'Twice Daily (BD)'
+    'రోజుకు రెండుసార్లు': 'Twice Daily (BD)',
+
+    # Marathi terms
+    'जेवणानंतर': 'After Meals (PC)',
+    'जेवणापूर्वी': 'Before Meals (AC)',
+    'रात्री झोपताना': 'At Bedtime (HS)',
+    'दिवसातून एकदा': 'Once Daily (OD)',
+    'दिवसातून दोनदा': 'Twice Daily (BD)',
+    'दिवसातून तीनदा': 'Three Times Daily (TDS)',
+    'उपाशी पोटी': 'On Empty Stomach',
+    'वेदना झाल्यास': 'As Needed for Pain (PRN)',
+    'ताप आल्यास': 'As Needed for Fever (PRN)',
+
+    # Gujarati terms
+    'જમ્યા પછી': 'After Meals (PC)',
+    'જમ્યા પહેલાં': 'Before Meals (AC)',
+    'રાત્રે સૂતી વખતે': 'At Bedtime (HS)',
+    'દિવસમાં એક વાર': 'Once Daily (OD)',
+    'દિવસમાં બે વાર': 'Twice Daily (BD)',
+    'ભૂખ્યા પેટે': 'On Empty Stomach'
 }
 
 
@@ -135,11 +154,11 @@ def call_bhashini_nmt_api(
     """
     Calls the official Government of India Bhashini ULCA NMT API if credentials are set.
     """
-    user_id = os.environ.get("BHASHINI_USER_ID")
-    api_key = os.environ.get("BHASHINI_API_KEY")
-    pipeline_id = os.environ.get("BHASHINI_PIPELINE_ID")
+    user_id = os.environ.get("BHASHINI_USER_ID") or os.environ.get("BHASHINI_UDYAT_KEY")
+    api_key = os.environ.get("BHASHINI_API_KEY") or os.environ.get("BHASHINI_INFERENCE_KEY")
+    pipeline_id = os.environ.get("BHASHINI_PIPELINE_ID") or "64332142daac500bd5c70325"
 
-    if not (user_id and api_key and pipeline_id):
+    if not (user_id and api_key):
         # Fall back directly to deterministic dictionary
         return None
 

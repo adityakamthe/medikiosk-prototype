@@ -373,13 +373,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     // - Strictly complete at turn >= 12 (hard maximum ceiling).
     const historyTextAll = historyItems.map(h => `${h.question} ${h.answer} ${h.section || ''} ${h.field_name || ''}`).join(' ').toLowerCase();
     const hasPastIllness = historyItems.some(h => (h.section || '').includes('past') || (h.field_name || '').includes('chronic') || (h.field_name || '').includes('past_illness')) ||
-      /(previous medical|chronic illness|past condition|diabetes|sugar|hypertension|blood pressure|thyroid|asthma|पुरानी बीमारी|मधुमेह|रक्तदाब|दमा|आजार)/i.test(historyTextAll);
+      /(previous medical|chronic illness|past condition|diabetes|sugar|hypertension|blood pressure|thyroid|asthma|पुरानी बीमारी|मधुमेह|रक्तदाब|दमा|आजार|ডায়াবেটিস|উচ্চ রক্তচাপ|நீரிழிவு|మధుమేహం|డయాబెటిస్|ಅಧಿಕ ರಕ್ತದೊತ್ತಡ)/i.test(historyTextAll);
 
     const hasAllergies = historyItems.some(h => (h.section || '').includes('allerg') || (h.field_name || '').includes('allerg')) ||
-      /(known allerg|penicillin|drug reaction|food allergy|एलर्जी|ऍलर्जी|அலர்ஜி)/i.test(historyTextAll);
+      /(known allerg|penicillin|drug reaction|food allergy|एलर्जी|ऍलर्जी|அலர்ஜி|অ্যালার্জি|అలెర్జీ|ಅಲರ್ಜಿ|ਐਲਰਜੀ)/i.test(historyTextAll);
 
     const hasFamilyHistory = historyItems.some(h => (h.section || '').includes('family') || (h.field_name || '').includes('family')) ||
-      /(family history|parents or siblings|hereditary|परिवार|कुटुंब|குடும்ப)/i.test(historyTextAll);
+      /(family history|parents or siblings|hereditary|परिवार|कुटुंब|குடும்ப|বংশগত|পরিবার|కుటుంబం|ವಂಶಪಾರಂಪರ್ಯ|ਪਰਿਵਾਰ)/i.test(historyTextAll);
 
     const mandatoryDomainsMet = hasPastIllness && hasAllergies && hasFamilyHistory;
     const isCompleted = Boolean((aiResponse.is_intake_complete && turnCount >= 10 && mandatoryDomainsMet) || turnCount >= 12);
@@ -412,6 +412,33 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     const isEn = language === 'en';
 
+    // Localized Fallback Dictionaries ensuring 100% language fidelity
+    const LOCALIZED_DEFAULT_OPTIONS: Record<string, string[]> = {
+      en: ['Yes', 'No', 'Not sure'],
+      hi: ['हाँ / Yes', 'नहीं / No', 'पता नहीं / Not sure'],
+      bn: ['হ্যাঁ / Yes', 'না / No', 'নিশ্চিত নই / Not sure'],
+      mr: ['होय / Yes', 'नाही / No', 'माहित नाही / Not sure'],
+      ta: ['ஆம் / Yes', 'இல்லை / No', 'தெரியவில்லை / Not sure'],
+      te: ['అవును / Yes', 'కాదు / No', 'తెలియదు / Not sure'],
+      gu: ['હા / Yes', 'ના / No', 'ખબર નથી / Not sure'],
+      kn: ['ಹೌದು / Yes', 'ಇಲ್ಲ / No', 'ಗೊತ್ತಿಲ್ಲ / Not sure'],
+      ml: ['അതെ / Yes', 'അല്ല / No', 'ഉറപ്പില്ല / Not sure'],
+      pa: ['ਹਾਂ / Yes', 'ਨਹੀਂ / No', 'ਪਤਾ ਨਹੀਂ / Not sure']
+    };
+
+    const LOCALIZED_DEFAULT_QUESTIONS: Record<string, string> = {
+      en: 'Please describe your symptoms and when they started.',
+      hi: 'कृपया अपनी समस्या और यह कब से है, विस्तार से बताएं।',
+      bn: 'দয়া করে আপনার সমস্যা এবং এটি কখন শুরু হয়েছে তা জানান।',
+      mr: 'कृपया तुमचा त्रास आणि तो कधीपासून आहे ते सविस्तर सांगा.',
+      ta: 'தயவுசெய்து உங்கள் பிரச்சனை மற்றும் அது எப்போது தொடங்கியது என்பதை விவரிக்கவும்.',
+      te: 'దయచేసి మీ సమస్య మరియు అది ఎప్పుడు ప్రారంభమైందో వివరించండి.',
+      gu: 'કૃપા કરીને તમારી તકલીફ અને તે ક્યારથી શરૂ થઈ તે વિગતવાર જણાવો.',
+      kn: 'ದಯವಿಟ್ಟು ನಿಮ್ಮ ಸಮಸ್ಯೆ ಮತ್ತು ಅದು ಯಾವಾಗ ಶುರುವಾಯಿತು ಎಂದು ತಿಳಿಸಿ.',
+      ml: 'ദയവായി നിങ്ങളുടെ ബുദ്ധിമുട്ടുകളും അത് എപ്പോഴാണ് തുടങ്ങിയതെന്നും വ്യക്തമാക്കുക.',
+      pa: 'ਕਿਰਪਾ ਕਰਕੇ ਆਪਣੀ ਤਕਲੀਫ਼ ਅਤੇ ਇਹ ਕਦੋਂ ਸ਼ੁਰੂ ਹੋਈ, ਵਿਸਥਾਰ ਨਾਲ ਦੱਸੋ।'
+    };
+
     // Sanitize options: if English mode, ensure options are strictly English without slashes or Hindi
     let finalOptions = aiResponse.options;
     if (isEn && Array.isArray(finalOptions)) {
@@ -429,13 +456,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
 
     if (!finalOptions || finalOptions.length === 0) {
-      finalOptions = isEn ? ['Yes', 'No', 'Not sure'] : ['हाँ / Yes', 'नहीं / No', 'पता नहीं / Not sure'];
+      finalOptions = LOCALIZED_DEFAULT_OPTIONS[language] || LOCALIZED_DEFAULT_OPTIONS.hi;
     }
 
     const rawLocQ = aiResponse.question_localized;
+    const defaultFallbackQ = LOCALIZED_DEFAULT_QUESTIONS[language] || LOCALIZED_DEFAULT_QUESTIONS.hi;
     const cleanLocalizedQ = isEn
       ? ((aiResponse.question_en || rawLocQ || 'Please describe your symptoms and when they started.').replace(/[\u0900-\u097F]/g, '').trim())
-      : (rawLocQ || aiResponse.question_en || 'कृपया अपनी समस्या बताएं');
+      : (rawLocQ || aiResponse.question_en || defaultFallbackQ);
 
     const nextQuestion = isCompleted ? null : {
       id: `q_${aiResponse.field_name || Date.now()}`,

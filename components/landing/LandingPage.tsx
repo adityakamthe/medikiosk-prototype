@@ -65,9 +65,30 @@ const STEPS = [
   },
 ];
 
+import { Lock, Building2 } from "lucide-react";
+
 export default function LandingPage() {
   const [demoOpen, setDemoOpen] = useState(false);
   const [step, setStep] = useState(0);
+  const [activeHospital, setActiveHospital] = useState<{ id: string; name: string; clinicalMode: string } | null>(null);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('medikiosk_hospital');
+      if (stored) {
+        setActiveHospital(JSON.parse(stored));
+      }
+    } catch {}
+  }, []);
+
+  const handleHospitalLogout = (e: React.MouseEvent) => {
+    e.preventDefault();
+    try {
+      localStorage.removeItem('medikiosk_hospital');
+      document.cookie = 'medikiosk_hospital=; path=/; max-age=0';
+      setActiveHospital(null);
+    } catch {}
+  };
 
   useEffect(() => {
     if (!demoOpen) return;
@@ -104,30 +125,74 @@ export default function LandingPage() {
             ))}
           </nav>
           <div className="flex items-center gap-2">
-            <Link
-              href="/appointments"
-              className="rounded-full bg-cornsilk/20 hover:bg-cornsilk/30 border border-cornsilk/40 px-3 py-2 text-xs font-semibold text-cornsilk md:px-3.5 md:text-sm transition-all"
-            >
-              Book OPD
-            </Link>
+            {/* Hospital Authentication Gatekeeper Badge / Action */}
+            {activeHospital ? (
+              <div className="flex items-center gap-1.5 bg-white/10 border border-white/20 rounded-full px-2.5 py-1 text-xs text-white">
+                <Building2 className="w-3.5 h-3.5 text-metallic-gold" />
+                <span className="font-bold text-metallic-gold max-w-[120px] sm:max-w-none truncate">{activeHospital.name}</span>
+                <button
+                  onClick={handleHospitalLogout}
+                  title="Switch hospital facility"
+                  className="ml-1 text-[10px] text-cornsilk/70 hover:text-white underline cursor-pointer"
+                >
+                  Switch
+                </button>
+              </div>
+            ) : (
+              <Link
+                href="/hospital-login"
+                className="rounded-full bg-metallic-gold/90 hover:bg-metallic-gold text-ink-black px-3 py-1.5 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <Building2 className="w-3.5 h-3.5" />
+                <span>Hospital Login</span>
+              </Link>
+            )}
+
+            {/* Patient Portal Always Available */}
             <Link
               href="/patient"
               className="hidden sm:inline-block rounded-full bg-cornsilk/10 hover:bg-cornsilk/20 border border-cornsilk/30 px-3 py-2 text-xs font-semibold text-cornsilk md:px-3.5 md:text-sm transition-all"
             >
               Patient Portal
             </Link>
-            <Link
-              href="/kiosk"
-              className="hidden md:inline-block rounded-full border border-cornsilk/30 px-3 py-2 text-xs font-semibold text-cornsilk/90 hover:text-cornsilk hover:bg-white/10 transition-all md:px-3.5 md:text-sm"
-            >
-              On-Site Kiosk
-            </Link>
-            <Link
-              href="/clinician"
-              className="rounded-full bg-metallic-gold hover:brightness-105 px-3 py-2 text-xs font-semibold text-ink-black md:px-4 md:text-sm transition-all shadow-xs"
-            >
-              Clinician Login
-            </Link>
+
+            {/* On-Site Kiosk: Unlocked only if Hospital logged in */}
+            {activeHospital ? (
+              <Link
+                href="/kiosk"
+                className="hidden md:inline-block rounded-full border border-cornsilk/30 px-3 py-2 text-xs font-semibold text-cornsilk/90 hover:text-cornsilk hover:bg-white/10 transition-all md:px-3.5 md:text-sm"
+              >
+                On-Site Kiosk
+              </Link>
+            ) : (
+              <Link
+                href="/hospital-login"
+                title="Hospital Login required to unlock on-site kiosk"
+                className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/20 px-3 py-2 text-xs font-semibold text-cornsilk/60 hover:text-cornsilk/90 hover:border-white/40 transition-all md:px-3.5 md:text-sm"
+              >
+                <Lock className="w-3 h-3 text-metallic-gold" />
+                <span>On-Site Kiosk</span>
+              </Link>
+            )}
+
+            {/* Clinician Login: Unlocked only if Hospital logged in */}
+            {activeHospital ? (
+              <Link
+                href="/clinician"
+                className="rounded-full bg-metallic-gold hover:brightness-105 px-3 py-2 text-xs font-semibold text-ink-black md:px-4 md:text-sm transition-all shadow-xs"
+              >
+                Clinician Login
+              </Link>
+            ) : (
+              <Link
+                href="/hospital-login"
+                title="Hospital Login required to unlock clinician portal"
+                className="inline-flex items-center gap-1.5 rounded-full bg-metallic-gold/40 border border-metallic-gold/50 px-3 py-2 text-xs font-semibold text-ink-black/80 hover:bg-metallic-gold/60 md:px-4 md:text-sm transition-all shadow-xs"
+              >
+                <Lock className="w-3 h-3" />
+                <span>Clinician Login</span>
+              </Link>
+            )}
           </div>
         </div>
         <nav className="flex gap-4 overflow-x-auto border-t border-cornsilk/10 px-4 py-2 text-xs text-cornsilk/80 lg:hidden" aria-label="Mobile">
@@ -163,10 +228,10 @@ export default function LandingPage() {
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
-                  href="/appointments"
+                  href="/patient?tab=book_opd"
                   className="rounded-full bg-[#004643] hover:bg-teal-900 text-white px-6 py-3 text-sm font-semibold transition-all shadow-md active:scale-95"
                 >
-                  Book Appointment
+                  Patient Portal · Book OPD
                 </Link>
                 <button
                   type="button"

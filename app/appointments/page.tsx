@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Calendar,
   Clock,
@@ -22,6 +23,12 @@ import {
 } from '@/components/Icons';
 
 export default function AppointmentBookingPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace('/patient?tab=book_opd');
+  }, [router]);
+
   const [departments, setDepartments] = useState<any[]>([]);
   const [selectedDeptCode, setSelectedDeptCode] = useState<string>('general_medicine');
   const [selectedDate, setSelectedDate] = useState<string>(
