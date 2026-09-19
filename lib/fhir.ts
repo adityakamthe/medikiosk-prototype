@@ -445,17 +445,12 @@ ${summary.dashavidha_pariksha ? stringifyVal(summary.dashavidha_pariksha) : `1. 
 9. Satmya (सात्म्य)     : Oka-satmya (Habituated to seasonal home-cooked Indian diet)
 10. Ahara-shakti (आहार): Madhyama Abhyavaharana Shakti & Jarana Shakti`}
 ` : ''}--------------------------------------------------------------------------------
-${isAyurveda ? '8' : '7'}. PRIOR DIAGNOSTIC INVESTIGATIONS / LAB REPORTS
---------------------------------------------------------------------------------
-${stringifyVal(summary.prior_investigations) || 'No prior laboratory or radiological documents uploaded.'}
-
---------------------------------------------------------------------------------
-${isAyurveda ? '9' : '8'}. PATIENT BILINGUAL SUMMARY (VERNACULAR RECAP)
+${isAyurveda ? '8' : '7'}. PATIENT BILINGUAL SUMMARY (VERNACULAR RECAP)
 --------------------------------------------------------------------------------
 ${patientBilingual || 'Patient confirmation review completed at kiosk terminal.'}
 
 --------------------------------------------------------------------------------
-${isAyurveda ? '10' : '9'}. DUAL-CODED TERMINOLOGY (NAMASTE + WHO ICD-11 TM2 + SNOMED CT)
+${isAyurveda ? '9' : '8'}. DUAL-CODED TERMINOLOGY (NAMASTE + WHO ICD-11 TM2 + SNOMED CT)
 --------------------------------------------------------------------------------
 ${Array.isArray(summary.dual_coding) && summary.dual_coding.length > 0 
   ? summary.dual_coding.map((dc: any) => `• ${dc.finding_text || 'Finding'}: NAMASTE [${dc.namaste_code || 'AYU-DG-0001'}] ${dc.namaste_display || ''} | WHO TM2 [${dc.icd11_tm2_code || 'TM2-SD-0001'}] | SNOMED CT [${dc.snomed_ct_code || '404684003'}]`).join('\n')

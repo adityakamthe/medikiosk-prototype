@@ -31,6 +31,8 @@ export interface Standard8PartSummary {
   hpi_narrative: string;
   past_medical_surgical: string;
   family_history: string;
+  social_history?: string;
+  background_summary?: string;
   current_medications: string;
   allergies_adverse_reactions: string;
   review_of_systems: string;
@@ -411,13 +413,28 @@ function fallbackClinicalSynthesis(payload: PatientRecordPayload): ClinicalSynth
     .map((h) => `${h.field_name || ''}: ${h.value}`)
     .join('; ');
   const past = hist
-    .filter((h) => (h.section || '').includes('past') || (h.field_name || '').includes('chronic'))
+    .filter((h) =>
+      (h.section || '').toLowerCase().match(/past|chronic|medical.?histor|surgical|prior.?ill|comorbid/) ||
+      (h.field_name || '').toLowerCase().match(/past|chronic|medical.?histor|surgical|prior.?ill|comorbid/)
+    )
     .map((h) => h.value)
     .join('; ') || 'None reported';
   const fam = hist
-    .filter((h) => (h.section || '').includes('family'))
+    .filter((h) =>
+      (h.section || '').toLowerCase().includes('family') ||
+      (h.field_name || '').toLowerCase().includes('family') ||
+      (h.field_name || '').toLowerCase().includes('hereditary') ||
+      (h.field_name || '').toLowerCase().includes('parents')
+    )
     .map((h) => h.value)
     .join('; ') || 'No hereditary illness reported';
+  const social = hist
+    .filter((h) =>
+      (h.section || '').toLowerCase().match(/social|lifestyle|occupation|smoking|alcohol|diet|exercise/) ||
+      (h.field_name || '').toLowerCase().match(/social|lifestyle|occupation|smoking|alcohol|diet|exercise/)
+    )
+    .map((h) => `${(h.field_name || h.section || '').replace(/_/g, ' ')}: ${h.value}`)
+    .join('; ') || 'No social/lifestyle history recorded';
   const allergy = hist.find((h) => h.section === 'allergies')?.value || 'No known allergies reported';
   const meds = ents
     .filter((e) => e.entity_type === 'medication')
@@ -431,6 +448,18 @@ function fallbackClinicalSynthesis(payload: PatientRecordPayload): ClinicalSynth
     .filter((e) => e.entity_type === 'diagnosis')
     .map((e) => e.name || e.raw_text)
     .join('; ') || 'Clinical evaluation in progress based on vocal interview.';
+
+  // Build background summary
+  const demographicsStr = [
+    payload.patient_meta?.age ? `${payload.patient_meta.age}-year-old` : null,
+    payload.patient_meta?.gender || null,
+  ].filter(Boolean).join(' ');
+  const backgroundSummary = [
+    demographicsStr ? `Patient: ${demographicsStr}.` : null,
+    past !== 'None reported' ? `Past Medical: ${past}.` : null,
+    fam !== 'No hereditary illness reported' ? `Family Hx: ${fam}.` : null,
+    social !== 'No social/lifestyle history recorded' ? `Social Hx: ${social}.` : null,
+  ].filter(Boolean).join(' ') || 'Background not captured during intake.';
 
   const contradictions = fallbackContradictionDetection(hist, ents);
   const isAyurveda = payload.patient_meta?.clinical_mode === 'ayurveda';
@@ -449,6 +478,8 @@ function fallbackClinicalSynthesis(payload: PatientRecordPayload): ClinicalSynth
       review_of_systems: 'Cardiovascular, respiratory, and gastrointestinal reviews completed without acute decompensation.',
       prior_investigations: labs,
       provisional_diagnoses: diags,
+      social_history: social,
+      background_summary: backgroundSummary,
     },
     contradictions,
     dashavidha_pariksha: dashavidha,

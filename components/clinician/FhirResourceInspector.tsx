@@ -125,6 +125,18 @@ export function FhirResourceInspector({
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
             <span>{copied ? 'Copied' : 'Copy JSON'}</span>
           </button>
+
+          {onDownloadText && (
+            <button
+              type="button"
+              onClick={onDownloadText}
+              className="px-3 py-1.5 rounded-xl bg-teal-700/80 hover:bg-teal-600 text-teal-100 text-xs font-bold flex items-center gap-1.5 border border-teal-500/40 transition-all cursor-pointer"
+              title="Download clinical consultation note as .txt"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Download .txt</span>
+            </button>
+          )}
         </div>
       </div>
 

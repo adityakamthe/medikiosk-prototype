@@ -103,6 +103,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     const isReadable = extractedData.is_readable !== false;
     const qualityResult = isReadable ? 'PASSED' : 'FAILED_UNREADABLE';
+    const qualitySummary = {
+      status: qualityResult,
+      quality: preprocessRes.quality_assessment || 'good',
+      sharpness_score: preprocessRes.sharpness_score || 88,
+      is_blurry: !isReadable,
+      document_type: extractedData.document_type || 'prescription',
+      document_date: extractedData.document_date || new Date().toISOString().split('T')[0],
+      extracted_summary: extractedData
+    };
+    const fileRef = `data:${effectiveMime};base64,${imageForVision}`;
 
     // Record document upload entry in Patient Evidence Layer
     let docUploadId = null;
@@ -111,7 +121,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         `INSERT INTO document_uploads (session_id, file_ref, mime_type, quality_check_result)
          VALUES ($1, $2, $3, $4)
          RETURNING id`,
-        [sessionId, `ram_buffer_${Date.now()}`, effectiveMime, JSON.stringify({ status: qualityResult, quality: preprocessRes.quality_assessment })]
+        [sessionId, fileRef, effectiveMime, JSON.stringify(qualitySummary)]
       );
       docUploadId = docRes.rows[0]?.id;
     } catch {
@@ -120,7 +130,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           `INSERT INTO document_uploads (session_id, file_ref, mime_type, quality_check_result)
            VALUES ($1, $2, $3, $4)
            RETURNING id`,
-          [sessionId, `ram_buffer_${Date.now()}`, effectiveMime, JSON.stringify({ status: qualityResult })]
+          [sessionId, fileRef, effectiveMime, JSON.stringify({ status: qualityResult, extracted_summary: extractedData })]
         );
         docUploadId = docRes.rows[0]?.id;
       } catch (e: any) {
@@ -309,11 +319,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     // 5. Automatically refresh the bilingual clinical summary with the newly extracted evidence
     try {
       const allEntitiesRes = await query(`SELECT * FROM extracted_entities WHERE session_id = $1`, [sessionId]);
-      const sessionInfo = await query(`SELECT language, clinical_mode FROM sessions WHERE id = $1`, [sessionId]);
+      const sessionInfo = await query(`SELECT language, clinical_mode, age, gender, patient_name FROM sessions WHERE id = $1`, [sessionId]);
       const lang = sessionInfo.rows[0]?.language || 'hi';
       const clinicalMode = sessionInfo.rows[0]?.clinical_mode || 'allopathy';
+      const patientMeta = {
+        age: sessionInfo.rows[0]?.age ? Number(sessionInfo.rows[0].age) : undefined,
+        gender: sessionInfo.rows[0]?.gender || undefined,
+        name: sessionInfo.rows[0]?.patient_name || undefined,
+      };
 
-      const summaryJSON = await generateBilingualSummary(patientContext, allEntitiesRes.rows, lang, clinicalMode);
+      const summaryJSON = await generateBilingualSummary(patientContext, allEntitiesRes.rows, lang, clinicalMode, patientMeta);
+
       const inputHash = `hash_${Date.now()}_scan`;
 
       await query(

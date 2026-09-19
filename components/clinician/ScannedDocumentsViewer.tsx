@@ -1,5 +1,5 @@
 'use strict';
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { 
   FileText, 
   Camera, 
@@ -33,6 +33,9 @@ interface ScannedDocumentsViewerProps {
   documents: DocumentRecord[];
   sessionId: string;
   patientName?: string;
+  patientAge?: string | number;
+  patientGender?: string;
+  extractedEntities?: any[];
   onAddMedicationToDraft?: (medText: string) => void;
   onRefresh?: () => void;
 }
@@ -41,6 +44,9 @@ export const ScannedDocumentsViewer: React.FC<ScannedDocumentsViewerProps> = ({
   documents = [],
   sessionId,
   patientName = 'Patient',
+  patientAge,
+  patientGender,
+  extractedEntities = [],
   onAddMedicationToDraft,
   onRefresh
 }) => {
@@ -64,8 +70,87 @@ export const ScannedDocumentsViewer: React.FC<ScannedDocumentsViewerProps> = ({
   const extractedSummary = qcResult?.extracted_summary || {};
   const medications = Array.isArray(extractedSummary?.medications) ? extractedSummary.medications : [];
   const diagnoses = Array.isArray(extractedSummary?.diagnoses) ? extractedSummary.diagnoses : [];
-  const adviceList = Array.isArray(extractedSummary?.key_findings?.advice) ? extractedSummary.key_findings.advice : [];
-  const doctorInfo = extractedSummary?.doctor_or_hospital || 'Outpatient Clinic';
+  const adviceList = Array.isArray(extractedSummary?.key_findings?.advice) 
+    ? extractedSummary.key_findings.advice 
+    : (typeof extractedSummary?.key_findings === 'string' ? [extractedSummary.key_findings] : []);
+
+  // Robust diagnosis extraction: checks extracted_summary.diagnoses, .diagnosis, .provisional_diagnosis, or fallback extractedEntities
+  const extractedDiagnosesList: string[] = useMemo(() => {
+    const raw = extractedSummary?.diagnoses ?? extractedSummary?.diagnosis ?? extractedSummary?.provisional_diagnosis;
+    const parseList = (input: any): string[] => {
+      if (!input) return [];
+      if (Array.isArray(input)) {
+        return input.map((d: any) => {
+          if (typeof d === 'string') return d.trim();
+          if (typeof d === 'object' && d !== null) {
+            return (d.name || d.diagnosis || d.condition || d.title || '').trim();
+          }
+          return '';
+        }).filter(Boolean);
+      }
+      if (typeof input === 'string' && input.trim()) return [input.trim()];
+      if (typeof input === 'object' && input !== null) {
+        const name = (input.name || input.diagnosis || input.condition || input.title || '').trim();
+        return name ? [name] : [];
+      }
+      return [];
+    };
+
+    let result = parseList(raw);
+    if (result.length === 0 && extractedEntities && extractedEntities.length > 0) {
+      const diagEntities = extractedEntities.filter(
+        (e: any) => e.entity_type === 'diagnosis' && (!e.document_upload_id || e.document_upload_id === activeDoc?.id)
+      );
+      result = diagEntities.map((e: any) => {
+        const f = typeof e.fields === 'object' && e.fields !== null ? e.fields : { name: e.fields };
+        return (f.name || f.diagnosis || f.condition || '').trim();
+      }).filter(Boolean);
+    }
+    return result;
+  }, [extractedSummary, extractedEntities, activeDoc?.id]);
+
+  // Robust medication resolution: extracted_summary or fallback extractedEntities
+  const resolvedMedications = useMemo(() => {
+    if (medications.length > 0) return medications;
+    if (extractedEntities && extractedEntities.length > 0) {
+      const medEntities = extractedEntities.filter(
+        (e: any) => e.entity_type === 'medication' && (!e.document_upload_id || e.document_upload_id === activeDoc?.id)
+      );
+      if (medEntities.length > 0) {
+        return medEntities.map((e: any) => {
+          const f = typeof e.fields === 'object' && e.fields !== null ? e.fields : { name: e.fields };
+          return {
+            name: f.name || f.generic_name || 'Medication',
+            dose: f.dose || f.dosage || '',
+            route: f.route || 'Oral',
+            frequency: f.frequency || f.frequency_english || '',
+            duration: f.duration || '',
+            confidence: Number(e.confidence) || 0.9
+          };
+        });
+      }
+    }
+    return [];
+  }, [medications, extractedEntities, activeDoc?.id]);
+
+  // Resolved Doctor/Facility info
+  const resolvedDoctor = useMemo(() => {
+    const raw = extractedSummary?.doctor_or_hospital;
+    if (raw && typeof raw === 'string' && raw !== 'Outpatient Clinic' && raw !== 'London Clinic & Specialty OPD') {
+      return raw;
+    }
+    if (extractedEntities && extractedEntities.length > 0) {
+      const note = extractedEntities.find(
+        (e: any) => e.entity_type === 'clinical_note' && e.fields?.doctor && (!e.document_upload_id || e.document_upload_id === activeDoc?.id)
+      );
+      if (note?.fields?.doctor) return note.fields.doctor;
+    }
+    return raw || 'Clinical Outpatient Facility';
+  }, [extractedSummary, extractedEntities, activeDoc?.id]);
+
+  const displayAge = extractedSummary?.patient?.age || (patientAge ? `${patientAge} Yrs` : 'Adult');
+  const displayGender = extractedSummary?.patient?.gender || patientGender || 'Unspecified';
+  const displayDate = extractedSummary?.document_date || qcResult?.document_date || (activeDoc?.uploaded_at ? new Date(activeDoc.uploaded_at).toLocaleDateString() : 'Recent');
 
   const sharpness = qcResult?.sharpness_score ? Math.round(Number(qcResult.sharpness_score)) : 88;
   const isBlurry = Boolean(qcResult?.is_blurry);
@@ -310,21 +395,21 @@ export const ScannedDocumentsViewer: React.FC<ScannedDocumentsViewerProps> = ({
                       <div className="border-b-2 border-slate-800 pb-3 mb-4 flex items-start justify-between">
                         <div>
                           <h4 className="text-sm font-extrabold uppercase tracking-wide text-[#004643]">
-                            LONDON CLINIC & SPECIALTY OPD
+                            {resolvedDoctor}
                           </h4>
                           <p className="text-[10px] text-slate-600 font-medium">
-                            Dr. Vikram Sharma • Reg No: 270988 • M.B.B.S, M.D.
+                            Clinical Outpatient Prescription
                           </p>
                           <p className="text-[9px] text-slate-500">
-                            Timing: 09:00 AM - 02:00 PM • Closed: Thursday
+                            Digital Scan Archive • Verified Record
                           </p>
                         </div>
                         <div className="text-right">
                           <span className="text-[9px] font-mono bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded font-bold">
-                            OPD Rx
+                            {qcResult?.document_type ? qcResult.document_type.toUpperCase() : 'OPD Rx'}
                           </span>
                           <p className="text-[10px] text-slate-500 mt-1">
-                            Date: {qcResult?.document_date || '10-Aug-2019'}
+                            Date: {displayDate}
                           </p>
                         </div>
                       </div>
@@ -332,9 +417,7 @@ export const ScannedDocumentsViewer: React.FC<ScannedDocumentsViewerProps> = ({
                       {/* Patient Details */}
                       <div className="bg-slate-100/70 p-2.5 rounded-lg mb-4 text-[11px] grid grid-cols-2 gap-2 text-slate-700">
                         <div><span className="font-bold">Patient:</span> {extractedSummary?.patient?.id ? `ID #${extractedSummary.patient.id}` : patientName}</div>
-                        <div><span className="font-bold">Age/Gender:</span> {extractedSummary?.patient?.age || '8 Yrs'} / {extractedSummary?.patient?.gender || 'Male'}</div>
-                        <div><span className="font-bold">Diagnosis:</span> <span className="font-semibold text-rose-700">{diagnoses[0]?.name || 'Fever'}</span></div>
-                        <div><span className="font-bold">Software:</span> MYPD Software</div>
+                        <div><span className="font-bold">Age/Gender:</span> {displayAge} / {displayGender}</div>
                       </div>
 
                       {/* Rx Symbol */}
@@ -344,32 +427,46 @@ export const ScannedDocumentsViewer: React.FC<ScannedDocumentsViewerProps> = ({
 
                       {/* Medications List */}
                       <div className="space-y-3 mb-6 text-xs">
-                        {medications.map((med: any, idx: number) => (
-                          <div key={idx} className="border-b border-slate-200 pb-2">
-                            <div className="flex items-center justify-between font-bold text-slate-900">
-                              <span>{idx + 1}. {med.name}</span>
-                              <span className="text-[10px] bg-slate-200 px-1.5 py-0.2 rounded font-mono text-slate-700">
-                                {med.route || 'Oral'}
-                              </span>
+                        {resolvedMedications.length > 0 ? (
+                          resolvedMedications.map((med: any, idx: number) => (
+                            <div key={idx} className="border-b border-slate-200 pb-2">
+                              <div className="flex items-center justify-between font-bold text-slate-900">
+                                <span>{idx + 1}. {med.name}</span>
+                                <span className="text-[10px] bg-slate-200 px-1.5 py-0.2 rounded font-mono text-slate-700">
+                                  {med.route || 'Oral'}
+                                </span>
+                              </div>
+                              {med.dose && (
+                                <div className="text-[11px] text-slate-600 mt-0.5">
+                                  Dose: {med.dose}
+                                </div>
+                              )}
+                              {(med.frequency || med.duration) && (
+                                <div className="text-[10px] text-slate-500 italic">
+                                  {med.frequency && `Frequency: ${med.frequency}`} {med.duration && `• Duration: ${med.duration}`}
+                                </div>
+                              )}
                             </div>
-                            <div className="text-[11px] text-slate-600 mt-0.5">
-                              Dose: {med.dose}
-                            </div>
-                            <div className="text-[10px] text-slate-500 italic">
-                              Frequency: {med.frequency} • Duration: {med.duration}
-                            </div>
+                          ))
+                        ) : (
+                          <div className="text-slate-400 italic text-[11px] py-2">
+                            No medications transcribed from this scan.
                           </div>
-                        ))}
+                        )}
                       </div>
 
                       {/* Advice & Signature */}
                       <div className="flex items-end justify-between pt-3 border-t border-slate-300">
-                        <div className="text-[10px] text-slate-600">
-                          <span className="font-bold">Advice:</span> {adviceList.join(', ') || 'Drink boiled water, adequate rest.'}
+                        <div className="text-[10px] text-slate-600 max-w-[240px]">
+                          {adviceList.length > 0 ? (
+                            <div><span className="font-bold">Advice:</span> {adviceList.join(', ')}</div>
+                          ) : (
+                            <span className="text-slate-400 italic">No specific advice transcribed</span>
+                          )}
                         </div>
                         <div className="text-center">
                           <div className="font-serif italic text-xs font-bold text-blue-900 opacity-80 border-b border-blue-900 px-4 pb-0.5">
-                            Dr. Vikram S.
+                            {resolvedDoctor.slice(0, 22)}
                           </div>
                           <div className="text-[9px] text-slate-500 mt-0.5">Verified Signature</div>
                         </div>
@@ -436,16 +533,16 @@ export const ScannedDocumentsViewer: React.FC<ScannedDocumentsViewerProps> = ({
               <div className="text-xs space-y-1 pt-1">
                 <div className="flex items-start justify-between">
                   <span className="text-slate-500">Issuing Facility:</span>
-                  <span className="font-semibold text-slate-800 text-right">London Clinic</span>
+                  <span className="font-semibold text-slate-800 text-right">{resolvedDoctor}</span>
                 </div>
                 <div className="flex items-start justify-between">
                   <span className="text-slate-500">Practitioner:</span>
-                  <span className="font-semibold text-slate-800">Dr. Vikram Sharma (Reg: 270988)</span>
+                  <span className="font-semibold text-slate-800">{extractedSummary?.doctor_name || resolvedDoctor}</span>
                 </div>
                 <div className="flex items-start justify-between">
                   <span className="text-slate-500">Document Date:</span>
                   <span className="font-semibold text-slate-800">
-                    {extractedSummary?.document_date || '2019-07-26'}
+                    {displayDate}
                   </span>
                 </div>
               </div>
@@ -457,7 +554,7 @@ export const ScannedDocumentsViewer: React.FC<ScannedDocumentsViewerProps> = ({
                 <div className="flex items-center gap-1.5">
                   <Pill className="w-4 h-4 text-[#004643]" />
                   <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                    Extracted Medications ({medications.length})
+                    Extracted Medications ({resolvedMedications.length})
                   </h4>
                 </div>
                 <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
@@ -465,13 +562,13 @@ export const ScannedDocumentsViewer: React.FC<ScannedDocumentsViewerProps> = ({
                 </span>
               </div>
 
-              {medications.length === 0 ? (
+              {resolvedMedications.length === 0 ? (
                 <div className="text-xs text-slate-400 italic py-4 text-center">
                   No active medications extracted from this scan.
                 </div>
               ) : (
                 <div className="space-y-2.5 max-h-[340px] overflow-y-auto pr-1">
-                  {medications.map((med: any, idx: number) => {
+                  {resolvedMedications.map((med: any, idx: number) => {
                     const medKey = `${med.name}-${idx}`;
                     const isAdded = addedMeds[medKey];
 
@@ -489,7 +586,7 @@ export const ScannedDocumentsViewer: React.FC<ScannedDocumentsViewerProps> = ({
                               </span>
                             </div>
                             <div className="text-[11px] text-slate-600 mt-0.5">
-                              {med.dose} • {med.frequency}
+                              {med.dose} {med.frequency && `• ${med.frequency}`}
                             </div>
                           </div>
 
@@ -520,7 +617,7 @@ export const ScannedDocumentsViewer: React.FC<ScannedDocumentsViewerProps> = ({
                         {/* Vernacular Bhashini Sig Translation */}
                         <div className="mt-2 pt-1.5 border-t border-slate-200/80 flex items-center justify-between text-[10px] text-slate-500">
                           <span className="italic">
-                            Bhashini Indic: {med.name.includes('DEMO MEDICINE 1') ? '१ गोली सुबह, १ गोली रात को भोजन के बाद' : 'निर्देशानुसार भोजन के बाद लें'}
+                            Bhashini Indic: {med.name?.includes('DEMO') ? '१ गोली सुबह, १ गोली रात को भोजन के बाद' : (med.frequency_english || 'निर्देशानुसार भोजन के बाद लें')}
                           </span>
                           <span className="font-mono text-emerald-700 font-semibold">
                             {med.confidence ? `${Math.round(med.confidence * 100)}% Conf` : '98% Conf'}
@@ -545,19 +642,16 @@ export const ScannedDocumentsViewer: React.FC<ScannedDocumentsViewerProps> = ({
               </div>
 
               <div className="space-y-2 text-xs">
-                {diagnoses.length > 0 ? (
+                {extractedDiagnosesList.length > 0 ? (
                   <div className="flex flex-wrap gap-1.5">
-                    {diagnoses.map((diag: any, idx: number) => {
-                      const name = typeof diag === 'string' ? diag : diag.name;
-                      return (
-                        <span
-                          key={idx}
-                          className="px-2.5 py-1 bg-amber-50 text-amber-900 border border-amber-200 rounded-lg font-bold text-xs"
-                        >
-                          {name}
-                        </span>
-                      );
-                    })}
+                    {extractedDiagnosesList.map((diagName: string, idx: number) => (
+                      <span
+                        key={idx}
+                        className="px-2.5 py-1 bg-amber-50 text-amber-900 border border-amber-200 rounded-lg font-bold text-xs"
+                      >
+                        {diagName}
+                      </span>
+                    ))}
                   </div>
                 ) : (
                   <p className="text-slate-500 italic">No formal diagnostic ICD code noted on record.</p>
@@ -639,10 +733,10 @@ export const ScannedDocumentsViewer: React.FC<ScannedDocumentsViewerProps> = ({
               ) : (
                 <div className="w-[500px] bg-[#FAF8F5] text-slate-900 rounded-xl p-8 shadow-2xl border border-slate-300">
                   <h4 className="text-base font-extrabold uppercase text-[#004643] border-b-2 border-slate-800 pb-2 mb-4">
-                    LONDON CLINIC & SPECIALTY OPD
+                    {resolvedDoctor}
                   </h4>
                   <div className="space-y-4 text-sm">
-                    {medications.map((med: any, idx: number) => (
+                    {resolvedMedications.map((med: any, idx: number) => (
                       <div key={idx} className="border-b border-slate-200 pb-2">
                         <div className="font-bold text-slate-900">{idx + 1}. {med.name}</div>
                         <div className="text-xs text-slate-600">Dose: {med.dose} • {med.frequency}</div>

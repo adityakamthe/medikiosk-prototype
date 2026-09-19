@@ -6,7 +6,8 @@ import {
   Stethoscope, User, Clock, AlertTriangle, CheckCircle2,
   ShieldCheck, Download, Eye, Info, RefreshCw, FileText, Lock, Unlock,
   ChevronDown, Printer, Save, Trash2, UserCheck, Activity, ShieldAlert, Calendar,
-  Camera, ScanLine, Play, Pause, Square, Volume2, RotateCw, ZoomIn, ZoomOut, Maximize2, X
+  Camera, ScanLine, Play, Pause, Square, Volume2, RotateCw, ZoomIn, ZoomOut, Maximize2, X,
+  Copy, Check
 } from '@/components/Icons';
 import { computeDashavidhaPariksha, DashavidhaPariksha } from '@/lib/ayush';
 import { generateTextualClinicalReport } from '@/lib/fhir';
@@ -67,6 +68,9 @@ export default function ClinicianDashboard() {
   const [fhirBundle, setFhirBundle] = useState<any>(null);
   const [fhirValidation, setFhirValidation] = useState<any>(null);
   const [textualReport, setTextualReport] = useState<string>('');
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null);
+  const [reportCopied, setReportCopied] = useState<boolean>(false);
   const [attestError, setAttestError] = useState<string | null>(null);
 
   // Database Persistence Status
@@ -568,38 +572,98 @@ export default function ClinicianDashboard() {
   };
 
   // Download Complete One-Page Summary as Text
-  const handleDownloadOnePageText = () => {
+  const handleDownloadOnePageText = async () => {
     if (!selectedSession) return;
+    const pName = (selectedSession.patient_name || selectedSession.patient_ref || 'Patient').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const filename = `MediKiosk_Report_${selectedSession.queue_id || selectedSession.id}_${pName}_${new Date().toISOString().slice(0, 10)}.txt`;
+
+    // If we already have a generated textual report in state, reuse it
+    if (textualReport) {
+      downloadReportText(textualReport, filename);
+      return;
+    }
+    // Otherwise generate fresh from local data
     const draft = sessionDetail?.latest_draft || selectedSession.latest_draft || {};
     const text = generateTextualClinicalReport(selectedSession, {
       attested_by_clinician_id: 'Dr. Sharma',
       content: draft
     });
-    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Consultation_Report_${selectedSession.queue_id || selectedSession.id}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+    setTextualReport(text);
+    downloadReportText(text, filename);
   };
 
-  // Export FHIR Bundle & Textual Report
-  const handleExportFHIR = async () => {
-    if (!selectedSession) return;
+  // Helper: trigger .txt download from a report string safely in all modern browsers
+  const downloadReportText = (reportText: string, filename: string) => {
+    try {
+      const blob = new Blob([reportText], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        if (document.body.contains(a)) {
+          document.body.removeChild(a);
+        }
+        URL.revokeObjectURL(url);
+      }, 1500);
+      setDownloadSuccess(filename);
+      setTimeout(() => setDownloadSuccess(null), 8000);
+    } catch (e) {
+      console.error('Download report error:', e);
+    }
+  };
+
+  // Export FHIR Bundle & Textual Report — generates and triggers .txt download
+  const handleExportFHIR = async (shouldDownload: boolean | React.MouseEvent = true) => {
+    if (!selectedSession || isGeneratingReport) return;
+    const doDownload = typeof shouldDownload === 'boolean' ? shouldDownload : true;
+    setIsGeneratingReport(true);
+    const pName = (selectedSession.patient_name || selectedSession.patient_ref || 'Patient').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const filename = `MediKiosk_Report_${selectedSession.queue_id || selectedSession.id}_${pName}_${new Date().toISOString().slice(0, 10)}.txt`;
+
     try {
       const res = await fetch(`/api/clinician/session/${selectedSession.id}/fhir`, { method: 'POST' });
       const data = await res.json();
-      if (data.bundle) {
+      
+      let reportText = data?.text_report || '';
+      if (!reportText) {
+        // Fallback: generate locally if API didn't return text_report
+        const draft = sessionDetail?.latest_draft || selectedSession.latest_draft || {};
+        reportText = generateTextualClinicalReport(selectedSession, {
+          attested_by_clinician_id: 'Dr. Sharma',
+          content: draft
+        });
+      }
+
+      if (data?.bundle) {
         setFhirBundle(data.bundle);
-        setTextualReport(data.text_report || '');
         setFhirValidation(data.validation);
-        setActiveTab('fhir');
-      } else {
-        alert(data.error || 'FHIR Bundle generation failed');
+      }
+      
+      setTextualReport(reportText);
+      setActiveTab('fhir');
+
+      if (doDownload && reportText) {
+        downloadReportText(reportText, filename);
       }
     } catch (err) {
-      alert('Error building FHIR bundle');
+      console.warn('FHIR API fetch notice, generating report locally:', err);
+      // Fallback locally so user ALWAYS gets their download!
+      const draft = sessionDetail?.latest_draft || selectedSession.latest_draft || {};
+      const fallbackText = generateTextualClinicalReport(selectedSession, {
+        attested_by_clinician_id: 'Dr. Sharma',
+        content: draft
+      });
+      setTextualReport(fallbackText);
+      setActiveTab('fhir');
+      if (doDownload && fallbackText) {
+        downloadReportText(fallbackText, filename);
+      }
+    } finally {
+      setIsGeneratingReport(false);
     }
   };
 
@@ -1176,7 +1240,7 @@ export default function ClinicianDashboard() {
                     )}
                   </button>
                   <button 
-                    onClick={() => { setActiveTab('fhir'); if (!fhirBundle) handleExportFHIR(); }}
+                    onClick={() => { setActiveTab('fhir'); if (!fhirBundle) handleExportFHIR(false); }}
                     className={`px-3 py-1.5 rounded-lg transition-all ${activeTab === 'fhir' ? 'bg-[#2F5D62] text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
                   >
                     Text Report & FHIR
@@ -1198,6 +1262,8 @@ export default function ClinicianDashboard() {
                 const dashavidha = computeDashavidhaPariksha(structuredHistory, selectedSession);
                 const pastDiseases = editedValues['past_medical_surgical'] || formatClinicalText(draftContent.past_medical_surgical) || (isAyurveda ? 'कोई पूर्व व्याधि या शल्यकर्म इतिहास नहीं' : 'No chronic medical illness or prior surgeries reported');
                 const famHistory = editedValues['family_history'] || formatClinicalText(draftContent.family_history) || (isAyurveda ? 'कुल में कोई आनुवंशिक व्याधि नहीं' : 'No hereditary illness in first-degree relatives');
+                const socialHistory = editedValues['social_history'] || formatClinicalText(draftContent.social_history) || 'Social and lifestyle history not recorded.';
+                const backgroundSummary = formatClinicalText(draftContent.background_summary) || '';
                 const allergyText = editedValues['allergies'] || formatClinicalText(draftContent.allergies) || (isAyurveda ? 'कोई ज्ञात द्रव्य असात्म्यता नहीं' : 'No known drug or food allergies');
                 const medsText = editedValues['medications'] || formatClinicalText(draftContent.medications) || (isAyurveda ? 'कोई नियमित औषध सेवन नहीं' : 'No active prescription medications reported');
                 const rosText = editedValues['review_of_systems'] || formatClinicalText(draftContent.review_of_systems) || 'Cardiovascular, respiratory, gastrointestinal, and musculoskeletal functional reviews completed without acute systemic decompensation.';
@@ -1507,55 +1573,10 @@ export default function ClinicianDashboard() {
                                 {rosText}
                               </p>
                             </div>
-
-                            {/* 8. Diagnostic Investigations */}
-                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#004643]">
-                                  8. Diagnostic Investigations & Lab Reports
-                                </span>
-                                {(sessionDetail?.documents?.length || 0) > 0 && (
-                                  <span className="text-[10px] bg-teal-100 text-[#004643] font-bold px-2 py-0.5 rounded-full border border-teal-200">
-                                    {sessionDetail.documents.length} Scanned Record{sessionDetail.documents.length === 1 ? '' : 's'}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-xs font-medium text-slate-800">
-                                {labsText}
-                              </p>
-                              {(sessionDetail?.documents?.length || 0) > 0 && (
-                                <button
-                                  type="button"
-                                  onClick={() => setActiveTab('scanned_documents')}
-                                  className="mt-2.5 px-3 py-1.5 rounded-xl bg-[#004643] hover:bg-[#003835] text-white text-[11px] font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-[0.98]"
-                                >
-                                  <Camera className="w-3.5 h-3.5 text-amber-300" />
-                                  <span>View Module B Scanned Documents ({sessionDetail.documents.length})</span>
-                                </button>
-                              )}
-                            </div>
-
-                            {/* 9. Provisional Diagnostic Impressions (Voice Clinical Analysis) */}
-                            <div className="bg-teal-50/70 p-4 rounded-2xl border border-teal-200">
-                              <div className="flex items-center justify-between mb-1.5">
-                                <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#004643] flex items-center gap-1.5">
-                                  <Stethoscope className="w-3.5 h-3.5 text-[#004643]" />
-                                  <span>9. Provisional Diagnostic Considerations (Voice Intake)</span>
-                                </span>
-                                <span className="text-[10px] bg-teal-100 text-teal-900 font-bold px-2 py-0.5 rounded-full border border-teal-300">
-                                  🎙️ Voice Intake Analyzed
-                                </span>
-                              </div>
-                              <p className="text-xs font-bold text-slate-900 leading-relaxed">
-                                {formatClinicalText(draftContent.provisional_diagnoses) || 
-                                 sessionDetail?.extracted_entities?.filter((e: any) => e.entity_type === 'diagnosis').map((e: any) => e.fields?.name || e.raw_text).join('; ') || 
-                                 'Clinical diagnostic impression based on patient voice interview.'}
-                              </p>
-                            </div>
                           </div>
                         </div>
 
-                        {/* 10. DIGITALIZED & EDITABLE PRESCRIPTION WITH HIGHLIGHTED OUT-OF-RANGE DETAILS */}
+                        {/* DIGITALIZED & EDITABLE PRESCRIPTION WITH HIGHLIGHTED OUT-OF-RANGE DETAILS */}
                         <div className="no-print pt-2">
                           <DigitalPrescriptionEditor
                             initialMedicationsText={medsText}
@@ -1844,24 +1865,6 @@ export default function ClinicianDashboard() {
                                 {ayushProfile}
                               </p>
                             </div>
-
-                            {/* 9. सम्भाव्य निदान एवं सम्प्राप्ति (Provisional Diagnoses — Voice Intake) */}
-                            <div className="bg-amber-50/70 p-4 rounded-2xl border border-amber-300">
-                              <div className="flex items-center justify-between mb-1.5">
-                                <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#8B5A2B] flex items-center gap-1.5">
-                                  <Stethoscope className="w-3.5 h-3.5 text-[#8B5A2B]" />
-                                  <span>9. सम्भाव्य निदान एवं सम्प्राप्ति (Provisional Diagnoses — Voice Intake)</span>
-                                </span>
-                                <span className="text-[10px] bg-amber-200/80 text-[#8B5A2B] font-bold px-2 py-0.5 rounded-full border border-amber-300">
-                                  🎙️ Voice Intake Analyzed
-                                </span>
-                              </div>
-                              <p className="text-xs font-bold text-slate-900 leading-relaxed">
-                                {formatClinicalText(draftContent.provisional_diagnoses) || 
-                                 sessionDetail?.extracted_entities?.filter((e: any) => e.entity_type === 'diagnosis').map((e: any) => e.fields?.name || e.raw_text).join('; ') || 
-                                 'सम्भाव्य आयुर्वेदिक निदान एवं दोष-दृष्य सम्प्राप्ति।'}
-                              </p>
-                            </div>
                           </div>
                         </div>
 
@@ -1910,6 +1913,8 @@ export default function ClinicianDashboard() {
                 const dashavidha = computeDashavidhaPariksha(structuredHistory, selectedSession);
                 const pastDiseases = editedValues['past_medical_surgical'] || formatClinicalText(draftContent.past_medical_surgical) || (isAyurveda ? 'कोई पूर्व व्याधि या शल्यकर्म इतिहास नहीं' : 'No chronic medical illness or prior surgeries reported');
                 const famHistory = editedValues['family_history'] || formatClinicalText(draftContent.family_history) || (isAyurveda ? 'कुल में कोई आनुवंशिक व्याधि नहीं' : 'No hereditary illness in first-degree relatives');
+                const socialHistory = editedValues['social_history'] || formatClinicalText(draftContent.social_history) || 'Social and lifestyle history not recorded.';
+                const backgroundSummary = formatClinicalText(draftContent.background_summary) || '';
                 const allergyText = editedValues['allergies'] || formatClinicalText(draftContent.allergies) || (isAyurveda ? 'कोई ज्ञात द्रव्य असात्म्यता नहीं' : 'No known drug or food allergies');
                 const medsText = editedValues['medications'] || formatClinicalText(draftContent.medications) || (isAyurveda ? 'कोई नियमित औषध सेवन नहीं' : 'No active prescription medications reported');
                 const rosText = editedValues['review_of_systems'] || formatClinicalText(draftContent.review_of_systems) || 'Cardiovascular, respiratory, gastrointestinal, and musculoskeletal functional reviews completed without acute systemic decompensation.';
@@ -2043,7 +2048,7 @@ export default function ClinicianDashboard() {
                             <p className="text-xs font-semibold text-slate-700">
                               Official Outpatient Clinical Note ({noteFormat.toUpperCase()} Framework)
                             </p>
-                            <p className="text-[10px] text-slate-600">ABDM & NRCeS Compliant Clinical Documentation</p>
+                            <p className="text-[10px] text-slate-600">ABDM &amp; NRCeS Compliant Clinical Documentation</p>
                           </div>
                           <div className="text-right">
                             <p className="font-black text-base text-slate-900">TOKEN: {selectedSession.queue_id}</p>
@@ -2060,7 +2065,7 @@ export default function ClinicianDashboard() {
                             <div className="flex items-center justify-between mb-2">
                               <span className="text-xs font-black text-[#004643] uppercase tracking-wider flex items-center gap-2">
                                 <span className="w-5 h-5 rounded-full bg-[#004643] text-white flex items-center justify-center text-[10px]">S</span>
-                                <span>Situation (Chief Complaint & Triage Acuity)</span>
+                                <span>Situation (Chief Complaint &amp; Triage Acuity)</span>
                               </span>
                               <div className="no-print flex gap-2">
                                 <button 
@@ -2097,9 +2102,17 @@ export default function ClinicianDashboard() {
                           <div className="bg-slate-50 border-2 border-teal-200 rounded-2xl p-4 shadow-xs">
                             <span className="text-xs font-black text-[#004643] uppercase tracking-wider flex items-center gap-2 mb-3">
                               <span className="w-5 h-5 rounded-full bg-[#004643] text-white flex items-center justify-center text-[10px]">B</span>
-                              <span>Background (HPI, Past Medical, Family History)</span>
+                              <span>Background (HPI, Past Medical, Social &amp; Family History)</span>
                             </span>
-                            
+
+                            {/* Background Summary Callout — only show if synthesized data exists */}
+                            {backgroundSummary && (
+                              <div className="mb-3 p-3 bg-teal-50 border border-teal-200 rounded-xl">
+                                <span className="text-[10px] font-black text-teal-700 uppercase tracking-wider block mb-1">📋 Patient Background Summary (AI-Synthesized)</span>
+                                <p className="text-xs font-semibold text-teal-900 leading-relaxed">{backgroundSummary}</p>
+                              </div>
+                            )}
+
                             {/* HPI */}
                             <div className="mb-3 pb-3 border-b border-slate-200">
                               <div className="flex items-center justify-between mb-1">
@@ -2115,13 +2128,25 @@ export default function ClinicianDashboard() {
                             {/* Past Medical */}
                             <div className="mb-3 pb-3 border-b border-slate-200">
                               <div className="flex items-center justify-between mb-1">
-                                <span className="text-[11px] font-bold text-slate-500 uppercase">Past Medical & Surgical History</span>
+                                <span className="text-[11px] font-bold text-slate-500 uppercase">Past Medical &amp; Surgical History</span>
                                 <div className="no-print flex gap-1.5">
                                   <button onClick={() => handleSectionAction('past_medical_surgical', 'accepted', formatClinicalText(draftContent.past_medical_surgical))} className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white text-slate-700">Accept</button>
                                   <button onClick={() => setEditReasonModal({ open: true, section: 'past_medical_surgical', field: 'Past History', prevVal: formatClinicalText(draftContent.past_medical_surgical) })} className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white text-slate-700">Edit</button>
                                 </div>
                               </div>
                               <p className="text-xs font-semibold text-slate-800">{pastDiseases}</p>
+                            </div>
+
+                            {/* Social History */}
+                            <div className="mb-3 pb-3 border-b border-slate-200">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[11px] font-bold text-slate-500 uppercase">Social &amp; Lifestyle History</span>
+                                <div className="no-print flex gap-1.5">
+                                  <button onClick={() => handleSectionAction('social_history', 'accepted', formatClinicalText(draftContent.social_history))} className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white text-slate-700">Accept</button>
+                                  <button onClick={() => setEditReasonModal({ open: true, section: 'social_history', field: 'Social History', prevVal: formatClinicalText(draftContent.social_history) })} className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white text-slate-700">Edit</button>
+                                </div>
+                              </div>
+                              <p className="text-xs font-semibold text-slate-800">{socialHistory}</p>
                             </div>
 
                             {/* Family History */}
@@ -2452,19 +2477,118 @@ export default function ClinicianDashboard() {
                     </div>
                     <div className="flex gap-2">
                       <button 
-                        onClick={handleExportFHIR}
-                        className="px-4 py-2 bg-[#2F5D62] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 hover:bg-teal-800 shadow-sm"
+                        onClick={() => handleExportFHIR(true)}
+                        disabled={isGeneratingReport}
+                        className="px-4 py-2 bg-[#2F5D62] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 hover:bg-teal-800 shadow-sm transition-all disabled:opacity-50 cursor-pointer"
                       >
-                        <Download className="w-4 h-4" /> Generate / Refresh Report
+                        <RefreshCw className={`w-4 h-4 ${isGeneratingReport ? 'animate-spin' : ''}`} />
+                        <span>{isGeneratingReport ? 'Generating & Downloading...' : 'Generate / Refresh Report'}</span>
                       </button>
                       <button
                         onClick={handleDownloadOnePageText}
-                        className="px-3 py-2 bg-slate-100 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-200 flex items-center gap-1.5"
+                        className="px-3 py-2 bg-slate-100 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-200 flex items-center gap-1.5 transition-all cursor-pointer"
                       >
                         <Download className="w-3.5 h-3.5" />
                         <span>Download .txt</span>
                       </button>
                     </div>
+                  </div>
+
+                  {/* Download Success Banner */}
+                  {downloadSuccess && (
+                    <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-2 text-xs text-emerald-900 font-semibold shadow-xs">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                        <div>
+                          <p className="font-bold text-emerald-800">Clinical Consultation Report Downloaded Successfully!</p>
+                          <p className="text-[11px] font-mono text-emerald-700">{downloadSuccess}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDownloadOnePageText()}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5" /> Download Again
+                      </button>
+                    </div>
+                  )}
+
+                  {/* NRCeS Clinical Consultation Note (.txt) Preview & Download Box */}
+                  <div className="bg-slate-900 text-slate-100 rounded-2xl p-5 border border-slate-800 shadow-md space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center">
+                          <FileText className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wide">NRCeS Clinical Consultation Note</h4>
+                            <span className="px-2 py-0.5 rounded-full bg-teal-400/20 text-teal-300 text-[10px] font-bold border border-teal-500/30">
+                              Plain-Text (.txt)
+                            </span>
+                            {textualReport && (
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                ({textualReport.split('\n').length} lines)
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-400">
+                            ABDM NRCeS formatted report for outpatient clinical records, EMR ingestion, or printout
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {textualReport && (
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(textualReport);
+                              setReportCopied(true);
+                              setTimeout(() => setReportCopied(false), 2500);
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-all border border-slate-700 cursor-pointer"
+                            title="Copy full clinical report to clipboard"
+                          >
+                            {reportCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                            <span>{reportCopied ? 'Copied' : 'Copy Text'}</span>
+                          </button>
+                        )}
+                        <button
+                          onClick={handleDownloadOnePageText}
+                          disabled={isGeneratingReport}
+                          className="px-3.5 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Download .txt</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Report Content */}
+                    {isGeneratingReport ? (
+                      <div className="py-10 text-center space-y-2">
+                        <RefreshCw className="w-6 h-6 text-teal-400 animate-spin mx-auto" />
+                        <p className="text-xs font-bold text-slate-300">Generating & Downloading Clinical Report...</p>
+                        <p className="text-[11px] text-slate-500">Formatting clinical history, triage acuity, and dual-coded terminology</p>
+                      </div>
+                    ) : textualReport ? (
+                      <div className="relative">
+                        <pre className="p-4 bg-slate-950/90 rounded-xl border border-slate-800 text-[11px] font-mono text-emerald-300 leading-relaxed overflow-x-auto max-h-80 overflow-y-auto whitespace-pre-wrap select-all selection:bg-teal-700 selection:text-white">
+                          {textualReport}
+                        </pre>
+                      </div>
+                    ) : (
+                      <div className="py-8 text-center space-y-3">
+                        <p className="text-xs text-slate-400">Click below to generate and download the complete NRCeS Consultation Note.</p>
+                        <button
+                          onClick={() => handleExportFHIR(true)}
+                          className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold rounded-xl inline-flex items-center gap-1.5 cursor-pointer shadow-md"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>Generate & Download Report</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {fhirValidation && (
@@ -2557,17 +2681,22 @@ export default function ClinicianDashboard() {
 
               {/* TAB: SCANNED DOCUMENTS (MODULE B VISION & OCR EVIDENCE) */}
               {activeTab === 'scanned_documents' && (
-                <ScannedDocumentsViewer
-                  documents={sessionDetail?.documents || []}
-                  sessionId={selectedSession.id}
-                  patientName={selectedSession.patient_name || selectedSession.patient_ref}
-                  onAddMedicationToDraft={(medText) => {
-                    const currentMeds = editedValues['medications'] || formatClinicalText(draftContent.medications) || '';
-                    const updated = currentMeds && currentMeds !== 'None reported' ? `${currentMeds}, ${medText}` : medText;
-                    handleSectionAction('medications', 'edited', currentMeds, updated, 'Imported from Module B Scanned Record');
-                  }}
-                  onRefresh={() => loadSessionDetails(selectedSession.id)}
-                />
+                <div className="flex-1 overflow-y-auto pr-2 pb-8">
+                  <ScannedDocumentsViewer
+                    documents={sessionDetail?.documents || []}
+                    sessionId={selectedSession.id}
+                    patientName={selectedSession.patient_name || selectedSession.patient_ref}
+                    patientAge={selectedSession.age}
+                    patientGender={selectedSession.gender}
+                    extractedEntities={sessionDetail?.extracted_entities || []}
+                    onAddMedicationToDraft={(medText) => {
+                      const currentMeds = editedValues['medications'] || formatClinicalText(draftContent.medications) || '';
+                      const updated = currentMeds && currentMeds !== 'None reported' ? `${currentMeds}, ${medText}` : medText;
+                      handleSectionAction('medications', 'edited', currentMeds, updated, 'Imported from Module B Scanned Record');
+                    }}
+                    onRefresh={() => loadSessionDetails(selectedSession.id)}
+                  />
+                </div>
               )}
 
               {/* TAB 5: CLINICAL INTELLIGENCE & TIMELINE (MODULE B) */}
@@ -2648,7 +2777,7 @@ export default function ClinicianDashboard() {
                   </button>
 
                   <button 
-                    onClick={handleExportFHIR}
+                    onClick={() => handleExportFHIR(true)}
                     disabled={!isAttested}
                     className={`px-4 py-3 rounded-2xl text-xs font-bold flex items-center gap-1.5 ${
                       isAttested ? 'bg-[#EAF3F2] text-[#2F5D62] border border-[#2F5D62]' : 'bg-slate-100 text-slate-400 cursor-not-allowed'

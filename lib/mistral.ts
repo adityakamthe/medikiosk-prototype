@@ -544,7 +544,9 @@ export async function extractDocumentEntitiesFromBase64(
     1. Read and transcribe the medical document accurately from the full image and any attached high-resolution line crops.
     2. Extract all medications: medicine brand or generic name, dosage form (Tab/Cap/Syr), strength, route, frequency (with decoded sig), duration.
     3. Extract all diagnostic lab investigations: test name, quantitative value, unit, reference range.
-    4. Extract any clinical diagnoses, symptoms, or findings.
+    4. CRITICAL FOR DIAGNOSIS EXTRACTION:
+       - Extract diagnoses, impressions, or clinical conditions ONLY if explicitly written or printed on the prescription (e.g. under 'Dx', 'Diagnosis', 'Impression', 'K/C/O', 'Prov. Dx', or handwritten clinical condition).
+       - NEVER guess, assume, or hallucinate a diagnosis. If no diagnosis is explicitly written or stated on the prescription, return an empty array: "diagnoses": [].
     5. Correlate with the verbal intake clinical prior when deciphering cursive handwriting trade names.
     6. Set "quality_assessment": "good", "is_readable": true.
 
@@ -556,7 +558,7 @@ export async function extractDocumentEntitiesFromBase64(
       "is_readable": true,
       "doctor_or_hospital": "Doctor or Clinic Name",
       "diagnoses": [
-        {"name": "Diagnosis", "confidence": 0.95}
+        {"name": "Explicit Diagnosis Only If Present", "confidence": 0.95}
       ],
       "medications": [
         {"name": "Medicine Name", "dose": "500mg", "route": "Oral", "frequency": "1+0+1 / BD", "duration": "5 days", "confidence": 0.95}
@@ -612,6 +614,44 @@ export async function extractDocumentEntitiesFromBase64(
     const parsed = typeof content === 'string' ? JSON.parse(content) : JSON.parse(JSON.stringify(content));
 
     if (parsed) {
+      // Normalize diagnoses to Array<{ name: string, confidence: number, notes?: string, icd10?: string }>
+      let rawDiag = parsed.diagnoses ?? parsed.diagnosis ?? parsed.provisional_diagnosis ?? parsed.clinical_diagnosis ?? [];
+      if (typeof rawDiag === 'string') {
+        const trimmed = rawDiag.trim();
+        rawDiag = trimmed && trimmed.toLowerCase() !== 'none' && trimmed.toLowerCase() !== 'n/a'
+          ? [{ name: trimmed, confidence: 0.92 }]
+          : [];
+      } else if (Array.isArray(rawDiag)) {
+        rawDiag = rawDiag.map((d: any) => {
+          if (typeof d === 'string') {
+            const trimmed = d.trim();
+            return trimmed && trimmed.toLowerCase() !== 'none' && trimmed.toLowerCase() !== 'n/a'
+              ? { name: trimmed, confidence: 0.92 }
+              : null;
+          }
+          if (typeof d === 'object' && d !== null) {
+            const name = (d.name || d.diagnosis || d.condition || d.title || '').trim();
+            if (name && name.toLowerCase() !== 'none' && name.toLowerCase() !== 'n/a') {
+              return {
+                name,
+                confidence: typeof d.confidence === 'number' ? d.confidence : 0.92,
+                notes: d.notes || d.rationale || undefined,
+                icd10: d.icd10 || d.code || undefined
+              };
+            }
+          }
+          return null;
+        }).filter(Boolean);
+      } else if (typeof rawDiag === 'object' && rawDiag !== null) {
+        const name = (rawDiag.name || rawDiag.diagnosis || rawDiag.condition || '').trim();
+        rawDiag = name && name.toLowerCase() !== 'none' && name.toLowerCase() !== 'n/a'
+          ? [{ name, confidence: typeof rawDiag.confidence === 'number' ? rawDiag.confidence : 0.92 }]
+          : [];
+      } else {
+        rawDiag = [];
+      }
+      parsed.diagnoses = rawDiag;
+
       // Flatten doctor_or_hospital if returned as nested object
       if (typeof parsed.doctor_or_hospital === 'object' && parsed.doctor_or_hospital !== null) {
         parsed.doctor_or_hospital = Object.entries(parsed.doctor_or_hospital)
@@ -634,12 +674,18 @@ export async function extractDocumentEntitiesFromBase64(
 
 /**
  * Module C: Generate Bilingual Draft Summary over Structured Data
+ * @param structuredHistory Rows from structured_history table for this session
+ * @param extractedEntities Rows from extracted_entities table for this session
+ * @param patientLangCode ISO language code (e.g. 'hi', 'en')
+ * @param clinicalMode 'allopathy' | 'ayurveda'
+ * @param patientMeta Optional patient metadata (age, gender, name) to enrich background
  */
 export async function generateBilingualSummary(
   structuredHistory: any[], 
   extractedEntities: any[], 
   patientLangCode: string = 'hi',
-  clinicalMode: string = 'allopathy'
+  clinicalMode: string = 'allopathy',
+  patientMeta?: { age?: number; gender?: string; name?: string }
 ) {
   const langConfig = SUPPORTED_LANGUAGES[patientLangCode] || SUPPORTED_LANGUAGES.hi;
   const isAyurveda = clinicalMode === 'ayurveda';
@@ -653,6 +699,8 @@ export async function generateBilingualSummary(
       patient_meta: {
         language: patientLangCode,
         clinical_mode: clinicalMode,
+        age: patientMeta?.age,
+        gender: patientMeta?.gender,
       },
       spoken_history: structuredHistory,
       extracted_entities: extractedEntities,
@@ -673,6 +721,8 @@ export async function generateBilingualSummary(
           hpi: cRes.sbar_summary.hpi_narrative || 'Structured interview recorded.',
           past_medical_surgical: cRes.sbar_summary.past_medical_surgical || 'None reported',
           family_history: cRes.sbar_summary.family_history || 'No hereditary illness reported',
+          social_history: cRes.sbar_summary.social_history || 'No social/lifestyle history recorded',
+          background_summary: cRes.sbar_summary.background_summary || '',
           allergies: cRes.sbar_summary.allergies_adverse_reactions || 'No known allergies',
           medications: cRes.sbar_summary.current_medications || 'None recorded',
           dashavidha_pariksha: dashavidhaStr,
@@ -683,12 +733,30 @@ export async function generateBilingualSummary(
           consent_token: cRes.consent_token || '',
         },
       };
+
     }
   } catch (modCErr: any) {
     console.warn('[Module C Integration Notice] Proceeding with primary LLM synthesis:', modCErr?.message || modCErr);
   }
 
   try {
+    // Build a human-readable background block to anchor the LLM for better summarization
+    const backgroundSections = structuredHistory.filter(h => [
+      'past_medical', 'past_medical_history', 'past_surgical', 'chronic_conditions',
+      'family_history', 'social_history', 'lifestyle', 'occupation', 'demographics',
+      'allergies', 'ayush_profile', 'background'
+    ].some(tag => (h.section || '').toLowerCase().includes(tag) || (h.field_name || '').toLowerCase().includes(tag)));
+
+    const backgroundNarrative = backgroundSections.length > 0
+      ? backgroundSections.map(h => `${(h.field_name || h.section || '').replace(/_/g, ' ')}: ${h.value}`).join('\n')
+      : 'No additional background data recorded during intake.';
+
+    const patientDemographics = [
+      patientMeta?.age ? `Age: ${patientMeta.age} years` : null,
+      patientMeta?.gender ? `Gender: ${patientMeta.gender}` : null,
+      patientMeta?.name ? `Name: ${patientMeta.name}` : null,
+    ].filter(Boolean).join(', ') || 'Demographics not provided';
+
     const prompt = `
     You are MediKiosk's Clinical Summarizer. You summarize patient-reported interview answers and document-extracted data into a structured clinical summary for doctors.
     
@@ -698,6 +766,12 @@ export async function generateBilingualSummary(
     - You must NEVER make a diagnosis, suggest a differential, or recommend a treatment/medication.
     - Every section must be labelled as DRAFT / UNVERIFIED for physician review.
     - IMPORTANT: Every value in "clinician_summary" MUST be a string (NOT a nested object or dictionary).
+    - BACKGROUND EXTRACTION: You MUST extract and summarize the patient's background (past illnesses, family history, lifestyle, allergies) from the spoken history. Do NOT leave these fields as 'None reported' if the patient mentioned anything about them.
+
+    PATIENT DEMOGRAPHICS: ${patientDemographics}
+
+    PATIENT BACKGROUND (from intake interview):
+    ${backgroundNarrative}
 
     INPUT DATA:
     Patient Spoken Answers: ${JSON.stringify(structuredHistory)}
@@ -705,13 +779,14 @@ export async function generateBilingualSummary(
 
     Output strictly JSON matching this structure:
     {
-      "patient_summary_bilingual": "Plain language confirmation text in ${langConfig.name} (${langConfig.native}) for patient recap.",
+      "patient_summary_bilingual": "Plain language confirmation text in ${langConfig.name} (${langConfig.native}) for patient recap. Must include a concise background summary (age, gender, relevant past illnesses, family history).",
       "clinician_summary": {
         "chief_complaint": "Chief complaint summary string",
         "provisional_diagnoses": "Provisional clinical impressions & diagnostic considerations from patient verbal intake and documents string",
         "hpi": "History of Present Illness (SOCRATES breakdown in coherent narrative string)",
-        "past_medical_surgical": "Patient's History of Diseases (chronic conditions: Diabetes, Hypertension, Thyroid, Asthma, past surgeries) string",
-        "family_history": "Family History (hereditary diseases in parents/siblings) string",
+        "past_medical_surgical": "SUMMARIZE all past illnesses, chronic conditions (Diabetes, Hypertension, Thyroid, Asthma, etc.), and prior surgeries the patient mentioned. Include negatives if explicitly stated.",
+        "family_history": "SUMMARIZE family history of hereditary diseases in parents/siblings. Include negatives if explicitly stated.",
+        "social_history": "Patient's occupation, lifestyle factors (smoking, alcohol, diet, exercise) and socio-economic context if mentioned.",
         "allergies": "Allergies reported or documented (drug allergies, food allergies, environmental) string",
         "medications": "Current medications & traditional herbal remedies list string",
         "dashavidha_pariksha": "Classical Dashavidha Pariksha findings (Dushya, Desha, Bala, Kala, Agni, Prakriti, Vayas, Sattva, Satmya, Ahara-shakti) string",
@@ -740,25 +815,79 @@ export async function generateBilingualSummary(
   } catch (err: any) {
     console.error('Mistral Summary generation error:', err);
     
-    // Synthesize fallback string-based summary
+    // Synthesize comprehensive fallback string-based summary
     const cc = structuredHistory.find(h => h.section === 'chief_complaint')?.value || 'Not reported';
-    const hpiItems = structuredHistory.filter(h => h.section === 'hpi').map(h => `${h.field_name?.replace(/_/g, ' ')}: ${h.value}`).join('; ');
-    const pastDiseases = structuredHistory.filter(h => (h.section || '').includes('past') || (h.field_name || '').includes('chronic')).map(h => h.value).join('; ') || 'None reported';
-    const familyHist = structuredHistory.filter(h => (h.section || '').includes('family')).map(h => h.value).join('; ') || 'No hereditary disease reported';
-    const meds = extractedEntities.filter(e => e.entity_type === 'medication').map(e => e.fields?.name || e.name).join(', ') || 'None recorded';
-    const allergies = structuredHistory.find(h => h.section === 'allergies')?.value || 'No known drug allergies reported';
-    const ayushItems = structuredHistory.filter(h => (h.section || '').includes('ayush')).map(h => `${h.field_name?.replace(/_/g, ' ')}: ${h.value}`).join('; ');
+    const hpiItems = structuredHistory
+      .filter(h => h.section === 'hpi')
+      .map(h => `${h.field_name?.replace(/_/g, ' ')}: ${h.value}`)
+      .join('; ');
+    
+    // Comprehensive past history extraction — covers multiple naming conventions
+    const pastDiseases = structuredHistory
+      .filter(h =>
+        (h.section || '').toLowerCase().match(/past|chronic|medical.?histor|surgical|prior.?ill|comorbid/) ||
+        (h.field_name || '').toLowerCase().match(/past|chronic|medical.?histor|surgical|prior.?ill|comorbid/)
+      )
+      .map(h => h.value)
+      .join('; ') || 'None reported';
 
-    const diags = extractedEntities.filter(e => e.entity_type === 'diagnosis').map(e => e.fields?.name || e.raw_text || e.name).join('; ') || 'Clinical evaluation in progress based on vocal interview.';
+    // Comprehensive family history extraction
+    const familyHist = structuredHistory
+      .filter(h =>
+        (h.section || '').toLowerCase().includes('family') ||
+        (h.field_name || '').toLowerCase().includes('family') ||
+        (h.field_name || '').toLowerCase().includes('hereditary') ||
+        (h.field_name || '').toLowerCase().includes('parents')
+      )
+      .map(h => h.value)
+      .join('; ') || 'No hereditary disease reported';
+
+    // Social history / lifestyle extraction
+    const socialHist = structuredHistory
+      .filter(h =>
+        (h.section || '').toLowerCase().match(/social|lifestyle|occupation|smoking|alcohol|diet|exercise/) ||
+        (h.field_name || '').toLowerCase().match(/social|lifestyle|occupation|smoking|alcohol|diet|exercise/)
+      )
+      .map(h => `${(h.field_name || h.section || '').replace(/_/g, ' ')}: ${h.value}`)
+      .join('; ') || 'No social/lifestyle history recorded';
+
+    const meds = extractedEntities
+      .filter(e => e.entity_type === 'medication')
+      .map(e => e.fields?.name || e.name)
+      .join(', ') || 'None recorded';
+    const allergies = structuredHistory.find(h => h.section === 'allergies')?.value || 'No known drug allergies reported';
+    const ayushItems = structuredHistory
+      .filter(h => (h.section || '').toLowerCase().includes('ayush'))
+      .map(h => `${h.field_name?.replace(/_/g, ' ')}: ${h.value}`)
+      .join('; ');
+
+    const diags = extractedEntities
+      .filter(e => e.entity_type === 'diagnosis')
+      .map(e => e.fields?.name || e.raw_text || e.name)
+      .join('; ') || 'Clinical evaluation in progress based on vocal interview.';
+
+    // Build a patient background narrative including demographics
+    const demographicsStr = [
+      patientMeta?.age ? `${patientMeta.age}-year-old` : null,
+      patientMeta?.gender || null,
+    ].filter(Boolean).join(' ');
+    const backgroundSummary = [
+      demographicsStr ? `Patient: ${demographicsStr}.` : null,
+      pastDiseases !== 'None reported' ? `Past Medical: ${pastDiseases}.` : null,
+      familyHist !== 'No hereditary disease reported' ? `Family Hx: ${familyHist}.` : null,
+      socialHist !== 'No social/lifestyle history recorded' ? `Social Hx: ${socialHist}.` : null,
+    ].filter(Boolean).join(' ') || 'Background not captured during intake.';
 
     return {
-      patient_summary_bilingual: langConfig.complete,
+      patient_summary_bilingual: `${langConfig.complete} ${demographicsStr ? `[${demographicsStr}]` : ''}`.trim(),
       clinician_summary: {
         chief_complaint: String(cc),
         provisional_diagnoses: diags,
         hpi: hpiItems || 'Structured interview recorded.',
         past_medical_surgical: pastDiseases,
         family_history: familyHist,
+        social_history: socialHist,
+        background_summary: backgroundSummary,
         medications: meds,
         allergies: String(allergies),
         dashavidha_pariksha: ayushItems || (isAyurveda ? 'Dashavidha Pariksha recorded.' : 'N/A'),

@@ -393,7 +393,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           historyItems, 
           entitiesRes.rows, 
           language, 
-          session?.clinical_mode || 'allopathy'
+          session?.clinical_mode || 'allopathy',
+          {
+            age: session?.age ? Number(session.age) : undefined,
+            gender: session?.gender || undefined,
+            name: session?.patient_name || undefined,
+          }
         );
         
         const inputHash = `hash_${Date.now()}_${turnCount}`;

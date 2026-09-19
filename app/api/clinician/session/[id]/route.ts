@@ -45,15 +45,59 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       // Synthesize from live structured history
       const cc = historyRes.rows.find(h => h.section === 'chief_complaint')?.value || 'Interview in progress';
       const hpiItems = historyRes.rows.filter(h => h.section === 'hpi').map(h => `${h.field_name?.replace(/_/g, ' ')}: ${h.value}`).join('; ');
-      const meds = entitiesRes.rows.filter(e => e.entity_type === 'medication').map(e => e.fields?.name || e.name).join(', ');
+      const meds = entitiesRes.rows.filter(e => e.entity_type === 'medication').map(e => (e.fields?.name || e.name)).join(', ');
       const allergies = historyRes.rows.find(h => h.section === 'allergies')?.value || 'No known allergies reported';
+
+      // Comprehensive past history extraction
+      const pastDiseases = historyRes.rows
+        .filter(h =>
+          (h.section || '').toLowerCase().match(/past|chronic|medical.?histor|surgical|prior.?ill|comorbid/) ||
+          (h.field_name || '').toLowerCase().match(/past|chronic|medical.?histor|surgical|prior.?ill|comorbid/)
+        )
+        .map(h => h.value)
+        .join('; ') || 'None reported';
+
+      // Comprehensive family history extraction  
+      const familyHist = historyRes.rows
+        .filter(h =>
+          (h.section || '').toLowerCase().includes('family') ||
+          (h.field_name || '').toLowerCase().includes('family') ||
+          (h.field_name || '').toLowerCase().includes('hereditary') ||
+          (h.field_name || '').toLowerCase().includes('parents')
+        )
+        .map(h => h.value)
+        .join('; ') || 'No hereditary illness reported';
+
+      // Social / lifestyle history
+      const socialHist = historyRes.rows
+        .filter(h =>
+          (h.section || '').toLowerCase().match(/social|lifestyle|occupation|smoking|alcohol|diet|exercise/) ||
+          (h.field_name || '').toLowerCase().match(/social|lifestyle|occupation|smoking|alcohol|diet|exercise/)
+        )
+        .map(h => `${(h.field_name || h.section || '').replace(/_/g, ' ')}: ${h.value}`)
+        .join('; ') || 'No social/lifestyle history recorded';
+
+      // Patient demographics from session record
+      const demographicsStr = [
+        session.age ? `${session.age}-year-old` : null,
+        session.gender || null,
+      ].filter(Boolean).join(' ');
+      const backgroundSummary = [
+        demographicsStr ? `Patient: ${demographicsStr}.` : null,
+        pastDiseases !== 'None reported' ? `Past Medical: ${pastDiseases}.` : null,
+        familyHist !== 'No hereditary illness reported' ? `Family Hx: ${familyHist}.` : null,
+        socialHist !== 'No social/lifestyle history recorded' ? `Social Hx: ${socialHist}.` : null,
+      ].filter(Boolean).join(' ') || 'Background not captured during intake.';
 
       draftContent = {
         patient_summary_bilingual: 'Intake in progress',
         clinician_summary: {
           chief_complaint: String(cc),
           hpi: hpiItems || 'Patient interview currently active.',
-          past_medical_surgical: 'None reported',
+          past_medical_surgical: pastDiseases,
+          family_history: familyHist,
+          social_history: socialHist,
+          background_summary: backgroundSummary,
           medications: meds || 'No medications recorded',
           allergies: String(allergies),
           ayush_profile: 'Standard',
@@ -61,6 +105,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
           prior_investigations: 'Pending document scan'
         }
       };
+
     }
 
     // 6. Contradictions
@@ -103,6 +148,62 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         documents = fallbackDocs.rows.map(d => ({ ...d, is_historical: true }));
       }
     }
+
+    // Enrich documents with extracted_entities so diagnoses and medications are properly populated
+    const allEntities = entitiesRes.rows || [];
+    documents = documents.map(doc => {
+      let qc = typeof doc.quality_check_result === 'string'
+        ? (() => { try { return JSON.parse(doc.quality_check_result); } catch { return {}; } })()
+        : (doc.quality_check_result || {});
+
+      let summary = qc.extracted_summary || {};
+      const docEntities = allEntities.filter(e => e.document_upload_id === doc.id);
+      const relevantEntities = docEntities.length > 0 ? docEntities : allEntities;
+
+      if (!summary.diagnoses || !Array.isArray(summary.diagnoses) || summary.diagnoses.length === 0) {
+        const diagEntities = relevantEntities.filter(e => e.entity_type === 'diagnosis');
+        if (diagEntities.length > 0) {
+          summary.diagnoses = diagEntities.map(e => {
+            const f = typeof e.fields === 'object' && e.fields !== null ? e.fields : { name: e.fields };
+            return {
+              name: f.name || f.diagnosis || f.condition || '',
+              confidence: Number(e.confidence) || 0.9,
+              notes: f.notes || f.rationale || undefined
+            };
+          }).filter((d: any) => Boolean(d.name));
+        }
+      }
+
+      if (!summary.medications || !Array.isArray(summary.medications) || summary.medications.length === 0) {
+        const medEntities = relevantEntities.filter(e => e.entity_type === 'medication');
+        if (medEntities.length > 0) {
+          summary.medications = medEntities.map(e => {
+            const f = typeof e.fields === 'object' && e.fields !== null ? e.fields : { name: e.fields };
+            return {
+              name: f.name || f.generic_name || 'Medication',
+              dose: f.dose || f.dosage || '',
+              route: f.route || 'Oral',
+              frequency: f.frequency || f.frequency_english || '',
+              duration: f.duration || '',
+              confidence: Number(e.confidence) || 0.9
+            };
+          });
+        }
+      }
+
+      if (!summary.doctor_or_hospital) {
+        const noteEntity = relevantEntities.find(e => e.entity_type === 'clinical_note' && e.fields?.doctor);
+        if (noteEntity?.fields?.doctor) {
+          summary.doctor_or_hospital = noteEntity.fields.doctor;
+        }
+      }
+
+      qc.extracted_summary = summary;
+      return {
+        ...doc,
+        quality_check_result: qc
+      };
+    });
 
     return NextResponse.json({
       success: true,
