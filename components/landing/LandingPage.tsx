@@ -23,6 +23,7 @@ import {
   IconVoice,
   PeachIcon,
 } from "./icons";
+import AyushParikshaVisualizer from "./AyushParikshaVisualizer";
 
 const NAV = [
   { href: "#product", label: "Product" },
@@ -301,8 +302,10 @@ export default function LandingPage() {
             <article className="raised-card rounded-3xl border border-border bg-peach-glow/35 p-8">
               <h3 className="font-[family-name:var(--font-sora)] text-xl font-bold">The AYUSH constraint</h3>
               <p className="mt-3 text-text-secondary leading-relaxed">
-                Dashavidha Pariksha cannot be rushed into a two-minute window. Prakriti, Vikriti, Agni, and
-                lifestyle history need structured time — before the clinician begins Darshana and Sparshana.
+                Trividha, Ashtavidha, and Dashavidha Pariksha cannot be rushed into a two-minute window. Detailed
+                assessment of Prakriti (constitution), Vikriti (imbalance), Agni (digestive capacity), Koshtha (bowel nature),
+                Ahara-Vihara (diet and lifestyle), Nidana (causative factors), and Samprapti (pathogenesis) requires structured
+                time — captured at the kiosk before the clinician begins Darshana and Sparshana.
               </p>
             </article>
           </div>
@@ -391,46 +394,92 @@ export default function LandingPage() {
         </section>
 
         {/* AYUSH */}
-        <section id="ayush" className="border-y border-border bg-peach-glow/25 py-20 md:py-28">
-          <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 md:grid-cols-2 md:px-6">
-            <div>
-              <SectionIntro eyebrow="AYUSH Integration">
-                <h2 className="font-[family-name:var(--font-sora)] text-3xl font-bold tracking-tight md:text-5xl">
-                  <LineMaskReveal lines={["Dashavidha, without", "compressing the consult."]} />
+        <section id="ayush" className="border-y border-border bg-peach-glow/25 py-14 md:py-20">
+          <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 lg:grid-cols-12 md:px-6">
+            <div className="lg:col-span-5">
+              <SectionIntro eyebrow="AYUSH Integration • Classical Clinical Pariksha">
+                <h2 className="font-[family-name:var(--font-sora)] text-3xl font-bold tracking-tight text-pine-teal md:text-5xl">
+                  <LineMaskReveal lines={["Trividha, Ashtavidha &", "Dashavidha Pariksha."]} />
                 </h2>
               </SectionIntro>
-              <p className="mt-6 max-w-lg text-text-secondary leading-relaxed">
-                MediKiosk self-administers <em className="font-[family-name:var(--font-source-serif)] not-italic">Prashna</em>{" "}
-                (interrogation) only.{" "}
-                <em className="font-[family-name:var(--font-source-serif)] not-italic">Darshana</em> and{" "}
-                <em className="font-[family-name:var(--font-source-serif)] not-italic">Sparshana</em> remain with the
-                clinician. We do not oversell what a kiosk can see or feel.
+              <p className="mt-6 text-text-secondary leading-relaxed text-sm md:text-base">
+                Classical Ayurvedic clinical methodology requires detailed assessment of{" "}
+                <strong className="font-semibold text-pine-teal">Prakriti</strong> (constitution),{" "}
+                <strong className="font-semibold text-pine-teal">Vikriti</strong> (current imbalance),{" "}
+                <strong className="font-semibold text-pine-teal">Agni</strong> (digestive capacity),{" "}
+                <strong className="font-semibold text-pine-teal">Koshtha</strong> (bowel nature),{" "}
+                <strong className="font-semibold text-pine-teal">Ahara-Vihara</strong> (diet and lifestyle),{" "}
+                <strong className="font-semibold text-pine-teal">Nidana</strong> (causative factors), and{" "}
+                <strong className="font-semibold text-pine-teal">Samprapti</strong> (pathogenesis).
               </p>
-              <div className="mt-8 flex items-center gap-3">
+              <p className="mt-4 text-text-secondary leading-relaxed text-sm md:text-base">
+                MediKiosk self-administers{" "}
+                <em className="font-[family-name:var(--font-source-serif)] not-italic font-semibold text-pine-teal">
+                  Prashna
+                </em>{" "}
+                (interrogation) only.{" "}
+                <em className="font-[family-name:var(--font-source-serif)] not-italic font-semibold text-pine-teal">
+                  Darshana
+                </em>{" "}
+                (inspection) and{" "}
+                <em className="font-[family-name:var(--font-source-serif)] not-italic font-semibold text-pine-teal">
+                  Sparshana
+                </em>{" "}
+                (palpation) remain with the clinician. We do not oversell what a kiosk can see or feel.
+              </p>
+              <div className="mt-6 flex items-center gap-3">
                 <IconLotus />
-                <p className="text-sm text-text-secondary">Classical parameters, modern kiosk execution.</p>
+                <p className="text-xs md:text-sm font-medium text-text-secondary">
+                  Classical parameters, modern kiosk execution across 22 Indic languages.
+                </p>
               </div>
-              <ul className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {["Prakriti", "Vikriti", "Agni", "Koshtha", "Ahara-Vihara"].map((term) => (
-                  <li
-                    key={term}
-                    className="rounded-2xl border border-border bg-cornsilk px-3 py-4 text-center font-[family-name:var(--font-source-serif)] text-lg font-semibold text-pine-teal"
-                  >
-                    {term}
+
+              {/* 7 Core Clinical Parameter Badges */}
+              <div className="mt-7">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-pine-teal">
+                    Diagnostic Dimensions Evaluated:
+                  </span>
+                  <span className="text-[10px] font-semibold text-pine-teal/80 bg-cornsilk px-2 py-0.5 rounded-md border border-border">
+                    Charaka & Sushruta Aligned
+                  </span>
+                </div>
+                <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {[
+                    { name: "Prakriti", sub: "Constitution" },
+                    { name: "Vikriti", sub: "Imbalance" },
+                    { name: "Agni", sub: "Digestive Fire" },
+                    { name: "Koshtha", sub: "Bowel Nature" },
+                    { name: "Ahara-Vihara", sub: "Diet & Lifestyle" },
+                    { name: "Nidana", sub: "Causative Factors" },
+                    { name: "Samprapti", sub: "Pathogenesis" },
+                  ].map((param) => (
+                    <li
+                      key={param.name}
+                      className="rounded-xl border border-border bg-cornsilk p-2.5 text-center transition-all hover:border-pine-teal/40 hover:shadow-xs"
+                    >
+                      <div className="font-[family-name:var(--font-source-serif)] text-xs font-semibold text-pine-teal">
+                        {param.name}
+                      </div>
+                      <div className="text-[9px] text-text-secondary">{param.sub}</div>
+                    </li>
+                  ))}
+                  <li className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border-strong bg-peach-glow/15 p-2 text-center">
+                    <span className="text-[9px] uppercase tracking-[0.14em] font-bold text-pine-teal">
+                      Prashna
+                    </span>
+                    <span className="text-[8px] text-text-secondary font-medium">Kiosk Captured</span>
                   </li>
-                ))}
-                <li className="flex items-center justify-center rounded-2xl border border-dashed border-border-strong px-3 py-4 text-center text-xs uppercase tracking-[0.14em] text-text-secondary">
-                  Prashna only
-                </li>
-              </ul>
+                </ul>
+              </div>
             </div>
-            <MockupTilt>
-              <img
-                src="/assets/illustrations/ayush-radial.jpg"
-                alt="Geometric radial diagram representing Dashavidha Pariksha"
-                className="w-full rounded-3xl border border-border"
-              />
-            </MockupTilt>
+
+            {/* Interactive Visualizer */}
+            <div className="lg:col-span-7">
+              <MockupTilt>
+                <AyushParikshaVisualizer />
+              </MockupTilt>
+            </div>
           </div>
         </section>
 
