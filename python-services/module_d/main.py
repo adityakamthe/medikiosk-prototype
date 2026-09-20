@@ -4,8 +4,9 @@ Consent, Privacy, HIS Connector & ABDM Simulator.
 Port: 8003
 """
 
-import sys
 import os
+import sys
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 

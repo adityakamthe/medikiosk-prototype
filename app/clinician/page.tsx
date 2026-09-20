@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -413,6 +414,7 @@ export default function ClinicianDashboard() {
     }, 3500);
 
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Select Session for Review
@@ -721,7 +723,7 @@ export default function ClinicianDashboard() {
   };
 
   const draftContent = sessionDetail?.latest_draft?.clinician_summary || selectedSession?.latest_draft?.clinician_summary || {};
-  const rawAnswers = sessionDetail?.raw_answers || [];
+  const _rawAnswers = sessionDetail?.raw_answers || [];
   const structuredHistory = sessionDetail?.structured_history || [];
 
   // Filter queue by selected doctor/room (Doctor Privacy Gating)
@@ -1280,8 +1282,8 @@ export default function ClinicianDashboard() {
                 const dashavidha = computeDashavidhaPariksha(structuredHistory, selectedSession);
                 const pastDiseases = editedValues['past_medical_surgical'] || formatClinicalText(draftContent.past_medical_surgical) || (isAyurveda ? 'कोई पूर्व व्याधि या शल्यकर्म इतिहास नहीं' : 'No chronic medical illness or prior surgeries reported');
                 const famHistory = editedValues['family_history'] || formatClinicalText(draftContent.family_history) || (isAyurveda ? 'कुल में कोई आनुवंशिक व्याधि नहीं' : 'No hereditary illness in first-degree relatives');
-                const socialHistory = editedValues['social_history'] || formatClinicalText(draftContent.social_history) || 'Social and lifestyle history not recorded.';
-                const backgroundSummary = formatClinicalText(draftContent.background_summary) || '';
+                const _socialHistory = editedValues['social_history'] || formatClinicalText(draftContent.social_history) || 'Social and lifestyle history not recorded.';
+                const _backgroundSummary = formatClinicalText(draftContent.background_summary) || '';
                 const allergyText = editedValues['allergies'] || formatClinicalText(draftContent.allergies) || (isAyurveda ? 'कोई ज्ञात द्रव्य असात्म्यता नहीं' : 'No known drug or food allergies');
                 const medsText = editedValues['medications'] || formatClinicalText(draftContent.medications) || (isAyurveda ? 'कोई नियमित औषध सेवन नहीं' : 'No active prescription medications reported');
                 const rosText = editedValues['review_of_systems'] || formatClinicalText(draftContent.review_of_systems) || 'Cardiovascular, respiratory, gastrointestinal, and musculoskeletal functional reviews completed without acute systemic decompensation.';

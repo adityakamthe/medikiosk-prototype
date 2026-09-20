@@ -5,8 +5,8 @@ Consent, Privacy, HIS Connector & ABDM Simulator.
 
 import os
 from pathlib import Path
+
 from pydantic_settings import BaseSettings
-from typing import Optional
 
 
 class ModuleDConfig(BaseSettings):
@@ -49,8 +49,8 @@ class ModuleDConfig(BaseSettings):
     ABDM_TOKEN_EXPIRY_SECONDS: int = 3600
 
     # Bhashini Vernacular TTS Hook
-    BHASHINI_API_KEY: Optional[str] = None
-    BHASHINI_USER_ID: Optional[str] = None
+    BHASHINI_API_KEY: str | None = None
+    BHASHINI_USER_ID: str | None = None
 
     model_config = {
         "env_file": ".env.local",

@@ -4,11 +4,11 @@ Transforms pre-validated multimodal slots into the standard universal sequential
 Chief Complaint -> HPI (SOCRATES) -> Past History -> Meds/Allergies -> Family -> Personal/Social -> ROS -> Prior Labs.
 Generates both physician-facing technical documentation and patient-facing mother-tongue audio script.
 """
-import sys
-import os
 import hashlib
+import os
+import sys
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional
+from typing import Any
 
 _ENGINE_DIR = os.path.dirname(os.path.abspath(__file__))
 _MODULE_C_DIR = os.path.abspath(os.path.join(_ENGINE_DIR, ".."))
@@ -18,15 +18,18 @@ for _p in [_MODULE_C_DIR, _SERVICES_DIR]:
         sys.path.insert(0, _p)
 
 try:
-    from module_c.schemas.ingestion_schemas import PatientRecordPayload, ChiefComplaint
-    from module_c.schemas.synthesis_schemas import Standard8PartSummary, PatientAudioView
+    from module_c.schemas.ingestion_schemas import PatientRecordPayload
+    from module_c.schemas.synthesis_schemas import (
+        PatientAudioView,
+        Standard8PartSummary,
+    )
 except (ImportError, ModuleNotFoundError, ValueError):
     try:
-        from schemas.ingestion_schemas import PatientRecordPayload, ChiefComplaint
-        from schemas.synthesis_schemas import Standard8PartSummary, PatientAudioView
+        from schemas.ingestion_schemas import PatientRecordPayload  # type: ignore[no-redef]
+        from schemas.synthesis_schemas import PatientAudioView, Standard8PartSummary  # type: ignore[no-redef]
     except (ImportError, ModuleNotFoundError, ValueError):
-        from ..schemas.ingestion_schemas import PatientRecordPayload, ChiefComplaint
-        from ..schemas.synthesis_schemas import Standard8PartSummary, PatientAudioView
+        from ..schemas.ingestion_schemas import PatientRecordPayload  # type: ignore[no-redef]
+        from ..schemas.synthesis_schemas import PatientAudioView, Standard8PartSummary  # type: ignore[no-redef]
 
 
 class SBARSynthesizer:
@@ -67,14 +70,15 @@ class SBARSynthesizer:
         Synthesizes the standard 8-part sequential clinical history.
         """
         # 1. Chief Complaint
-        if hasattr(payload.chief_complaint, "normalized") and getattr(payload.chief_complaint, "normalized"):
-            norm_cc = getattr(payload.chief_complaint, "normalized")
-            dur_cc = getattr(payload.chief_complaint, "duration", "Active") or "Active"
-            verb_cc = getattr(payload.chief_complaint, "verbatim", norm_cc) or norm_cc
-        elif isinstance(payload.chief_complaint, str) and payload.chief_complaint:
-            norm_cc = payload.chief_complaint
+        cc = payload.chief_complaint
+        if cc is not None and not isinstance(cc, str) and hasattr(cc, "normalized") and cc.normalized:
+            norm_cc = cc.normalized
+            dur_cc = getattr(cc, "duration", "Active") or "Active"
+            verb_cc = getattr(cc, "verbatim", norm_cc) or norm_cc
+        elif isinstance(cc, str) and cc:
+            norm_cc = cc
             dur_cc = "Active"
-            verb_cc = payload.chief_complaint
+            verb_cc = cc
         else:
             norm_cc = "Not documented"
             dur_cc = "Unknown"
@@ -202,8 +206,8 @@ class SBARSynthesizer:
         self,
         summary_8_part: Standard8PartSummary,
         payload: PatientRecordPayload,
-        dashavidha_summary: Optional[str] = None
-    ) -> Dict[str, Any]:
+        dashavidha_summary: str | None = None
+    ) -> dict[str, Any]:
         """
         Creates the flat key-value dictionary compatible with the existing Clinician Dashboard UI.
         Ensures zero regression on existing Next.js frontend components.
@@ -240,11 +244,12 @@ class SBARSynthesizer:
         template = self.LANGUAGE_AUDIO_TEMPLATES.get(lang, self.LANGUAGE_AUDIO_TEMPLATES["en"])
 
         name = payload.patient_meta.name or "Patient"
-        if hasattr(payload.chief_complaint, "normalized") and getattr(payload.chief_complaint, "normalized"):
-            complaint = getattr(payload.chief_complaint, "verbatim", None) or getattr(payload.chief_complaint, "normalized")
-            duration = getattr(payload.chief_complaint, "duration", None) or "some days"
-        elif isinstance(payload.chief_complaint, str) and payload.chief_complaint:
-            complaint = payload.chief_complaint
+        cc = payload.chief_complaint
+        if cc is not None and not isinstance(cc, str) and hasattr(cc, "normalized") and cc.normalized:
+            complaint = getattr(cc, "verbatim", None) or cc.normalized
+            duration = getattr(cc, "duration", None) or "some days"
+        elif isinstance(cc, str) and cc:
+            complaint = cc
             duration = "some days"
         else:
             complaint = "Health Concern"
@@ -255,7 +260,7 @@ class SBARSynthesizer:
         # Generate DPDP Act 2023 Cryptographic Consent Token (SHA-256 of encounter + timestamp + script)
         now_utc = datetime.now(timezone.utc).isoformat()
         enc_id = payload.encounter_id or payload.session_id or "sess-default"
-        token_input = f"{enc_id}_{now_utc}_{lang}_{audio_script}".encode("utf-8")
+        token_input = f"{enc_id}_{now_utc}_{lang}_{audio_script}".encode()
         consent_token = f"DPDP2023-CONSENT-{hashlib.sha256(token_input).hexdigest()[:16].upper()}"
 
         return PatientAudioView(

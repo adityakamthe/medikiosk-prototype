@@ -1,6 +1,6 @@
 // MediKiosk Service Worker Unregister Handler
 // Immediately unregisters any stale service worker registered on localhost:3000
-self.addEventListener('install', (e) => {
+self.addEventListener('install', (_e) => {
   self.skipWaiting();
 });
 

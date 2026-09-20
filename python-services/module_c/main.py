@@ -4,9 +4,9 @@ Structured Clinical History Summary Generator, Multimodal Synthesis, Ayurvedic D
 and Native FHIR R4 Dual-Coding (NAMASTE + WHO ICD-11 TM2).
 Port: 8002
 """
-import sys
 import os
-from typing import List, Dict, Any, Optional
+import sys
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -18,14 +18,14 @@ if CURRENT_DIR not in sys.path:
 
 from schemas.ingestion_schemas import PatientRecordPayload
 from schemas.synthesis_schemas import ClinicalSynthesisResponse
+
 try:
     from module_c.coordinator import module_c_coordinator
 except (ImportError, ModuleNotFoundError):
-    from coordinator import module_c_coordinator
-from engine.contradiction_engine import contradiction_engine
+    from coordinator import module_c_coordinator  # type: ignore[no-redef]
 from engine.ayush_synthesizer import ayush_synthesizer
+from engine.contradiction_engine import contradiction_engine
 from engine.dual_coder import dual_coder
-
 
 app = FastAPI(
     title="MediKiosk Module C Engine",
@@ -88,7 +88,7 @@ def get_dashavidha(payload: PatientRecordPayload):
 
 
 class DualCodeRequest(BaseModel):
-    findings: List[str]
+    findings: list[str]
 
 
 @app.post("/api/v1/fhir/dual-code")

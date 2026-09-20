@@ -1,1 +1,0 @@
-# MediKiosk Python Services Package

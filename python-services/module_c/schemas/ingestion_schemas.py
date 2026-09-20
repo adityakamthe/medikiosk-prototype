@@ -2,8 +2,8 @@
 Ingestion schemas for MediKiosk Module C.
 Captures structured data streamed from Module A (vocal dialogue) and Module B (document OCR).
 """
-from typing import List, Dict, Any, Optional, Union
-import pkgutil
+from typing import Any
+
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -20,7 +20,7 @@ class SocratesHPI(BaseModel):
     onset: str = Field(default="Unknown", description="Mode of onset: sudden, gradual")
     character: str = Field(default="Unknown", description="Quality of pain: throbbing, dull, sharp, burning")
     radiation: str = Field(default="None", description="Radiation to other anatomical regions")
-    associations: List[str] = Field(default_factory=list, description="Associated symptoms, e.g. nausea, fever")
+    associations: list[str] = Field(default_factory=list, description="Associated symptoms, e.g. nausea, fever")
     timing: str = Field(default="Unknown", description="Pattern over time: constant, intermittent")
     exacerbating_relieving: str = Field(default="Unknown", description="Aggravating or alleviating factors")
     severity: str = Field(default="Unknown", description="Severity on 1-10 numerical scale or qualitative")
@@ -29,48 +29,48 @@ class SocratesHPI(BaseModel):
 class MedicalItem(BaseModel):
     condition: str = Field(..., description="Disease, past diagnosis or surgery name")
     source: str = Field(default="patient", description="'patient' (reported) or 'document' (corroborated)")
-    diagnosed_year: Optional[int] = Field(default=None, description="Year of diagnosis if known")
-    doc_ref: Optional[str] = Field(default=None, description="Reference ID or filename of scanned document")
-    bbox: Optional[List[int]] = Field(default=None, description="[x, y, w, h] bounding box in source document")
+    diagnosed_year: int | None = Field(default=None, description="Year of diagnosis if known")
+    doc_ref: str | None = Field(default=None, description="Reference ID or filename of scanned document")
+    bbox: list[int] | None = Field(default=None, description="[x, y, w, h] bounding box in source document")
 
 
 class ReportedAllergy(BaseModel):
     allergen: str = Field(..., description="Drug or substance name, or 'No known drug allergies'")
-    reaction: Optional[str] = Field(default=None, description="Clinical manifestation: rash, anaphylaxis, etc.")
+    reaction: str | None = Field(default=None, description="Clinical manifestation: rash, anaphylaxis, etc.")
     source: str = Field(default="speech", description="'speech' or 'document'")
-    doc_ref: Optional[str] = Field(default=None, description="Document reference if extracted from OCR")
-    bbox: Optional[List[int]] = Field(default=None, description="Bounding box if from document")
+    doc_ref: str | None = Field(default=None, description="Document reference if extracted from OCR")
+    bbox: list[int] | None = Field(default=None, description="Bounding box if from document")
 
 
 class CurrentMedicationItem(BaseModel):
     name: str = Field(..., description="Brand or generic medication name")
-    dose: Optional[str] = Field(default=None, description="Strength, e.g. '500mg'")
-    frequency: Optional[str] = Field(default=None, description="Frequency or sig, e.g. '1-0-1'")
+    dose: str | None = Field(default=None, description="Strength, e.g. '500mg'")
+    frequency: str | None = Field(default=None, description="Frequency or sig, e.g. '1-0-1'")
     source: str = Field(default="document", description="'speech' or 'document'")
-    compliance: Optional[str] = Field(default="Regular", description="Patient-reported adherence")
-    status: Optional[str] = Field(default="Active", description="'Active', 'Discontinued', 'PRN'")
-    doc_ref: Optional[str] = Field(default=None, description="Document reference if from OCR")
-    bbox: Optional[List[int]] = Field(default=None, description="Bounding box if from document")
+    compliance: str | None = Field(default="Regular", description="Patient-reported adherence")
+    status: str | None = Field(default="Active", description="'Active', 'Discontinued', 'PRN'")
+    doc_ref: str | None = Field(default=None, description="Document reference if from OCR")
+    bbox: list[int] | None = Field(default=None, description="Bounding box if from document")
 
 
 class PriorInvestigationItem(BaseModel):
     test_name: str = Field(..., description="Laboratory test or imaging procedure")
     result_value: str = Field(..., description="Measured analyte value or qualitative impression")
-    unit: Optional[str] = Field(default=None, description="Measurement unit, e.g. 'g/dL', 'mg/dL'")
-    reference_range: Optional[str] = Field(default=None, description="Normal physiological interval")
+    unit: str | None = Field(default=None, description="Measurement unit, e.g. 'g/dL', 'mg/dL'")
+    reference_range: str | None = Field(default=None, description="Normal physiological interval")
     status: str = Field(default="NORMAL", description="'NORMAL', 'ABNORMAL', 'CRITICAL_PANIC'")
-    doc_ref: Optional[str] = Field(default=None, description="Document reference")
-    bbox: Optional[List[int]] = Field(default=None, description="Bounding box")
+    doc_ref: str | None = Field(default=None, description="Document reference")
+    bbox: list[int] | None = Field(default=None, description="Bounding box")
 
 
 class PatientMeta(BaseModel):
-    patient_id: Optional[str] = Field(default=None, description="Hospital queue or registration ID")
+    patient_id: str | None = Field(default=None, description="Hospital queue or registration ID")
     name: str = Field(default="Anonymous Patient", description="Patient full name")
-    age: Optional[Union[str, int]] = Field(default=None, description="Age in years")
-    gender: Optional[str] = Field(default=None, description="Gender: male, female, other")
-    abha_id: Optional[str] = Field(default=None, description="Ayushman Bharat Health Account ID")
+    age: str | int | None = Field(default=None, description="Age in years")
+    gender: str | None = Field(default=None, description="Gender: male, female, other")
+    abha_id: str | None = Field(default=None, description="Ayushman Bharat Health Account ID")
     preferred_language: str = Field(default="hi", description="Language code: hi, en, bn, mr, ta, te, etc.")
-    language: Optional[str] = Field(default=None, description="Alias for preferred_language")
+    language: str | None = Field(default=None, description="Alias for preferred_language")
     clinical_mode: str = Field(default="allopathy", description="'allopathy' or 'ayurveda'")
 
     @model_validator(mode="before")
@@ -85,21 +85,21 @@ class PatientMeta(BaseModel):
 
 
 class PatientRecordPayload(BaseModel):
-    encounter_id: Optional[str] = Field(default=None, description="Unique intake encounter ID")
-    session_id: Optional[str] = Field(default=None, description="Alias for encounter ID")
+    encounter_id: str | None = Field(default=None, description="Unique intake encounter ID")
+    session_id: str | None = Field(default=None, description="Alias for encounter ID")
     patient_meta: PatientMeta = Field(default_factory=PatientMeta)
-    chief_complaint: Optional[Union[ChiefComplaint, str]] = None
+    chief_complaint: ChiefComplaint | str | None = None
     socrates_hpi: SocratesHPI = Field(default_factory=SocratesHPI)
-    past_history: List[MedicalItem] = Field(default_factory=list)
-    reported_allergies: List[ReportedAllergy] = Field(default_factory=list)
-    current_medications: List[CurrentMedicationItem] = Field(default_factory=list)
-    family_history: List[Dict[str, Any]] = Field(default_factory=list)
-    personal_social: Dict[str, Any] = Field(default_factory=dict)
-    review_of_systems: Dict[str, Any] = Field(default_factory=dict)
-    prior_investigations: List[PriorInvestigationItem] = Field(default_factory=list)
-    ayush_dashavidha: Optional[Dict[str, Any]] = Field(default=None, description="Raw Ayurvedic responses if available")
-    spoken_history: Optional[List[Dict[str, Any]]] = Field(default=None, description="Raw Module A speech turns")
-    extracted_entities: Optional[List[Dict[str, Any]]] = Field(default=None, description="Raw Module B extracted entities")
+    past_history: list[MedicalItem] = Field(default_factory=list)
+    reported_allergies: list[ReportedAllergy] = Field(default_factory=list)
+    current_medications: list[CurrentMedicationItem] = Field(default_factory=list)
+    family_history: list[dict[str, Any]] = Field(default_factory=list)
+    personal_social: dict[str, Any] = Field(default_factory=dict)
+    review_of_systems: dict[str, Any] = Field(default_factory=dict)
+    prior_investigations: list[PriorInvestigationItem] = Field(default_factory=list)
+    ayush_dashavidha: dict[str, Any] | None = Field(default=None, description="Raw Ayurvedic responses if available")
+    spoken_history: list[dict[str, Any]] | None = Field(default=None, description="Raw Module A speech turns")
+    extracted_entities: list[dict[str, Any]] | None = Field(default=None, description="Raw Module B extracted entities")
 
     @model_validator(mode="before")
     @classmethod

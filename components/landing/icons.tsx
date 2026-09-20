@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import type { ReactNode } from "react";
 
 function IconFrame({ src, alt }: { src: string; alt: string }) {

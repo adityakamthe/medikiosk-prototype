@@ -3,11 +3,11 @@ Idempotency Interceptor for MediKiosk Module D HIS Connectors.
 Prevents duplicate clinical encounters or FHIR bundles on network retries.
 """
 
-import time
 import hashlib
 import json
 import threading
-from typing import Dict, Any, Optional, Tuple
+import time
+from typing import Any
 
 try:
     from ..config import settings
@@ -22,11 +22,11 @@ except (ImportError, ValueError):
     except (ImportError, ValueError):
         class _FallbackSettings:
             IDEMPOTENCY_TTL_SECONDS = 7200
-        settings = _FallbackSettings()
+        settings = _FallbackSettings()  # type: ignore[assignment]
 
 
 class IdempotencyRecord:
-    def __init__(self, key: str, payload_hash: str, status_code: int, response_data: Dict[str, Any]):
+    def __init__(self, key: str, payload_hash: str, status_code: int, response_data: dict[str, Any]):
         self.key = key
         self.payload_hash = payload_hash
         self.status_code = status_code
@@ -40,8 +40,8 @@ class IdempotencyRecord:
 class IdempotencyManager:
     """In-memory thread-safe idempotency registry with TTL expiration."""
 
-    def __init__(self, ttl_seconds: Optional[int] = None):
-        self._store: Dict[str, IdempotencyRecord] = {}
+    def __init__(self, ttl_seconds: int | None = None):
+        self._store: dict[str, IdempotencyRecord] = {}
         self.ttl = ttl_seconds if ttl_seconds is not None else getattr(settings, "IDEMPOTENCY_TTL_SECONDS", 7200)
         self._lock = threading.Lock()
 
@@ -54,7 +54,7 @@ class IdempotencyManager:
             dumped = str(payload)
         return hashlib.sha256(dumped.encode("utf-8")).hexdigest()
 
-    def check_transaction(self, idempotency_key: str, payload: Any) -> Tuple[bool, Optional[IdempotencyRecord], Optional[str]]:
+    def check_transaction(self, idempotency_key: str, payload: Any) -> tuple[bool, IdempotencyRecord | None, str | None]:
         """
         Check if transaction was already processed.
         Returns:
@@ -73,7 +73,7 @@ class IdempotencyManager:
 
             return True, record, None
 
-    def record_transaction(self, idempotency_key: str, payload: Any, status_code: int, response_data: Dict[str, Any]) -> None:
+    def record_transaction(self, idempotency_key: str, payload: Any, status_code: int, response_data: dict[str, Any]) -> None:
         """Store the processed result of an idempotent operation."""
         with self._lock:
             self._clean_expired()

@@ -1,30 +1,27 @@
 """
 Unit tests for SBAR and 8-Part Standard Clinical Synthesis.
 """
-import pytest
 try:
     from engine.sbar_synthesizer import sbar_synthesizer
     from schemas.ingestion_schemas import (
-        PatientRecordPayload,
         ChiefComplaint,
-        SocratesHPI,
-        ReportedAllergy,
         CurrentMedicationItem,
         MedicalItem,
-        PriorInvestigationItem,
-        PatientMeta
+        PatientMeta,
+        PatientRecordPayload,
+        ReportedAllergy,
+        SocratesHPI,
     )
 except (ImportError, ModuleNotFoundError):
     from module_c.engine.sbar_synthesizer import sbar_synthesizer
     from module_c.schemas.ingestion_schemas import (
-        PatientRecordPayload,
         ChiefComplaint,
-        SocratesHPI,
-        ReportedAllergy,
         CurrentMedicationItem,
         MedicalItem,
-        PriorInvestigationItem,
-        PatientMeta
+        PatientMeta,
+        PatientRecordPayload,
+        ReportedAllergy,
+        SocratesHPI,
     )
 
 

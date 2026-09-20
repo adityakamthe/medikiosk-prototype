@@ -1,0 +1,14 @@
+target-version = "py311"
+line-length = 120
+
+[lint]
+select = [
+    "E",
+    "F",
+    "W",
+]
+ignore = [
+    "E501",   # line length
+    "E402",   # module level import not at top of file (needed for sys.path manipulation)
+]
+

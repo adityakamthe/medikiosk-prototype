@@ -4,33 +4,31 @@ Handles itemized consent lifecycle, validity checking, emergency overrides,
 and tamper-evident append-only audit logging.
 """
 
-import os
-import json
 import hashlib
+import json
+import os
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Optional, List, Any
+from typing import Any
 
 from ..config import settings
+from ..privacy.session_cleaner import session_cleaner
 from ..schemas.consent_schemas import (
-    ConsentNoticeResponse,
-    ConsentArtifactCreate,
     ConsentArtifact,
-    ConsentVerifyResponse,
+    ConsentArtifactCreate,
+    ConsentAuditEntry,
+    ConsentDataElement,
+    ConsentNoticeResponse,
+    ConsentPurpose,
     ConsentRevokeRequest,
     ConsentRevokeResponse,
-    ConsentPurpose,
-    ConsentDataElement,
+    ConsentVerifyResponse,
     ItemizedPurposeDetail,
     RetentionPolicy,
-    ConsentAuditEntry
 )
-from .voice_notice import voice_notice_service
-from ..privacy.session_cleaner import session_cleaner
-
 
 # Multilingual Itemized Purpose Descriptions
-PURPOSE_DESCRIPTIONS: Dict[str, Dict[ConsentPurpose, Dict[str, str]]] = {
+PURPOSE_DESCRIPTIONS: dict[str, dict[ConsentPurpose, dict[str, str]]] = {
     "en": {
         ConsentPurpose.CARE_INTAKE: {
             "title": "Clinical Intake & Symptom Clarification",
@@ -82,8 +80,8 @@ class DPDPManager:
     """Manages the DPDP Act 2023 Consent Artifact lifecycle."""
 
     def __init__(self):
-        self._consent_store: Dict[str, ConsentArtifact] = {}
-        self._last_audit_checksum: Optional[str] = None
+        self._consent_store: dict[str, ConsentArtifact] = {}
+        self._last_audit_checksum: str | None = None
         self._init_audit_log()
 
     def _init_audit_log(self):
@@ -103,11 +101,11 @@ class DPDPManager:
             except Exception:
                 self._last_audit_checksum = None
 
-    def _append_audit_entry(self, session_id: str, action: str, actor: str, details: Dict[str, Any]) -> str:
+    def _append_audit_entry(self, session_id: str, action: str, actor: str, details: dict[str, Any]) -> str:
         """Append an immutable, cryptographically chained audit record."""
         audit_id = str(uuid.uuid4())
         now_iso = datetime.now(timezone.utc).isoformat()
-        
+
         entry_raw = f"{audit_id}|{now_iso}|{session_id}|{action}|{actor}|{json.dumps(details, sort_keys=True)}|{self._last_audit_checksum or ''}"
         checksum = hashlib.sha256(entry_raw.encode("utf-8")).hexdigest()
 
@@ -128,7 +126,7 @@ class DPDPManager:
         self._last_audit_checksum = checksum
         return audit_id
 
-    def generate_notice(self, language: str = "hi", patient_id: Optional[str] = None) -> ConsentNoticeResponse:
+    def generate_notice(self, language: str = "hi", patient_id: str | None = None) -> ConsentNoticeResponse:
         """
         Generate itemized DPDP v5.0 consent notice with statutory details.
         """
@@ -299,7 +297,7 @@ class DPDPManager:
 
         return artifact
 
-    def verify_consent(self, session_id: str, required_purpose: Optional[ConsentPurpose] = None) -> ConsentVerifyResponse:
+    def verify_consent(self, session_id: str, required_purpose: ConsentPurpose | None = None) -> ConsentVerifyResponse:
         """
         Verify whether an active, non-expired consent artifact covers the session.
         """

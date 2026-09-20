@@ -1,17 +1,16 @@
 """
 Unit tests for Clinical Verification, Lab Panic Highlighting, and DDI Engine.
 """
-import pytest
 try:
     from module_b.intelligence.lab_verifier import lab_verifier
     from module_b.intelligence.med_verifier import medication_verifier
-    from module_b.intelligence.timeline_cluster import cluster_into_episodes, parse_indian_date
+    from module_b.intelligence.timeline_cluster import cluster_into_episodes
     from module_b.schemas.verification_schemas import SeverityTier
 except ImportError:
-    from intelligence.lab_verifier import lab_verifier
-    from intelligence.med_verifier import medication_verifier
-    from intelligence.timeline_cluster import cluster_into_episodes, parse_indian_date
-    from schemas.verification_schemas import SeverityTier
+    from intelligence.lab_verifier import lab_verifier  # type: ignore[no-redef]
+    from intelligence.med_verifier import medication_verifier  # type: ignore[no-redef]
+    from intelligence.timeline_cluster import cluster_into_episodes  # type: ignore[no-redef]
+    from schemas.verification_schemas import SeverityTier  # type: ignore[no-redef]
 
 
 def test_loinc_lab_3_tier_and_panic_flags():
@@ -46,7 +45,7 @@ def test_loinc_lab_3_tier_and_panic_flags():
 def test_gastroprotection_omission_warning():
     # Unshielded NSAID
     meds_unshielded = [{"name": "Tab Ultrafen Plus", "dose": "500mg", "frequency": "1-0-1"}]
-    alerts, status, has_crit = medication_verifier.audit_medications(meds_unshielded)
+    alerts, status, _has_crit = medication_verifier.audit_medications(meds_unshielded)
     assert status == "AT_RISK"
     assert any(a.type == "GASTROPROTECTION_OMISSION" for a in alerts)
 
@@ -74,7 +73,7 @@ def test_drug_drug_interaction_chelation():
         {"name": "Cap Doxycycline 100mg"},
         {"name": "Tab Shelcal 500mg"}
     ]
-    alerts, _, has_crit = medication_verifier.audit_medications(meds_chelation)
+    alerts, _, _has_crit = medication_verifier.audit_medications(meds_chelation)
     assert any(a.type == "DRUG_INTERACTION" and "Tetracycline" in a.title for a in alerts)
 
 

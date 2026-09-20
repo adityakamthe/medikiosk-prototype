@@ -3,11 +3,11 @@ ABDM FHIR R4 Dual-Coded Document Bundle Builder for MediKiosk Module C.
 Constructs valid Ayushman Bharat Digital Mission (ABDM) compliant FHIR R4 Document Bundles
 incorporating dual-coded AYUSH + Modern Condition resources with full provenance.
 """
-import sys
 import os
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timezone
+import sys
 import uuid
+from datetime import datetime, timezone
+from typing import Any
 
 _FHIR_DIR = os.path.dirname(os.path.abspath(__file__))
 _MODULE_C_DIR = os.path.abspath(os.path.join(_FHIR_DIR, ".."))
@@ -17,15 +17,18 @@ for _p in [_MODULE_C_DIR, _SERVICES_DIR]:
         sys.path.insert(0, _p)
 
 try:
-    from ..schemas.synthesis_schemas import DualCodingEntry, Standard8PartSummary
     from ..schemas.ingestion_schemas import PatientMeta
+    from ..schemas.synthesis_schemas import DualCodingEntry, Standard8PartSummary
 except (ImportError, ValueError):
     try:
-        from module_c.schemas.synthesis_schemas import DualCodingEntry, Standard8PartSummary
         from module_c.schemas.ingestion_schemas import PatientMeta
+        from module_c.schemas.synthesis_schemas import (
+            DualCodingEntry,
+            Standard8PartSummary,
+        )
     except (ImportError, ValueError):
-        from schemas.synthesis_schemas import DualCodingEntry, Standard8PartSummary
-        from schemas.ingestion_schemas import PatientMeta
+        from schemas.ingestion_schemas import PatientMeta  # type: ignore[no-redef]
+        from schemas.synthesis_schemas import DualCodingEntry, Standard8PartSummary  # type: ignore[no-redef]
 
 
 class DualCodedFHIRBuilder:
@@ -38,10 +41,10 @@ class DualCodedFHIRBuilder:
         encounter_id: str,
         patient_meta: PatientMeta,
         summary_8_part: Standard8PartSummary,
-        dual_codings: List[DualCodingEntry],
+        dual_codings: list[DualCodingEntry],
         is_attested: bool = False,
         clinician_id: str = "Dr. Rajesh Verma (OPD-Physician)"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Builds a compliant FHIR R4 Document Bundle.
         """
@@ -51,7 +54,7 @@ class DualCodedFHIRBuilder:
         encounter_uuid = f"urn:uuid:{uuid.uuid4()}"
         composition_uuid = f"urn:uuid:{uuid.uuid4()}"
 
-        entries: List[Dict[str, Any]] = []
+        entries: list[dict[str, Any]] = []
 
         # 1. Patient Resource
         patient_identifiers = []
@@ -106,7 +109,7 @@ class DualCodedFHIRBuilder:
         })
 
         # Section entries list for Composition
-        section_entries: List[Dict[str, Any]] = []
+        section_entries: list[dict[str, Any]] = []
 
         # 3. Dual-Coded Condition Resources
         for idx, dc in enumerate(dual_codings):

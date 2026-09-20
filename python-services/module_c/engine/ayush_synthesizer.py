@@ -4,10 +4,8 @@ Synthesizes conversational responses and clinical indicators into the classical 
 Prakriti/Vikriti, Agni/Koshtha, Bala/Dhatu Sarata, Ahara/Vihara Shakti, Desha/Kala/Satmya.
 Aligned with Ministry of Ayush / AIIA standards (Charaka Samhita Vimana Sthana 8/94).
 """
-import sys
 import os
-import re
-from typing import Dict, Any, List, Optional
+import sys
 
 _ENGINE_DIR = os.path.dirname(os.path.abspath(__file__))
 _MODULE_C_DIR = os.path.abspath(os.path.join(_ENGINE_DIR, ".."))
@@ -17,15 +15,15 @@ for _p in [_MODULE_C_DIR, _SERVICES_DIR]:
         sys.path.insert(0, _p)
 
 try:
-    from module_c.schemas.ingestion_schemas import PatientRecordPayload, ChiefComplaint
+    from module_c.schemas.ingestion_schemas import PatientRecordPayload
     from module_c.schemas.synthesis_schemas import DashavidhaReport
 except (ImportError, ModuleNotFoundError, ValueError):
     try:
-        from schemas.ingestion_schemas import PatientRecordPayload, ChiefComplaint
-        from schemas.synthesis_schemas import DashavidhaReport
+        from schemas.ingestion_schemas import PatientRecordPayload  # type: ignore[no-redef]
+        from schemas.synthesis_schemas import DashavidhaReport  # type: ignore[no-redef]
     except (ImportError, ModuleNotFoundError, ValueError):
-        from ..schemas.ingestion_schemas import PatientRecordPayload, ChiefComplaint
-        from ..schemas.synthesis_schemas import DashavidhaReport
+        from ..schemas.ingestion_schemas import PatientRecordPayload  # type: ignore[no-redef]
+        from ..schemas.synthesis_schemas import DashavidhaReport  # type: ignore[no-redef]
 
 
 class AyushSynthesizer:

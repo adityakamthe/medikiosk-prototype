@@ -2,9 +2,7 @@
 Threshold Calibration Engine for MediKiosk Module B
 Calibrates confidence tiers, composite weights, and action gates across benchmark datasets.
 """
-from typing import Dict, Any, List, Tuple
-from rapidfuzz import fuzz
-
+from typing import Any
 
 CALIBRATION_PROFILES = {
     "standard": {
@@ -46,10 +44,10 @@ def calculate_cer(reference: str, hypothesis: str) -> float:
 
 
 def calibrate_predictions(
-    predictions: List[Dict[str, Any]],
-    ground_truth: List[Dict[str, Any]],
+    predictions: list[dict[str, Any]],
+    ground_truth: list[dict[str, Any]],
     profile_name: str = "standard"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Computes performance metrics (Top-1, Top-3, CER, Precision, Recall)
     under the specified calibration profile.

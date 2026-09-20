@@ -7,22 +7,20 @@ import json
 import re
 import uuid
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional
+from typing import Any
 
 from ..config import settings
 from ..schemas.auth_schemas import (
     AbhaDemographics,
-    AbhaQRScanRequest,
     AbhaQRScanResponse,
+    AuthTokenResponse,
     OTPGenerateRequest,
     OTPGenerateResponse,
     OTPVerifyRequest,
-    AuthTokenResponse
 )
 
-
 # Mock patient repository for OTP lookups
-MOCK_PATIENTS_DB: Dict[str, Dict[str, Any]] = {
+MOCK_PATIENTS_DB: dict[str, dict[str, Any]] = {
     "91-4582-7391-0428": {
         "abha_number": "91-4582-7391-0428",
         "abha_address": "rahul.sharma@abdm",
@@ -58,7 +56,7 @@ class ABDMM1MockService:
     """Simulates ABHA QR scanning, OTP dispatch, and OAuth token issuance."""
 
     def __init__(self):
-        self._active_otps: Dict[str, Dict[str, Any]] = {}
+        self._active_otps: dict[str, dict[str, Any]] = {}
 
     def parse_qr_code(self, raw_payload: str) -> AbhaQRScanResponse:
         """
@@ -82,7 +80,7 @@ class ABDMM1MockService:
                 parsed_abha = data.get("hidn") or data.get("abha_number") or data.get("id")
                 parsed_address = data.get("hid") or data.get("abha_address") or data.get("phr_address")
                 parsed_name = data.get("name")
-                
+
                 g = str(data.get("gender", "")).upper()
                 if g in ["M", "MALE"]:
                     parsed_gender = "Male"

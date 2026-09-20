@@ -5,24 +5,24 @@ If validation still fails, flags output as MANUAL_REVIEW_REQUIRED and prevents s
 """
 import json
 import re
-from typing import Any, Dict, List, Optional, Tuple, Callable
-from pydantic import ValidationError
+from collections.abc import Callable
+from typing import Any
 
 try:
     from module_b.schemas.intake_schemas import (
         ConstrainedMedicationExtraction,
-        ConstrainedPrescriptionExtraction
+        ConstrainedPrescriptionExtraction,
     )
 except (ImportError, ValueError):
     try:
-        from ..schemas.intake_schemas import (
+        from ..schemas.intake_schemas import (  # type: ignore[no-redef]
             ConstrainedMedicationExtraction,
-            ConstrainedPrescriptionExtraction
+            ConstrainedPrescriptionExtraction,
         )
     except (ImportError, ValueError):
-        from schemas.intake_schemas import (
+        from schemas.intake_schemas import (  # type: ignore[no-redef]
             ConstrainedMedicationExtraction,
-            ConstrainedPrescriptionExtraction
+            ConstrainedPrescriptionExtraction,
         )
 
 
@@ -61,7 +61,7 @@ def clean_json_string(text: str) -> str:
     return s
 
 
-def normalize_medication_dict(raw: Dict[str, Any]) -> Dict[str, Any]:
+def normalize_medication_dict(raw: dict[str, Any]) -> dict[str, Any]:
     """Normalizes medication dict keys, mapping legacy keys to constrained schema."""
     candidate = raw.get("drug_candidate") or raw.get("name") or raw.get("drug") or raw.get("medication") or ""
     dosage_form = raw.get("dosage_form") or raw.get("form")
@@ -122,7 +122,7 @@ def extract_partial_fallback(raw_text: str, err_msg: str) -> ConstrainedPrescrip
     Best-effort regex recovery of medication lines when JSON is malformed.
     Never fails silently; tags output for manual review.
     """
-    meds: List[ConstrainedMedicationExtraction] = []
+    meds: list[ConstrainedMedicationExtraction] = []
     lines = raw_text.splitlines()
     for line in lines:
         line_clean = line.strip()
@@ -149,8 +149,8 @@ def extract_partial_fallback(raw_text: str, err_msg: str) -> ConstrainedPrescrip
 
 def parse_vlm_output_with_retry(
     raw_response: Any,
-    retry_callback: Optional[Callable[[str], Any]] = None
-) -> Tuple[ConstrainedPrescriptionExtraction, bool]:
+    retry_callback: Callable[[str], Any] | None = None
+) -> tuple[ConstrainedPrescriptionExtraction, bool]:
     """
     Attempts to parse VLM response against ConstrainedPrescriptionExtraction.
     If parsing fails and retry_callback is provided, executes a 1-shot retry.
@@ -169,7 +169,7 @@ def parse_vlm_output_with_retry(
             except Exception as second_err:
                 fallback = extract_partial_fallback(
                     str(raw_response),
-                    f"Attempt 1: {str(first_err)}; Attempt 2: {str(second_err)}"
+                    f"Attempt 1: {first_err!s}; Attempt 2: {second_err!s}"
                 )
                 return fallback, True
 

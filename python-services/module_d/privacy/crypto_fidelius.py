@@ -4,15 +4,15 @@ Standard: Curve25519 (X25519) Diffie-Hellman Key Exchange + HKDF SHA-256 + AES-2
 Emulates the NHA ABDM End-to-End Encryption Protocol for Health Data Transfer.
 """
 
-import os
 import base64
 import json
-from typing import Dict, Tuple, Any, Optional
+import os
+from typing import Any
+
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import x25519
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 
 class FideliusCrypto:
@@ -21,7 +21,7 @@ class FideliusCrypto:
     """
 
     @staticmethod
-    def generate_keypair() -> Tuple[x25519.X25519PrivateKey, x25519.X25519PublicKey, str, str]:
+    def generate_keypair() -> tuple[x25519.X25519PrivateKey, x25519.X25519PublicKey, str, str]:
         """
         Generate an ephemeral X25519 keypair.
         Returns (private_obj, public_obj, private_b64, public_b64).
@@ -79,8 +79,8 @@ class FideliusCrypto:
         cls,
         payload_data: Any,
         receiver_public_key_b64: str,
-        sender_private_key_b64: Optional[str] = None
-    ) -> Dict[str, str]:
+        sender_private_key_b64: str | None = None
+    ) -> dict[str, str]:
         """
         Encrypt arbitrary JSON or text payload using Curve25519 ECDH + AES-256-GCM.
         If sender_private_key_b64 is not supplied, generates an ephemeral sender keypair.

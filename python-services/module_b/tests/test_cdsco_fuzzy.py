@@ -1,23 +1,22 @@
 """
 Unit tests for CDSCO Pharmacopeia Fuzzy Normalizer and Grounding Engine.
 """
-import pytest
 try:
     from module_b.normalizers.cdsco_normalizer import (
+        calculate_metaphone_similarity,
         cdsco_matcher,
         compute_composite_score,
-        calculate_metaphone_similarity,
-        extract_dosage_form_and_strength
+        extract_dosage_form_and_strength,
     )
     from module_b.schemas.verification_schemas import VerificationActionGate
 except ImportError:
-    from normalizers.cdsco_normalizer import (
+    from normalizers.cdsco_normalizer import (  # type: ignore[no-redef]
+        calculate_metaphone_similarity,
         cdsco_matcher,
         compute_composite_score,
-        calculate_metaphone_similarity,
-        extract_dosage_form_and_strength
+        extract_dosage_form_and_strength,
     )
-    from schemas.verification_schemas import VerificationActionGate
+    from schemas.verification_schemas import VerificationActionGate  # type: ignore[no-redef]
 
 
 def test_metaphone_and_composite_score():

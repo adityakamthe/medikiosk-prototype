@@ -4,38 +4,36 @@ Exposes Consent, Privacy, HIS Connector, and ABDM Simulator endpoints.
 Supports both standard REST and specific /api/v1/* technical specification routes.
 """
 
-from typing import Optional, Dict, Any
-from fastapi import APIRouter, HTTPException, Query, status, Body
+from typing import Any
+
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from .config import settings
-from .schemas.consent_schemas import (
-    ConsentNoticeResponse,
-    ConsentArtifactCreate,
-    ConsentArtifact,
-    ConsentVerifyResponse,
-    ConsentRevokeRequest,
-    ConsentRevokeResponse,
-    ConsentPurpose
-)
+from .consent.dpdp_manager import dpdp_manager
+from .consent.voice_notice import generate_vernacular_audio_notice
+from .his.fhir_connector import fhir_connector
+from .his.openmrs_client import openmrs_client
+from .privacy.crypto_fidelius import fidelius_crypto
+from .privacy.session_cleaner import session_cleaner
 from .schemas.auth_schemas import (
     AbhaQRScanRequest,
     AbhaQRScanResponse,
+    AuthTokenResponse,
     OTPGenerateRequest,
     OTPGenerateResponse,
     OTPVerifyRequest,
-    AuthTokenResponse
 )
-from .schemas.his_schemas import (
-    FHIRBundlePushRequest,
-    FHIRBundlePushResponse
+from .schemas.consent_schemas import (
+    ConsentArtifact,
+    ConsentArtifactCreate,
+    ConsentNoticeResponse,
+    ConsentPurpose,
+    ConsentRevokeRequest,
+    ConsentRevokeResponse,
+    ConsentVerifyResponse,
 )
-from .consent.dpdp_manager import dpdp_manager
-from .consent.voice_notice import voice_notice_service, generate_vernacular_audio_notice
-from .privacy.session_cleaner import session_cleaner
-from .privacy.crypto_fidelius import fidelius_crypto
-from .his.openmrs_client import openmrs_client
-from .his.fhir_connector import fhir_connector
+from .schemas.his_schemas import FHIRBundlePushRequest, FHIRBundlePushResponse
 from .simulator.abdm_m1_mock import abdm_m1_mock
 
 router = APIRouter(tags=["Module D: Consent, Privacy, HIS & ABDM"])
@@ -87,7 +85,7 @@ def generate_consent_artifact(payload: ConsentArtifactCreate):
 
 @router.get("/consent/verify/{session_id}", response_model=ConsentVerifyResponse)
 @router.get("/api/v1/consent/verify/{session_id}", response_model=ConsentVerifyResponse)
-def verify_session_consent(session_id: str, purpose: Optional[ConsentPurpose] = None):
+def verify_session_consent(session_id: str, purpose: ConsentPurpose | None = None):
     """Verify validity and scope of consent for a session."""
     return dpdp_manager.verify_consent(session_id=session_id, required_purpose=purpose)
 
@@ -201,7 +199,7 @@ def generate_fidelius_keypair():
 class EncryptPayloadRequest(BaseModel):
     payload: Any = Field(..., description="Arbitrary clinical JSON or text data")
     receiver_public_key_b64: str = Field(..., description="Base64 encoded Curve25519 public key of recipient")
-    sender_private_key_b64: Optional[str] = Field(None, description="Optional sender private key for deterministic test derivation")
+    sender_private_key_b64: str | None = Field(None, description="Optional sender private key for deterministic test derivation")
 
 
 @router.post("/crypto/fidelius/encrypt")
@@ -244,4 +242,4 @@ def decrypt_clinical_payload(req: DecryptPayloadRequest):
         )
         return {"success": True, "data": decrypted}
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Decryption failed: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Decryption failed: {e!s}")

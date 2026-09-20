@@ -2,14 +2,14 @@
 Unit Tests for DPDP Act 2023 Consent Management in MediKiosk Module D.
 """
 
-import pytest
 import uuid
+
 from module_d.consent.dpdp_manager import dpdp_manager
 from module_d.schemas.consent_schemas import (
     ConsentArtifactCreate,
-    ConsentPurpose,
     ConsentMethod,
-    ConsentRevokeRequest
+    ConsentPurpose,
+    ConsentRevokeRequest,
 )
 
 
@@ -112,7 +112,6 @@ def test_consent_revocation_and_invalidation():
 
 def test_consent_artifact_data_erase_at_and_emergency_audit():
     """Verify dataEraseAt timestamp (default: 120 minutes) and audit_emergency.log append."""
-    import os
     from module_d.config import settings
     from module_d.consent.voice_notice import generate_vernacular_audio_notice
 

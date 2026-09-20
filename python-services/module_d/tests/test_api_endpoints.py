@@ -9,6 +9,7 @@ POST /api/v1/abdm/fidelius/encrypt -> Demonstrate payload encryption
 
 import pytest
 from fastapi.testclient import TestClient
+
 from module_d.main import app
 from module_d.privacy.crypto_fidelius import fidelius_crypto
 

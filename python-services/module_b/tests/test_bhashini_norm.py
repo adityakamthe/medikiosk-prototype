@@ -1,11 +1,9 @@
 """
 Unit tests for Bhashini Vernacular Translation and Sig Normalization Service.
 """
-import pytest
 from vernacular.bhashini_service import (
     bhashini_translator,
     normalize_vernacular_numerals,
-    translate_vernacular_sig
 )
 
 
@@ -62,7 +60,9 @@ def test_commonwealth_shorthand_lexicon_decoding():
 
 
 def test_bhashini_ocr_hook_graceful_routing():
-    from vernacular.bhashini_service import route_indic_crop_to_bhashini, call_bhashini_ocr_api
+    from vernacular.bhashini_service import (
+        route_indic_crop_to_bhashini,
+    )
     # Synthetic byte crop
     dummy_crop = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
     # When no external API key is configured, gracefully returns fallback without crashing

@@ -5,7 +5,7 @@ import { allocateDoctorAndRoom } from '@/lib/doctors';
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { identifier, password: _password, is_demo, demo_profile } = body;
+    const { identifier, password: _password, is_demo: _is_demo, demo_profile } = body;
 
     const cleanId = String(identifier || '').trim();
 

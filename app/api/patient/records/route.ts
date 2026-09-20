@@ -29,6 +29,7 @@ export async function GET(req: Request) {
 
     // Query primary DB
     const sessionsRes = await query(sql, params);
+    // eslint-disable-next-line prefer-const
     let sessions = [...sessionsRes.rows];
 
     // If looking for Ayush patient or cross-hospital history, query Ayush DB (DB 2)

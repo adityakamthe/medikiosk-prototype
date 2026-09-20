@@ -3,11 +3,10 @@ Deterministic Cross-Modal Contradiction Interception Engine for MediKiosk Module
 Compares patient spoken assertions (Module A) against document-grounded OCR records (Module B).
 Enforces Non-Resolution by Default: preserves both sources and presents 1-click clinician adjudication cards.
 """
-import sys
 import os
 import re
+import sys
 import uuid
-from typing import List, Dict, Any, Optional
 
 _ENGINE_DIR = os.path.dirname(os.path.abspath(__file__))
 _MODULE_C_DIR = os.path.abspath(os.path.join(_ENGINE_DIR, ".."))
@@ -17,15 +16,15 @@ for _p in [_MODULE_C_DIR, _SERVICES_DIR]:
         sys.path.insert(0, _p)
 
 try:
-    from module_c.schemas.ingestion_schemas import PatientRecordPayload, ReportedAllergy, CurrentMedicationItem, MedicalItem
+    from module_c.schemas.ingestion_schemas import PatientRecordPayload
     from module_c.schemas.synthesis_schemas import ContradictionItem
 except (ImportError, ModuleNotFoundError, ValueError):
     try:
-        from schemas.ingestion_schemas import PatientRecordPayload, ReportedAllergy, CurrentMedicationItem, MedicalItem
-        from schemas.synthesis_schemas import ContradictionItem
+        from schemas.ingestion_schemas import PatientRecordPayload  # type: ignore[no-redef]
+        from schemas.synthesis_schemas import ContradictionItem  # type: ignore[no-redef]
     except (ImportError, ModuleNotFoundError, ValueError):
-        from ..schemas.ingestion_schemas import PatientRecordPayload, ReportedAllergy, CurrentMedicationItem, MedicalItem
-        from ..schemas.synthesis_schemas import ContradictionItem
+        from ..schemas.ingestion_schemas import PatientRecordPayload  # type: ignore[no-redef]
+        from ..schemas.synthesis_schemas import ContradictionItem  # type: ignore[no-redef]
 
 
 class ContradictionEngine:
@@ -48,16 +47,16 @@ class ContradictionEngine:
         "none", "nil", "never diagnosed"
     ]
 
-    def is_negative_assertion(self, text: str, negative_phrases: List[str]) -> bool:
+    def is_negative_assertion(self, text: str, negative_phrases: list[str]) -> bool:
         """Checks if a verbal statement represents a negative/denial assertion."""
         cleaned = text.lower().strip()
         return any(phrase in cleaned for phrase in negative_phrases)
 
-    def detect_contradictions(self, payload: PatientRecordPayload) -> List[ContradictionItem]:
+    def detect_contradictions(self, payload: PatientRecordPayload) -> list[ContradictionItem]:
         """
         Scans all patient record streams and extracts cross-modal contradictions.
         """
-        conflicts: List[ContradictionItem] = []
+        conflicts: list[ContradictionItem] = []
 
         # -------------------------------------------------------------
         # 1. ALLERGY CONTRADICTIONS (Safety Tier: CRITICAL)

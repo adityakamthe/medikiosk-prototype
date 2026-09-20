@@ -1,28 +1,30 @@
 """
 Integration test for PipelineCoordinator in MediKiosk Module B.
 """
-import pytest
-import numpy as np
 import cv2
+import numpy as np
 
 try:
     from module_b.coordinator import pipeline_coordinator
     from module_b.schemas.intake_schemas import (
         DocumentIntakePayload,
         DocumentMetadata,
+        ExtractedLabResult,
         ExtractedMedication,
-        ExtractedLabResult
     )
-    from module_b.schemas.verification_schemas import VerificationReport, VerificationActionGate
+    from module_b.schemas.verification_schemas import (
+        VerificationActionGate,
+        VerificationReport,
+    )
 except ImportError:
-    from coordinator import pipeline_coordinator
-    from schemas.intake_schemas import (
+    from coordinator import pipeline_coordinator  # type: ignore[no-redef]
+    from schemas.intake_schemas import (  # type: ignore[no-redef]
         DocumentIntakePayload,
         DocumentMetadata,
+        ExtractedLabResult,
         ExtractedMedication,
-        ExtractedLabResult
     )
-    from schemas.verification_schemas import VerificationReport, VerificationActionGate
+    from schemas.verification_schemas import VerificationActionGate, VerificationReport  # type: ignore[no-redef]
 
 
 def test_end_to_end_coordinator_pipeline():

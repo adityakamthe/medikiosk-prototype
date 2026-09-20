@@ -7,19 +7,17 @@ the action gate is unconditionally clamped to MANUAL_REVIEW_REQUIRED.
 
 import os
 import re
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Any
+
 from rapidfuzz import fuzz
 
 try:
-    from module_b.schemas.intake_schemas import ConstrainedMedicationExtraction
     from module_b.schemas.verification_schemas import VerificationActionGate
 except (ImportError, ValueError):
     try:
-        from ..schemas.intake_schemas import ConstrainedMedicationExtraction
-        from ..schemas.verification_schemas import VerificationActionGate
+        from ..schemas.verification_schemas import VerificationActionGate  # type: ignore[no-redef]
     except (ImportError, ValueError):
-        from schemas.intake_schemas import ConstrainedMedicationExtraction
-        from schemas.verification_schemas import VerificationActionGate
+        from schemas.verification_schemas import VerificationActionGate  # type: ignore[no-redef]
 
 
 def normalize_drug_token(token: str) -> str:
@@ -43,7 +41,7 @@ class SecondaryRecognizer:
     def __init__(self, backend: str = "mock"):
         self.backend = os.environ.get("SECONDARY_OCR_BACKEND", backend)
 
-    def recognize_strip(self, strip_image: Any) -> Optional[str]:
+    def recognize_strip(self, strip_image: Any) -> str | None:
         """Runs secondary recognition on a single segmented line strip."""
         if self.backend == "tesseract":
             try:
@@ -55,9 +53,9 @@ class SecondaryRecognizer:
 
     def recognize_prescription(
         self,
-        image_bytes: Optional[bytes] = None,
-        fallback_candidates: Optional[List[Dict[str, Any]]] = None
-    ) -> List[Dict[str, Any]]:
+        image_bytes: bytes | None = None,
+        fallback_candidates: list[dict[str, Any]] | None = None
+    ) -> list[dict[str, Any]]:
         """
         Runs secondary recognition over prescription, returning independent candidates.
         If fallback_candidates is provided (e.g. in tests or mock environment), uses those.
@@ -69,9 +67,9 @@ class SecondaryRecognizer:
 
 def evaluate_cross_model_agreement(
     primary_candidate: str,
-    secondary_candidate: Optional[str],
+    secondary_candidate: str | None,
     threshold: float = 0.85
-) -> Tuple[bool, float, str]:
+) -> tuple[bool, float, str]:
     """
     Compares primary VLM drug name candidate against secondary recognizer candidate.
     Uses raw edit distance (fuzz.ratio) on normalized tokens.
@@ -101,11 +99,11 @@ def evaluate_cross_model_agreement(
 
 
 def apply_disagreement_gate(
-    medication_item: Dict[str, Any],
+    medication_item: dict[str, Any],
     primary_candidate: str,
-    secondary_candidate: Optional[str],
+    secondary_candidate: str | None,
     current_action_gate: str
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Applies the Cross-Model Disagreement Gate:
     If primary and secondary disagree on drug candidate:

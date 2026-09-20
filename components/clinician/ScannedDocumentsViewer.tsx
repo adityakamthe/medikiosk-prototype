@@ -1,4 +1,5 @@
-'use strict';
+/* eslint-disable @next/next/no-img-element */
+'use client';
 import React, { useState, useRef, useMemo } from 'react';
 import { 
   FileText, 
@@ -73,7 +74,7 @@ export const ScannedDocumentsViewer: React.FC<ScannedDocumentsViewerProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const activeDoc = documents[selectedIndex] || documents[0] || null;
-  const qcResult = activeDoc?.quality_check_result || {};
+  const qcResult = useMemo(() => activeDoc?.quality_check_result || {}, [activeDoc]);
   const extractedSummary = useMemo(() => qcResult?.extracted_summary || {}, [qcResult]);
   const medications = useMemo(() => Array.isArray(extractedSummary?.medications) ? extractedSummary.medications : [], [extractedSummary]);
   const adviceList = Array.isArray(extractedSummary?.key_findings?.advice) 

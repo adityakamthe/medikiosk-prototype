@@ -3,9 +3,8 @@ Master Coordinator for MediKiosk Module C.
 Orchestrates multimodal ingestion, cross-modal contradiction interception, 8-part clinical synthesis,
 Ayurvedic Dashavidha Pariksha, and native FHIR R4 dual-coding into a unified ClinicalSynthesisResponse.
 """
-import sys
 import os
-from typing import Dict, Any, List, Optional
+import sys
 
 _MODULE_C_DIR = os.path.dirname(os.path.abspath(__file__))
 _SERVICES_DIR = os.path.abspath(os.path.join(_MODULE_C_DIR, ".."))
@@ -14,48 +13,48 @@ for _p in [_MODULE_C_DIR, _SERVICES_DIR]:
         sys.path.insert(0, _p)
 
 try:
+    from .engine.ayush_synthesizer import ayush_synthesizer
+    from .engine.contradiction_engine import contradiction_engine
+    from .engine.dual_coder import dual_coder
+    from .engine.sbar_synthesizer import sbar_synthesizer
+    from .fhir.dual_coded_bundle import dual_coded_fhir_builder
     from .schemas.ingestion_schemas import PatientRecordPayload
     from .schemas.synthesis_schemas import (
         ClinicalSynthesisResponse,
-        Standard8PartSummary,
+        ContradictionItem,
         DashavidhaReport,
         DualCodingEntry,
-        ContradictionItem
+        Standard8PartSummary,
     )
-    from .engine.contradiction_engine import contradiction_engine
-    from .engine.sbar_synthesizer import sbar_synthesizer
-    from .engine.ayush_synthesizer import ayush_synthesizer
-    from .engine.dual_coder import dual_coder
-    from .fhir.dual_coded_bundle import dual_coded_fhir_builder
 except (ImportError, ValueError):
     try:
+        from module_c.engine.ayush_synthesizer import ayush_synthesizer
+        from module_c.engine.contradiction_engine import contradiction_engine
+        from module_c.engine.dual_coder import dual_coder
+        from module_c.engine.sbar_synthesizer import sbar_synthesizer
+        from module_c.fhir.dual_coded_bundle import dual_coded_fhir_builder
         from module_c.schemas.ingestion_schemas import PatientRecordPayload
         from module_c.schemas.synthesis_schemas import (
             ClinicalSynthesisResponse,
-            Standard8PartSummary,
+            ContradictionItem,
             DashavidhaReport,
             DualCodingEntry,
-            ContradictionItem
+            Standard8PartSummary,
         )
-        from module_c.engine.contradiction_engine import contradiction_engine
-        from module_c.engine.sbar_synthesizer import sbar_synthesizer
-        from module_c.engine.ayush_synthesizer import ayush_synthesizer
-        from module_c.engine.dual_coder import dual_coder
-        from module_c.fhir.dual_coded_bundle import dual_coded_fhir_builder
     except (ImportError, ValueError):
-        from schemas.ingestion_schemas import PatientRecordPayload
-        from schemas.synthesis_schemas import (
+        from engine.ayush_synthesizer import ayush_synthesizer  # type: ignore[no-redef]
+        from engine.contradiction_engine import contradiction_engine  # type: ignore[no-redef]
+        from engine.dual_coder import dual_coder  # type: ignore[no-redef]
+        from engine.sbar_synthesizer import sbar_synthesizer  # type: ignore[no-redef]
+        from fhir.dual_coded_bundle import dual_coded_fhir_builder  # type: ignore[no-redef]
+        from schemas.ingestion_schemas import PatientRecordPayload  # type: ignore[no-redef]
+        from schemas.synthesis_schemas import (  # type: ignore[no-redef]
             ClinicalSynthesisResponse,
-            Standard8PartSummary,
+            ContradictionItem,
             DashavidhaReport,
             DualCodingEntry,
-            ContradictionItem
+            Standard8PartSummary,
         )
-        from engine.contradiction_engine import contradiction_engine
-        from engine.sbar_synthesizer import sbar_synthesizer
-        from engine.ayush_synthesizer import ayush_synthesizer
-        from engine.dual_coder import dual_coder
-        from fhir.dual_coded_bundle import dual_coded_fhir_builder
 
 
 class ModuleCCoordinator:
@@ -80,13 +79,13 @@ class ModuleCCoordinator:
         Executes the complete Module C synthesis pipeline.
         """
         # Step 1: Detect cross-modal contradictions
-        conflicts: List[ContradictionItem] = self.contradiction_engine.detect_contradictions(payload)
+        conflicts: list[ContradictionItem] = self.contradiction_engine.detect_contradictions(payload)
 
         # Step 2: Synthesize 8-Part Standard Clinical Summary
         summary_8_part: Standard8PartSummary = self.sbar_synthesizer.generate_8_part_summary(payload)
 
         # Step 3: Ayurvedic Dashavidha Pariksha Synthesis
-        dashavidha_report: Optional[DashavidhaReport] = None
+        dashavidha_report: DashavidhaReport | None = None
         dashavidha_summary_str = None
         if payload.patient_meta.clinical_mode == "ayurveda" or payload.ayush_dashavidha:
             dashavidha_report = self.ayush_synthesizer.synthesize_dashavidha(payload)
@@ -96,16 +95,17 @@ class ModuleCCoordinator:
 
         # Step 4: Simultaneous Dual-Coding (NAMASTE + WHO ICD-11 TM2 + SNOMED CT)
         findings_to_code = []
-        if hasattr(payload.chief_complaint, "normalized") and getattr(payload.chief_complaint, "normalized"):
-            findings_to_code.append(getattr(payload.chief_complaint, "normalized"))
-            if getattr(payload.chief_complaint, "verbatim", None):
-                findings_to_code.append(getattr(payload.chief_complaint, "verbatim"))
-        elif isinstance(payload.chief_complaint, str) and payload.chief_complaint:
-            findings_to_code.append(payload.chief_complaint)
+        cc = payload.chief_complaint
+        if cc is not None and not isinstance(cc, str) and hasattr(cc, "normalized") and cc.normalized:
+            findings_to_code.append(cc.normalized)
+            if getattr(cc, "verbatim", None):
+                findings_to_code.append(cc.verbatim)
+        elif isinstance(cc, str) and cc:
+            findings_to_code.append(cc)
         for h in payload.past_history:
             findings_to_code.append(h.condition)
 
-        dual_codings: List[DualCodingEntry] = self.dual_coder.code_multiple(findings_to_code)
+        dual_codings: list[DualCodingEntry] = self.dual_coder.code_multiple(findings_to_code)
 
         # Step 5: Patient Audio Confirmation View & DPDP Consent Token
         patient_audio = self.sbar_synthesizer.generate_patient_audio_view(payload)

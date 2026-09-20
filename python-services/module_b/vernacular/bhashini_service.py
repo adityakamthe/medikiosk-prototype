@@ -3,12 +3,12 @@ Bhashini ULCA Integration & Vernacular Clinical Translation Engine
 Stage 4: Regional Vernacular Script & NMT Normalization.
 """
 
+import json
 import os
 import re
-import json
 import urllib.request
-from typing import Dict, Any, Optional
 from pathlib import Path
+from typing import Any
 
 # Fallback in-memory mappings if YAML is absent
 FALLBACK_DIGITS_MAP = {
@@ -53,7 +53,7 @@ FALLBACK_SIG_DICTIONARY = {
     'రోజుకు రెండుసార్లు': 'Twice Daily (BD)'
 }
 
-def load_sig_lexicon() -> Dict[str, Any]:
+def load_sig_lexicon() -> dict[str, Any]:
     """Loads externalized sig lexicon YAML file with fallback to in-memory dictionaries."""
     lexicon_path = Path(__file__).resolve().parent / "sig_lexicon.yaml"
     if lexicon_path.exists():
@@ -111,7 +111,7 @@ def detect_script_language(text: str) -> str:
     return "English"
 
 
-def regex_preprocess_sig(text: str) -> Dict[str, Any]:
+def regex_preprocess_sig(text: str) -> dict[str, Any]:
     """
     Pre-processes raw sig strings using compiled regex patterns for standard clinical shorthand:
     - Normalizes Indic numerals
@@ -141,14 +141,14 @@ def regex_preprocess_sig(text: str) -> Dict[str, Any]:
     shorthand_match = re.search(r'([0-9])\s*[\+\-\/]\s*([0-9])\s*[\+\-\/]\s*([0-9])', normalized)
     standardized_code = None
     if shorthand_match:
-        m, a, n = shorthand_match.groups()
-        standardized_code = f"{m}-{a}-{n}"
+        m_morning, a_afternoon, n_night = shorthand_match.groups()
+        standardized_code = f"{m_morning}-{a_afternoon}-{n_night}"
         normalized = re.sub(r'([0-9])\s*[\+\-\/]\s*([0-9])\s*[\+\-\/]\s*([0-9])', standardized_code, normalized)
 
     # Check frequency regex patterns
     freq_entries = SIG_LEXICON.get("frequency", {})
     detected_freq = None
-    for key, f_data in freq_entries.items():
+    for f_data in freq_entries.values():
         rgx = f_data.get("regex")
         if rgx and re.search(rgx, normalized):
             detected_freq = f_data
@@ -164,7 +164,7 @@ def regex_preprocess_sig(text: str) -> Dict[str, Any]:
     }
 
 
-def translate_vernacular_sig(text: str, source: str = "primary_vlm") -> Dict[str, Any]:
+def translate_vernacular_sig(text: str, source: str = "primary_vlm") -> dict[str, Any]:
     """
     Translates vernacular clinical instructions and sig codes into standardized
     English clinical syntax, including 'standardized_sig' in hyphenated format (e.g. '1-0-1 After Meals').
@@ -245,7 +245,7 @@ def translate_vernacular_sig(text: str, source: str = "primary_vlm") -> Dict[str
 def call_bhashini_ocr_api(
     image_bytes_or_b64: Any,
     source_lang: str = "hi"
-) -> Optional[str]:
+) -> str | None:
     """
     Calls the official Government of India Bhashini ULCA OCR API.
     Sends cropped prescription line strips with Indic script to extract vernacular text.
@@ -302,7 +302,7 @@ def call_bhashini_ocr_api(
 def route_indic_crop_to_bhashini(
     crop_image: Any,
     detected_script: str = "hi"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Routes an Indic line crop directly to the Bhashini Indic-OCR endpoint,
     followed by the clinical vernacular sig normalizer.
@@ -327,7 +327,7 @@ def call_bhashini_nmt_api(
     source_text: str,
     source_lang: str = "bn",
     target_lang: str = "en"
-) -> Optional[str]:
+) -> str | None:
     """
     Calls the official Government of India Bhashini ULCA NMT API if credentials are set.
     """
@@ -376,16 +376,16 @@ def call_bhashini_nmt_api(
 
 class BhashiniTranslator:
     """Vernacular and Indic Sig Translation Service with OCR Hook."""
-    def translate_vernacular_sig(self, text: str) -> Dict[str, Any]:
+    def translate_vernacular_sig(self, text: str) -> dict[str, Any]:
         return translate_vernacular_sig(text)
 
     def normalize_numerals(self, text: str) -> str:
         return normalize_vernacular_numerals(text)
 
-    def call_ocr_api(self, image_data: Any, source_lang: str = "hi") -> Optional[str]:
+    def call_ocr_api(self, image_data: Any, source_lang: str = "hi") -> str | None:
         return call_bhashini_ocr_api(image_data, source_lang=source_lang)
 
-    def route_crop_to_ocr(self, crop_image: Any, detected_script: str = "hi") -> Dict[str, Any]:
+    def route_crop_to_ocr(self, crop_image: Any, detected_script: str = "hi") -> dict[str, Any]:
         return route_indic_crop_to_bhashini(crop_image, detected_script=detected_script)
 
 

@@ -3,16 +3,16 @@ NRCeS FHIR R4 Bundle Validator & HIS Connector for MediKiosk Module D.
 Pushes attested clinical consultation drafts into OpenMRS fhir2 or HAPI-FHIR with idempotency.
 """
 
-from typing import Dict, Any, List, Tuple, Optional
 from datetime import datetime, timezone
-import json
+from typing import Any
+
 import httpx
 
 try:
     from ..config import settings
     from ..schemas.his_schemas import FHIRBundlePushRequest, FHIRBundlePushResponse
-    from .idempotency import idempotency_manager
     from ..simulator.mock_his_server import mock_his_server
+    from .idempotency import idempotency_manager
 except (ImportError, ValueError):
     import sys
     from pathlib import Path
@@ -20,8 +20,11 @@ except (ImportError, ValueError):
     if str(_services_root) not in sys.path:
         sys.path.insert(0, str(_services_root))
     from module_d.config import settings
-    from module_d.schemas.his_schemas import FHIRBundlePushRequest, FHIRBundlePushResponse
     from module_d.his.idempotency import idempotency_manager
+    from module_d.schemas.his_schemas import (
+        FHIRBundlePushRequest,
+        FHIRBundlePushResponse,
+    )
     from module_d.simulator.mock_his_server import mock_his_server
 
 
@@ -34,7 +37,7 @@ class FHIRConnector:
         self.use_mock = getattr(settings, "USE_MOCK_HIS", True)
         self.timeout = getattr(settings, "HIS_REQUEST_TIMEOUT_SECONDS", 15)
 
-    def validate_nrces_bundle(self, bundle: Any) -> Tuple[bool, List[str]]:
+    def validate_nrces_bundle(self, bundle: Any) -> tuple[bool, list[str]]:
         """
         Validates NRCeS requirements for an OPD Consultation Document Bundle:
         1. resourceType == "Bundle"
@@ -141,7 +144,7 @@ class FHIRConnector:
             try:
                 async with httpx.AsyncClient(timeout=self.timeout) as client:
                     target_url = f"{target_endpoint}/Bundle"
-                    resp = await client.post(
+                    http_resp = await client.post(
                         target_url,
                         json=req.bundle,
                         headers={
@@ -149,23 +152,23 @@ class FHIRConnector:
                             "X-MediKiosk-Idempotency-Key": req.idempotency_key
                         }
                     )
-                    if resp.status_code in [200, 201]:
+                    if http_resp.status_code in [200, 201]:
                         try:
-                            body = resp.json()
+                            body = http_resp.json()
                             remote_id = body.get("id") if isinstance(body, dict) else None
                         except Exception:
                             remote_id = None
                         if not remote_id and isinstance(req.bundle, dict):
                             remote_id = req.bundle.get("id")
                         status_text = "SUCCESS"
-                        msg = f"Bundle accepted by remote FHIR server: {resp.status_code}"
-                        http_status = resp.status_code
+                        msg = f"Bundle accepted by remote FHIR server: {http_resp.status_code}"
+                        http_status = http_resp.status_code
                     else:
                         # Fallback to emulator with notice
                         mock_res = mock_his_server.ingest_fhir_bundle(req.bundle)
                         remote_id = mock_res["bundle_id"]
                         status_text = "SUCCESS_FALLBACK"
-                        msg = f"Remote returned {resp.status_code}; safely buffered into local HIS emulator (ID: {remote_id})"
+                        msg = f"Remote returned {http_resp.status_code}; safely buffered into local HIS emulator (ID: {remote_id})"
             except Exception as e:
                 # Network fallback to local emulator
                 mock_res = mock_his_server.ingest_fhir_bundle(req.bundle)

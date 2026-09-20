@@ -7,11 +7,10 @@ Runs automated benchmark evaluations across Indian prescription dataset, measuri
 - Disagreement Gate Safety Gating
 """
 
-import os
-import sys
 import json
+import sys
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Any
 
 # Ensure module_b path is importable
 current_dir = Path(__file__).resolve().parent
@@ -19,13 +18,12 @@ module_b_dir = current_dir.parent
 if str(module_b_dir) not in sys.path:
     sys.path.insert(0, str(module_b_dir))
 
+from eval_harness.threshold_calibration import calculate_cer, calibrate_predictions
 from normalizers.cdsco_normalizer import cdsco_matcher
 from vernacular.bhashini_service import bhashini_translator
-from ocr.secondary_recognizer import evaluate_cross_model_agreement, apply_disagreement_gate
-from eval_harness.threshold_calibration import calculate_cer, calibrate_predictions
 
 
-def load_benchmark_dataset() -> List[Dict[str, Any]]:
+def load_benchmark_dataset() -> list[dict[str, Any]]:
     dataset_path = current_dir / "dataset" / "indian_prescriptions_benchmark.json"
     if not dataset_path.exists():
         raise FileNotFoundError(f"Benchmark dataset not found at {dataset_path}")
@@ -33,7 +31,7 @@ def load_benchmark_dataset() -> List[Dict[str, Any]]:
         return json.load(f)
 
 
-def run_evaluation(profile: str = "standard") -> Dict[str, Any]:
+def run_evaluation(profile: str = "standard") -> dict[str, Any]:
     dataset = load_benchmark_dataset()
     results = []
     total = len(dataset)

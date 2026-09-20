@@ -4,19 +4,15 @@ import React, { useState, useEffect } from 'react';
 import { 
   Pill, 
   AlertTriangle, 
-  CheckCircle2, 
   Plus, 
   Trash2, 
   Edit3, 
   Save, 
   X, 
-  Activity, 
-  Clock, 
   ShieldAlert, 
   ChevronRight,
   TrendingUp,
-  TrendingDown,
-  Info
+  TrendingDown
 } from '@/components/Icons';
 
 export interface PrescribedMedicine {
@@ -57,7 +53,7 @@ interface DigitalPrescriptionEditorProps {
 export function DigitalPrescriptionEditor({
   initialMedicationsText = '',
   extractedMedications = [],
-  safetyAlerts = [],
+  safetyAlerts: _safetyAlerts = [],
   patientAllergiesText = '',
   extractedLabs = [],
   onUpdateMedications,
@@ -125,7 +121,7 @@ export function DigitalPrescriptionEditor({
       // Parse comma or newline separated strings
       const parts = initialMedicationsText.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean);
       parts.forEach((p, idx) => {
-        let name = p;
+        const name = p;
         let dosage = '500 mg';
         let frequency = '1-0-1';
         let timing = 'After Meals (PC)';
@@ -154,6 +150,7 @@ export function DigitalPrescriptionEditor({
     }
 
     setMedications(list);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialMedicationsText, extractedMedications, patientAllergiesText]);
 
   // Initialize out-of-range labs strictly from actual extracted reports

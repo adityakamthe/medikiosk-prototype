@@ -5,10 +5,11 @@ Provides simultaneous semantic mapping between:
 2. WHO ICD-11 TM2 (Chapter 26: Traditional Medicine conditions - Module 2)
 3. Modern Biomedicine: SNOMED CT and ICD-11 MMS.
 """
-import sys
 import os
 import re
-from typing import Dict, Any, List, Optional
+import sys
+from typing import Any
+
 from rapidfuzz import fuzz, process
 
 _ENGINE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -22,12 +23,12 @@ try:
     from module_c.schemas.synthesis_schemas import DualCodingEntry
 except (ImportError, ModuleNotFoundError, ValueError):
     try:
-        from schemas.synthesis_schemas import DualCodingEntry
+        from schemas.synthesis_schemas import DualCodingEntry  # type: ignore[no-redef]
     except (ImportError, ModuleNotFoundError, ValueError):
-        from ..schemas.synthesis_schemas import DualCodingEntry
+        from ..schemas.synthesis_schemas import DualCodingEntry  # type: ignore[no-redef]
 
 
-DUAL_CODING_REGISTRY: Dict[str, Dict[str, Any]] = {
+DUAL_CODING_REGISTRY: dict[str, dict[str, Any]] = {
     "amlapitta": {
         "canonical_name": "Amlapitta (Hyperacidity / Dyspepsia)",
         "namaste_code": "AYU-DG-0142",
@@ -169,13 +170,13 @@ class DualCoder:
     """
 
     def __init__(self):
-        self.alias_map: Dict[str, str] = {}
+        self.alias_map: dict[str, str] = {}
         for key, entry in DUAL_CODING_REGISTRY.items():
             for alias in entry["aliases"]:
                 self.alias_map[alias.lower().strip()] = key
         self.all_aliases = list(self.alias_map.keys())
 
-    def code_finding(self, query: str) -> Optional[DualCodingEntry]:
+    def code_finding(self, query: str) -> DualCodingEntry | None:
         """
         Maps a symptom or diagnosis string to concurrent NAMASTE, WHO TM2, and SNOMED codes.
         """
@@ -234,7 +235,7 @@ class DualCoder:
 
         return None
 
-    def code_multiple(self, queries: List[str]) -> List[DualCodingEntry]:
+    def code_multiple(self, queries: list[str]) -> list[DualCodingEntry]:
         """Maps a list of symptom/diagnosis queries."""
         results = []
         seen = set()

@@ -4,14 +4,8 @@ import React, { useState } from 'react';
 import { 
   Calendar, 
   FileText, 
-  Activity, 
-  AlertTriangle, 
   ChevronRight, 
-  Clock, 
-  Stethoscope, 
-  Pill,
-  Sparkles,
-  CheckCircle2
+  Pill
 } from '@/components/Icons';
 
 export interface TimelineEpisode {

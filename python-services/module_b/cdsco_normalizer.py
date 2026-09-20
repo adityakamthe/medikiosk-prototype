@@ -14,18 +14,18 @@ Upgrades:
 5. RxNorm REST API integration for standard RxCUI identification.
 """
 
-import re
-import urllib.request
-import urllib.parse
 import json
-from typing import Dict, Any, Optional, List, Tuple
-import Levenshtein
-from rapidfuzz import fuzz
-from metaphone import doublemetaphone
+import re
+import urllib.parse
+import urllib.request
+from typing import Any
 
+import Levenshtein
+from metaphone import doublemetaphone
+from rapidfuzz import fuzz
 
 # Curated CDSCO Indian Formulary dataset of commonly prescribed outpatient trade brands in India
-CDSCO_MASTER_REGISTRY: Dict[str, Dict[str, Any]] = {
+CDSCO_MASTER_REGISTRY: dict[str, dict[str, Any]] = {
     "ultrafen plus": {
         "brand_name": "Ultrafen Plus",
         "generic_name": "Diclofenac Sodium + Paracetamol",
@@ -288,17 +288,17 @@ class DosageFormAndStrength(tuple):
     Subclass of tuple (form, strength) supporting attribute access (.form, .strength)
     and key-based dictionary access (["form"], ["strength"]).
     """
-    def __new__(cls, form: Optional[str], strength: Optional[str]):
+    def __new__(cls, form: str | None, strength: str | None):
         return super().__new__(cls, (form, strength))
 
     @property
-    def form(self) -> Optional[str]:
+    def form(self) -> str | None:
         if self[0] in ["tab", "tablet"]:
             return "TABLET"
         return self[0].upper() if self[0] else None
 
     @property
-    def strength(self) -> Optional[str]:
+    def strength(self) -> str | None:
         return self[1]
 
     def __getitem__(self, item: Any) -> Any:
@@ -403,8 +403,8 @@ def compute_composite_score(query: str, candidate: str) -> float:
 def retrieve_candidate_shortlist(
     cleaned_query: str,
     top_k: int = 5,
-    form_filter: Optional[str] = None
-) -> List[Dict[str, Any]]:
+    form_filter: str | None = None
+) -> list[dict[str, Any]]:
     """
     Pass 2: Shortlist-then-verify candidate retrieval.
     Retrieves the top-k closest CDSCO candidates using raw edit distance and Double Metaphone.
@@ -453,16 +453,16 @@ def retrieve_candidate_shortlist(
             "formulary_entry": data
         })
 
-    candidates.sort(key=lambda x: x["base_score"], reverse=True)
+    candidates.sort(key=lambda x: float(x["base_score"]), reverse=True)  # type: ignore[arg-type]
     return candidates[:top_k]
 
 
 def match_against_cdsco(
     raw_name: str,
-    verbal_context: Optional[str] = None,
-    raw_image_crop_ref: Optional[str] = None,
-    form_filter: Optional[str] = None
-) -> Dict[str, Any]:
+    verbal_context: str | None = None,
+    raw_image_crop_ref: str | None = None,
+    form_filter: str | None = None
+) -> dict[str, Any]:
     """
     Matches raw OCR text against the CDSCO Indian National Formulary using:
     - Pass 1: Extract candidate token.
@@ -582,7 +582,7 @@ def match_against_cdsco(
     }
 
 
-def query_rxnorm_rxcui(generic_name: str) -> Optional[str]:
+def query_rxnorm_rxcui(generic_name: str) -> str | None:
     """
     Queries the official U.S. National Library of Medicine RxNorm REST API
     to retrieve standard RxCUI identifier for FHIR R4 interoperability.

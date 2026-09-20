@@ -6,20 +6,20 @@ Audits prescribed regimens for:
 3. Drug-Drug Interactions (DDI) with Indian brand and generic aliases
 4. Daily dose ceilings
 """
-from typing import Dict, Any, List, Optional, Set, Tuple
 import re
+from typing import Any
 
 try:
     from module_b.schemas.verification_schemas import ClinicalAlert, SeverityTier
 except (ImportError, ValueError):
     try:
-        from ..schemas.verification_schemas import ClinicalAlert, SeverityTier
+        from ..schemas.verification_schemas import ClinicalAlert, SeverityTier  # type: ignore[no-redef]
     except (ImportError, ValueError):
-        from schemas.verification_schemas import ClinicalAlert, SeverityTier
+        from schemas.verification_schemas import ClinicalAlert, SeverityTier  # type: ignore[no-redef]
 
 
 # NSAID Registry (Generic names and prevalent Indian brand aliases)
-NSAID_DRUGS: Set[str] = {
+NSAID_DRUGS: set[str] = {
     "diclofenac", "ibuprofen", "aceclofenac", "naproxen", "etoricoxib",
     "indomethacin", "piroxicam", "ketorolac", "mefenamic acid",
     "ultrafen", "ultrafen plus", "voveran", "zerodol", "hifenac",
@@ -27,14 +27,14 @@ NSAID_DRUGS: Set[str] = {
 }
 
 # PPI and Gastroprotective Registry
-PPI_DRUGS: Set[str] = {
+PPI_DRUGS: set[str] = {
     "pantoprazole", "omeprazole", "rabeprazole", "esomeprazole", "lansoprazole",
     "pantocid", "pan-d", "pan 40", "pan-40", "omez", "rantac", "ranitidine",
     "famotidine", "nexpro", "rabonik", "rabicip", "omez-d", "pantop"
 }
 
 # Clinically Significant Drug-Drug Interaction Rules
-DRUG_INTERACTIONS = [
+DRUG_INTERACTIONS: list[dict[str, Any]] = [
     {
         "pair": ("tetracycline", "calcium"),
         "aliases": {
@@ -105,8 +105,8 @@ class MedicationVerifier:
 
     def audit_medications(
         self,
-        medications: List[Dict[str, Any]]
-    ) -> Tuple[List[ClinicalAlert], str, bool]:
+        medications: list[dict[str, Any]]
+    ) -> tuple[list[ClinicalAlert], str, bool]:
         """
         Audits a list of prescribed medications.
         Returns:
@@ -114,10 +114,10 @@ class MedicationVerifier:
             - gastroprotection_status: 'PROTECTED', 'AT_RISK', or 'NOT_APPLICABLE'
             - has_critical_alerts: True if any alert is CRITICAL_PANIC or HIGH
         """
-        alerts: List[ClinicalAlert] = []
-        identified_drugs: List[str] = []
-        nsaid_identified: List[str] = []
-        ppi_identified: List[str] = []
+        alerts: list[ClinicalAlert] = []
+        identified_drugs: list[str] = []
+        nsaid_identified: list[str] = []
+        ppi_identified: list[str] = []
 
         for med in medications:
             name = str(med.get("name") or med.get("brand_name") or med.get("generic_name") or "").lower()
@@ -169,8 +169,8 @@ class MedicationVerifier:
 
         # 3. Drug-Drug Interactions
         for rule in DRUG_INTERACTIONS:
-            d1, d2 = rule["pair"]
-            aliases_map = rule.get("aliases", {})
+            d1, d2 = str(rule["pair"][0]), str(rule["pair"][1])
+            aliases_map: dict[str, list[str]] = rule.get("aliases", {})
             d1_terms = aliases_map.get(d1, [d1])
             d2_terms = aliases_map.get(d2, [d2])
 
@@ -186,10 +186,10 @@ class MedicationVerifier:
             if d1_match and d2_match:
                 alerts.append(ClinicalAlert(
                     type="DRUG_INTERACTION",
-                    severity=rule["severity"],
-                    title=rule["title"],
-                    description=rule["mechanism"],
-                    recommendation=rule["recommendation"]
+                    severity=SeverityTier(rule["severity"]),
+                    title=str(rule["title"]),
+                    description=str(rule["mechanism"]),
+                    recommendation=str(rule["recommendation"])
                 ))
 
         # 4. Check Dose Ceilings if dose strength and frequency are provided
@@ -221,7 +221,7 @@ class MedicationVerifier:
                             freq_multiplier = 4
 
                         total_daily_mg = single_mg * freq_multiplier
-                        max_allowed = matched_ceiling["max_daily_mg"]
+                        max_allowed = float(matched_ceiling["max_daily_mg"])  # type: ignore[arg-type]
 
                         if total_daily_mg > max_allowed:
                             alerts.append(ClinicalAlert(

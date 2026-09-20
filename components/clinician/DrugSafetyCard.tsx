@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ShieldAlert, ShieldCheck, AlertTriangle, Pill, CheckCircle2, Plus } from '@/components/Icons';
+import { ShieldAlert, ShieldCheck, AlertTriangle, Pill, Plus } from '@/components/Icons';
 
 export interface SafetyAlert {
   type: string;

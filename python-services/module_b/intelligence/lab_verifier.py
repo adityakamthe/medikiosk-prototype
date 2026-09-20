@@ -3,22 +3,22 @@ Lab Verifier Engine for MediKiosk Module B.
 Standardizes laboratory analytes against LOINC definitions, verifies units, and classifies
 severity into NORMAL, ABNORMAL, and CRITICAL_PANIC tiers.
 """
-from typing import Dict, Any, List, Optional, Tuple
 import re
+from typing import Any
 
 try:
+    from module_b.normalizers.loinc_mapper import loinc_mapper
     from module_b.schemas.verification_schemas import EvaluatedLabItem, SeverityTier
-    from module_b.normalizers.loinc_mapper import loinc_mapper, LOINC_DATABASE
 except (ImportError, ValueError):
     try:
-        from ..schemas.verification_schemas import EvaluatedLabItem, SeverityTier
-        from ..normalizers.loinc_mapper import loinc_mapper, LOINC_DATABASE
+        from ..normalizers.loinc_mapper import loinc_mapper  # type: ignore[no-redef]
+        from ..schemas.verification_schemas import EvaluatedLabItem, SeverityTier  # type: ignore[no-redef]
     except (ImportError, ValueError):
-        from schemas.verification_schemas import EvaluatedLabItem, SeverityTier
-        from normalizers.loinc_mapper import loinc_mapper, LOINC_DATABASE
+        from normalizers.loinc_mapper import loinc_mapper  # type: ignore[no-redef]
+        from schemas.verification_schemas import EvaluatedLabItem, SeverityTier  # type: ignore[no-redef]
 
 
-def parse_numeric_lab_value(val_str: Any) -> Tuple[Optional[float], Optional[str]]:
+def parse_numeric_lab_value(val_str: Any) -> tuple[float | None, str | None]:
     """
     Extracts numeric value and comparison qualifier (e.g. '>', '<', '<=') from a string.
     """
@@ -54,13 +54,13 @@ class LabVerifier:
         self,
         test_name: str,
         raw_value: Any,
-        unit: Optional[str] = None
+        unit: str | None = None
     ) -> EvaluatedLabItem:
         """
         Evaluates a single lab item returning a validated EvaluatedLabItem schema.
         """
         raw_val_str = str(raw_value) if raw_value is not None else ""
-        num_val, qualifier = parse_numeric_lab_value(raw_val_str)
+        num_val, _qualifier = parse_numeric_lab_value(raw_val_str)
 
         # Map to LOINC definition
         loinc_entry = self.mapper.map_test_name(test_name)
@@ -149,9 +149,9 @@ class LabVerifier:
             panel=loinc_entry.get("panel")
         )
 
-    def evaluate_batch(self, lab_items: List[Dict[str, Any]]) -> List[EvaluatedLabItem]:
+    def evaluate_batch(self, lab_items: list[dict[str, Any]]) -> list[EvaluatedLabItem]:
         """Evaluates a batch of raw lab dictionaries."""
-        results: List[EvaluatedLabItem] = []
+        results: list[EvaluatedLabItem] = []
         for item in lab_items:
             t_name = item.get("test_name") or item.get("name") or ""
             r_val = item.get("value") or item.get("raw_value") or ""

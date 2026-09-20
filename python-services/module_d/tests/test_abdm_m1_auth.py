@@ -2,10 +2,12 @@
 Unit Tests for ABDM M1 (ABHA QR Scanner, OTP Auth & Token Issuance) in Module D.
 """
 
-import pytest
 import json
-from module_d.simulator.abdm_m1_mock import abdm_m1_mock
+
+import pytest
+
 from module_d.schemas.auth_schemas import OTPGenerateRequest, OTPVerifyRequest
+from module_d.simulator.abdm_m1_mock import abdm_m1_mock
 
 
 def test_parse_official_abha_json_qr():

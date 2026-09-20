@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -6,7 +7,6 @@ import { useRouter } from 'next/navigation';
 import {
   Calendar,
   Clock,
-  User,
   CheckCircle2,
   AlertTriangle,
   Stethoscope,
@@ -14,12 +14,7 @@ import {
   Printer,
   QrCode,
   ArrowRight,
-  ShieldCheck,
-  RefreshCw,
-  HeartPulse,
-  Sparkles,
-  Phone,
-  FileText
+  Sparkles
 } from '@/components/Icons';
 
 export default function AppointmentBookingPage() {
@@ -66,6 +61,7 @@ export default function AppointmentBookingPage() {
 
   useEffect(() => {
     fetchDepartments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
   // Current selected department object

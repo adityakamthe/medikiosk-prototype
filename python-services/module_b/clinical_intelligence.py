@@ -13,11 +13,10 @@ Implements:
 """
 
 import re
-from typing import Dict, Any, List, Optional, Tuple
-
+from typing import Any
 
 # Physiological Reference Ranges and Panic Thresholds with LOINC Codes
-LAB_REFERENCE_REGISTRY: Dict[str, Dict[str, Any]] = {
+LAB_REFERENCE_REGISTRY: dict[str, dict[str, Any]] = {
     "hemoglobin": {
         "loinc": "718-7",
         "display": "Hemoglobin (Hb)",
@@ -151,7 +150,7 @@ LAB_REFERENCE_REGISTRY: Dict[str, Dict[str, Any]] = {
 }
 
 
-def parse_numeric_lab_value(val_str: Any) -> Tuple[Optional[float], Optional[str]]:
+def parse_numeric_lab_value(val_str: Any) -> tuple[float | None, str | None]:
     """
     Extracts numeric value and any comparison qualifier (e.g. '>', '<', '<=')
     """
@@ -172,7 +171,7 @@ def parse_numeric_lab_value(val_str: Any) -> Tuple[Optional[float], Optional[str
     return None, None
 
 
-def evaluate_lab_result(test_name: str, raw_value: Any, unit: Optional[str] = None) -> Dict[str, Any]:
+def evaluate_lab_result(test_name: str, raw_value: Any, unit: str | None = None) -> dict[str, Any]:
     """
     Evaluates a single lab analyte against reference intervals and classifies severity:
     - NORMAL (Green)
@@ -181,13 +180,11 @@ def evaluate_lab_result(test_name: str, raw_value: Any, unit: Optional[str] = No
     """
     clean_name = test_name.lower().strip()
     matched_entry = None
-    matched_key = None
 
     # Search reference registry
     for key, spec in LAB_REFERENCE_REGISTRY.items():
         if key in clean_name or clean_name in key:
             matched_entry = spec
-            matched_key = key
             break
 
     num_val, qualifier = parse_numeric_lab_value(raw_value)
@@ -275,7 +272,7 @@ PPI_DRUGS = {
     "pantocid", "pan-d", "omez", "rantac", "ranitidine", "famotidine"
 }
 
-DRUG_INTERACTIONS = [
+DRUG_INTERACTIONS: list[dict[str, Any]] = [
     {
         "pair": ("tetracycline", "calcium"),
         "aliases": {
@@ -325,7 +322,7 @@ MAX_DAILY_DOSAGES = {
 }
 
 
-def audit_prescriptions_safety(medications: List[Dict[str, Any]]) -> Dict[str, Any]:
+def audit_prescriptions_safety(medications: list[dict[str, Any]]) -> dict[str, Any]:
     """
     Evaluates prescription line items for:
     1. NSAID + PPI Gastric Protection audit
@@ -380,8 +377,8 @@ def audit_prescriptions_safety(medications: List[Dict[str, Any]]) -> Dict[str, A
 
     # 3. Drug-Drug Interactions
     for rule in DRUG_INTERACTIONS:
-        d1, d2 = rule["pair"]
-        aliases_map = rule.get("aliases", {})
+        d1, d2 = str(rule["pair"][0]), str(rule["pair"][1])
+        aliases_map: dict[str, list[str]] = rule.get("aliases", {})
         d1_terms = aliases_map.get(d1, [d1])
         d2_terms = aliases_map.get(d2, [d2])
         d1_present = any(any(t in drug for t in d1_terms) for drug in identified_drugs)

@@ -11,8 +11,7 @@ Implements:
 
 import re
 from datetime import datetime
-from typing import List, Dict, Any, Optional
-
+from typing import Any
 
 INDIAN_DATE_PATTERNS = [
     # 18/11/2010, 18-11-2010, 18.11.2010
@@ -32,7 +31,7 @@ MONTH_MAP = {
 }
 
 
-def parse_indian_date(date_str: str) -> Optional[datetime]:
+def parse_indian_date(date_str: str) -> datetime | None:
     """
     Parses various handwritten and printed Indian date string conventions into a datetime object.
     """
@@ -82,7 +81,7 @@ def parse_indian_date(date_str: str) -> Optional[datetime]:
     return None
 
 
-def extract_dates_from_raw_text(text: str) -> List[str]:
+def extract_dates_from_raw_text(text: str) -> list[str]:
     """
     Finds all date occurrences in raw OCR text.
     """
@@ -94,7 +93,7 @@ def extract_dates_from_raw_text(text: str) -> List[str]:
     return found
 
 
-def cluster_into_episodes(records: List[Dict[str, Any]], day_threshold: int = 45) -> List[Dict[str, Any]]:
+def cluster_into_episodes(records: list[dict[str, Any]], day_threshold: int = 45) -> list[dict[str, Any]]:
     """
     Groups chronologically ordered medical records into distinct episodes of care.
     If consecutive records are within `day_threshold` days (default 45 days),
@@ -116,7 +115,7 @@ def cluster_into_episodes(records: List[Dict[str, Any]], day_threshold: int = 45
     known.sort(key=lambda x: x["_parsed_date"])
 
     sorted_records = known + unknown
-    episodes = []
+    episodes: list[dict[str, Any]] = []
     current_episode = None
 
     for r in sorted_records:

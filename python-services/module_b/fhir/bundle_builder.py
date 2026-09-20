@@ -3,17 +3,26 @@ ABDM FHIR R4 Bundle Builder for MediKiosk Module B.
 Constructs valid Ayushman Bharat Digital Mission (ABDM) compliant FHIR R4 document bundles
 containing Patient, Encounter, Composition, MedicationRequest, and Observation resources.
 """
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timezone
 import uuid
+from datetime import datetime, timezone
+from typing import Any
 
 try:
-    from module_b.schemas.verification_schemas import NormalizedMedicationItem, EvaluatedLabItem
+    from module_b.schemas.verification_schemas import (
+        EvaluatedLabItem,
+        NormalizedMedicationItem,
+    )
 except (ImportError, ValueError):
     try:
-        from ..schemas.verification_schemas import NormalizedMedicationItem, EvaluatedLabItem
+        from ..schemas.verification_schemas import (  # type: ignore[no-redef]
+            EvaluatedLabItem,
+            NormalizedMedicationItem,
+        )
     except (ImportError, ValueError):
-        from schemas.verification_schemas import NormalizedMedicationItem, EvaluatedLabItem
+        from schemas.verification_schemas import (  # type: ignore[no-redef]
+            EvaluatedLabItem,
+            NormalizedMedicationItem,
+        )
 
 
 class FHIRBundleBuilder:
@@ -23,14 +32,14 @@ class FHIRBundleBuilder:
 
     def build_bundle(
         self,
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
         patient_name: str = "Anonymous Patient",
-        abha_id: Optional[str] = None,
+        abha_id: str | None = None,
         gender: str = "unknown",
-        medications: Optional[List[NormalizedMedicationItem]] = None,
-        labs: Optional[List[EvaluatedLabItem]] = None,
+        medications: list[NormalizedMedicationItem] | None = None,
+        labs: list[EvaluatedLabItem] | None = None,
         organization_name: str = "MediKiosk Primary Health Centre"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Builds a compliant FHIR R4 Document Bundle.
         """
@@ -43,7 +52,7 @@ class FHIRBundleBuilder:
         encounter_uuid = f"urn:uuid:{uuid.uuid4()}"
         composition_uuid = f"urn:uuid:{uuid.uuid4()}"
 
-        entries: List[Dict[str, Any]] = []
+        entries: list[dict[str, Any]] = []
 
         # 1. Patient Resource
         patient_identifiers = []
@@ -153,7 +162,7 @@ class FHIRBundleBuilder:
             section_entries.append({"reference": obs_uuid})
 
             loinc_code = lab.loinc_code or "30954-2"
-            obs_resource: Dict[str, Any] = {
+            obs_resource: dict[str, Any] = {
                 "resourceType": "Observation",
                 "id": obs_uuid.replace("urn:uuid:", ""),
                 "meta": {

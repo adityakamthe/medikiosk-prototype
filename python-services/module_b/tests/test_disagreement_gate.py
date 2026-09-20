@@ -1,19 +1,18 @@
 """
 Tests for Secondary Independent Recognizer & Cross-Model Disagreement Gate
 """
-import pytest
 try:
     from ocr.secondary_recognizer import (
-        evaluate_cross_model_agreement,
         apply_disagreement_gate,
-        normalize_drug_token
+        evaluate_cross_model_agreement,
+        normalize_drug_token,
     )
     from schemas.verification_schemas import VerificationActionGate
 except (ImportError, ModuleNotFoundError):
     from module_b.ocr.secondary_recognizer import (
-        evaluate_cross_model_agreement,
         apply_disagreement_gate,
-        normalize_drug_token
+        evaluate_cross_model_agreement,
+        normalize_drug_token,
     )
     from module_b.schemas.verification_schemas import VerificationActionGate
 
@@ -36,7 +35,7 @@ def test_cross_model_agreement_exact():
 
 def test_cross_model_agreement_high_similarity():
     # Minor character difference due to cursive artifact
-    is_agreed, score, status = evaluate_cross_model_agreement(
+    is_agreed, score, _status = evaluate_cross_model_agreement(
         "Augmentin 625",
         "Augmentin 625mg"
     )

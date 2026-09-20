@@ -13,10 +13,11 @@ Tests:
 10. Drug-Drug Interactions (Tetracycline-Calcium chelation) & LOINC 3-tier flags
 """
 
-import sys
 import os
-import numpy as np
+import sys
+
 import cv2
+import numpy as np
 import pytest
 
 # Ensure parent directory is on sys.path
@@ -25,28 +26,19 @@ PARENT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
 if PARENT_DIR not in sys.path:
     sys.path.insert(0, PARENT_DIR)
 
-from cv_preprocessor import (
-    preprocess_medical_document,
-    isolate_ink_strokes,
-    segment_prescription_lines
-)
+from bhashini_translator import normalize_vernacular_numerals, translate_vernacular_sig
 from cdsco_normalizer import (
-    match_against_cdsco,
+    calculate_metaphone_similarity,
     compute_composite_score,
-    calculate_metaphone_similarity
+    match_against_cdsco,
 )
-from bhashini_translator import (
-    translate_vernacular_sig,
-    normalize_vernacular_numerals
+from clinical_intelligence import audit_prescriptions_safety, evaluate_lab_result
+from cv_preprocessor import (
+    isolate_ink_strokes,
+    preprocess_medical_document,
+    segment_prescription_lines,
 )
-from clinical_intelligence import (
-    evaluate_lab_result,
-    audit_prescriptions_safety
-)
-from vlm_engine import (
-    resolve_token_agreement,
-    run_ensemble_decoding
-)
+from vlm_engine import resolve_token_agreement
 
 
 def test_hsv_ink_color_separation():
@@ -71,7 +63,7 @@ def test_line_level_bounding_box_detection():
 
     lines = segment_prescription_lines(img, min_line_height=10, min_line_width=50)
     assert len(lines) >= 3
-    y_coords = [l["bbox"]["y"] for l in lines]
+    y_coords = [line["bbox"]["y"] for line in lines]
     assert y_coords == sorted(y_coords)
 
 
@@ -214,5 +206,4 @@ def test_vlm_ensemble_agreement_and_conflict_forwarding():
 
 
 if __name__ == "__main__":
-    import pytest
     sys.exit(pytest.main(["-v", __file__]))

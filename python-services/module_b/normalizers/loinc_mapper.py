@@ -3,13 +3,13 @@ LOINC Code and Canonical Diagnostic Lab Mapper.
 Maps raw lab test names from Indian clinical and diagnostic reports to standardized LOINC codes,
 canonical units, reference intervals, and panic value boundaries.
 """
-from typing import Dict, Any, Optional, List, Tuple
 import re
+from typing import Any
+
 from rapidfuzz import fuzz, process
 
-
 # Comprehensive Lab Dictionary with LOINC Codes, Canonical Units, Standard Ranges, and Panic Limits
-LOINC_DATABASE: Dict[str, Dict[str, Any]] = {
+LOINC_DATABASE: dict[str, dict[str, Any]] = {
     "HEMOGLOBIN": {
         "loinc_code": "718-7",
         "display_name": "Hemoglobin [Mass/volume] in Blood",
@@ -279,7 +279,7 @@ class LOINCMapper:
 
     def __init__(self):
         # Build lookup table of alias -> test key
-        self.alias_lookup: Dict[str, str] = {}
+        self.alias_lookup: dict[str, str] = {}
         for key, entry in LOINC_DATABASE.items():
             for alias in entry["aliases"]:
                 self.alias_lookup[alias.lower().strip()] = key
@@ -293,7 +293,7 @@ class LOINCMapper:
         cleaned = re.sub(r"\s+", " ", cleaned).strip().lower()
         return cleaned
 
-    def map_test_name(self, test_name: str) -> Optional[Dict[str, Any]]:
+    def map_test_name(self, test_name: str) -> dict[str, Any] | None:
         """
         Maps a raw test name to its corresponding LOINC entity using exact alias or fuzzy matching.
         """
@@ -328,9 +328,9 @@ class LOINCMapper:
     def standardize_unit_and_value(
         self,
         value: float,
-        unit: Optional[str],
-        loinc_entry: Dict[str, Any]
-    ) -> Tuple[float, str]:
+        unit: str | None,
+        loinc_entry: dict[str, Any]
+    ) -> tuple[float, str]:
         """
         Converts the value to the canonical unit if a known conversion ratio exists.
         """
@@ -363,12 +363,12 @@ loinc_mapper = LOINCMapper()
 LOINC_MASTER_REGISTRY = LOINC_DATABASE
 
 
-def map_to_loinc(test_name: str) -> Optional[Dict[str, Any]]:
+def map_to_loinc(test_name: str) -> dict[str, Any] | None:
     """Convenience helper to map a test name to its LOINC database record."""
     return loinc_mapper.map_test_name(test_name)
 
 
-def normalize_lab_unit(value: float, unit: Optional[str], test_name: str) -> Tuple[float, Optional[str]]:
+def normalize_lab_unit(value: float, unit: str | None, test_name: str) -> tuple[float, str | None]:
     """Convenience helper to standardize value and unit for a given test."""
     entry = loinc_mapper.map_test_name(test_name)
     if entry:

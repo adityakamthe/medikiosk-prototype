@@ -1,7 +1,8 @@
 """
 Intake schemas for raw document OCR, line segmentation, and VLM extraction.
 """
-from typing import List, Dict, Any, Optional
+from typing import Any
+
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -15,21 +16,21 @@ class BoundingBox(BaseModel):
 class RawPrescriptionLine(BaseModel):
     line_index: int
     bbox: BoundingBox
-    raw_text: Optional[str] = None
+    raw_text: str | None = None
     confidence: float = 0.90
-    crop_shape: Optional[Dict[str, int]] = None
-    crop_base64: Optional[str] = None
+    crop_shape: dict[str, int] | None = None
+    crop_base64: str | None = None
 
 
 class ExtractedMedication(BaseModel):
     name: str = Field(..., description="Drug brand or generic name as deciphered by VLM")
-    dose: Optional[str] = Field(default=None, description="Strength or dosage, e.g. 500mg, 40mg")
-    dosage: Optional[str] = Field(default=None, description="Alias for dose")
-    frequency: Optional[str] = Field(default=None, description="Frequency or sig instruction, e.g. 1+0+1, OD, BD")
-    duration: Optional[str] = Field(default=None, description="Duration of treatment, e.g. 5 days, 1 month")
-    route: Optional[str] = Field(default="Oral", description="Administration route, e.g. Oral, Topical, IV")
+    dose: str | None = Field(default=None, description="Strength or dosage, e.g. 500mg, 40mg")
+    dosage: str | None = Field(default=None, description="Alias for dose")
+    frequency: str | None = Field(default=None, description="Frequency or sig instruction, e.g. 1+0+1, OD, BD")
+    duration: str | None = Field(default=None, description="Duration of treatment, e.g. 5 days, 1 month")
+    route: str | None = Field(default="Oral", description="Administration route, e.g. Oral, Topical, IV")
     confidence: float = Field(default=0.90, description="VLM extraction confidence score")
-    raw_text: Optional[str] = Field(default=None, description="Raw transcription fragment")
+    raw_text: str | None = Field(default=None, description="Raw transcription fragment")
 
     @model_validator(mode="before")
     @classmethod
@@ -44,13 +45,13 @@ class ExtractedMedication(BaseModel):
 
 class ExtractedLabResult(BaseModel):
     name: str = Field(default="", description="Analyte name, e.g. Hemoglobin, Fasting Blood Sugar")
-    test_name: Optional[str] = Field(default=None, description="Alias for name")
+    test_name: str | None = Field(default=None, description="Alias for name")
     raw_value: str = Field(default="", description="Raw text value from report, e.g. 6.8, >140")
-    value: Optional[str] = Field(default=None, description="Alias for raw_value")
-    parsed_value: Optional[float] = Field(default=None, description="Parsed numeric value")
-    qualifier: Optional[str] = Field(default=None, description="Qualifier like >, <, >=")
-    unit: Optional[str] = Field(default=None, description="Analyte measurement unit, e.g. g/dL, mg/dL")
-    reference_range: Optional[str] = Field(default=None, description="Reported reference interval")
+    value: str | None = Field(default=None, description="Alias for raw_value")
+    parsed_value: float | None = Field(default=None, description="Parsed numeric value")
+    qualifier: str | None = Field(default=None, description="Qualifier like >, <, >=")
+    unit: str | None = Field(default=None, description="Analyte measurement unit, e.g. g/dL, mg/dL")
+    reference_range: str | None = Field(default=None, description="Reported reference interval")
     confidence: float = Field(default=0.90, description="VLM extraction confidence score")
 
     @model_validator(mode="before")
@@ -69,45 +70,45 @@ class ExtractedLabResult(BaseModel):
 
 
 class DocumentMetadata(BaseModel):
-    session_id: Optional[str] = Field(default=None, description="Intake session UUID")
+    session_id: str | None = Field(default=None, description="Intake session UUID")
     document_type: str = Field(default="prescription", description="prescription, lab_report, or discharge_summary")
-    document_date: Optional[str] = Field(default=None, description="Extracted date in YYYY-MM-DD or Indian format")
-    doctor_or_hospital: Optional[str] = Field(default=None, description="Doctor or clinic name")
-    patient_name: Optional[str] = Field(default=None, description="Patient name if printed")
-    patient_age: Optional[str] = Field(default=None, description="Patient age")
-    patient_gender: Optional[str] = Field(default=None, description="Patient gender")
-    abha_id: Optional[str] = Field(default=None, description="Patient ABHA ID")
-    verbal_transcription: Optional[str] = Field(default=None, description="Audio chief complaint transcription from Module A")
+    document_date: str | None = Field(default=None, description="Extracted date in YYYY-MM-DD or Indian format")
+    doctor_or_hospital: str | None = Field(default=None, description="Doctor or clinic name")
+    patient_name: str | None = Field(default=None, description="Patient name if printed")
+    patient_age: str | None = Field(default=None, description="Patient age")
+    patient_gender: str | None = Field(default=None, description="Patient gender")
+    abha_id: str | None = Field(default=None, description="Patient ABHA ID")
+    verbal_transcription: str | None = Field(default=None, description="Audio chief complaint transcription from Module A")
 
 
 class DocumentIntakePayload(BaseModel):
-    image_base64: Optional[str] = Field(default=None, description="Base64 encoded JPEG or PNG image")
-    session_id: Optional[str] = Field(default=None, description="MediKiosk intake session UUID")
-    verbal_context: Optional[str] = Field(default=None, description="Patient verbal chief complaint from Module A")
+    image_base64: str | None = Field(default=None, description="Base64 encoded JPEG or PNG image")
+    session_id: str | None = Field(default=None, description="MediKiosk intake session UUID")
+    verbal_context: str | None = Field(default=None, description="Patient verbal chief complaint from Module A")
     apply_dewarp: bool = True
     apply_shadow_removal: bool = True
     apply_ink_isolation: bool = False
     extract_lines: bool = True
-    metadata: Optional[DocumentMetadata] = None
-    medications: List[ExtractedMedication] = Field(default_factory=list)
-    labs: List[ExtractedLabResult] = Field(default_factory=list)
+    metadata: DocumentMetadata | None = None
+    medications: list[ExtractedMedication] = Field(default_factory=list)
+    labs: list[ExtractedLabResult] = Field(default_factory=list)
 
 
 class ConstrainedMedicationExtraction(BaseModel):
     """Constrained schema for individual medication extraction with explicit structural fields."""
     drug_candidate: str = Field(..., description="Transcribed brand or generic name as deciphered")
-    dosage_form: Optional[str] = Field(default=None, description="Dosage form e.g. Tab, Cap, Syr, Inj, Oint")
-    strength: Optional[str] = Field(default=None, description="Strength or concentration e.g. 500mg, 650mg, 50mcg")
-    frequency: Optional[str] = Field(default=None, description="Frequency or sig instruction e.g. 1-0-1, OD, BD, TDS")
-    duration: Optional[str] = Field(default=None, description="Duration of treatment e.g. 5 days, 3/7, 1/52")
-    raw_sig: Optional[str] = Field(default=None, description="Raw transcription instruction fragment")
-    confidence_self_assessment: Optional[float] = Field(default=0.85, ge=0.0, le=1.0, description="Self-reported model confidence")
+    dosage_form: str | None = Field(default=None, description="Dosage form e.g. Tab, Cap, Syr, Inj, Oint")
+    strength: str | None = Field(default=None, description="Strength or concentration e.g. 500mg, 650mg, 50mcg")
+    frequency: str | None = Field(default=None, description="Frequency or sig instruction e.g. 1-0-1, OD, BD, TDS")
+    duration: str | None = Field(default=None, description="Duration of treatment e.g. 5 days, 3/7, 1/52")
+    raw_sig: str | None = Field(default=None, description="Raw transcription instruction fragment")
+    confidence_self_assessment: float | None = Field(default=0.85, ge=0.0, le=1.0, description="Self-reported model confidence")
 
 
 class ConstrainedPrescriptionExtraction(BaseModel):
     """Constrained schema for whole prescription extraction enforcing strict output format."""
-    medications: List[ConstrainedMedicationExtraction] = Field(default_factory=list)
+    medications: list[ConstrainedMedicationExtraction] = Field(default_factory=list)
     is_rx_symbol_present: bool = Field(default=True, description="Whether Rx symbol was identified")
-    doctor_notes: Optional[str] = Field(default=None, description="Clinical notes or remarks")
-    validation_error: Optional[str] = Field(default=None, description="Validation error message if schema parsing was corrected")
+    doctor_notes: str | None = Field(default=None, description="Clinical notes or remarks")
+    validation_error: str | None = Field(default=None, description="Validation error message if schema parsing was corrected")
     schema_retry_attempted: bool = Field(default=False, description="Whether schema format retry was executed")

@@ -2,8 +2,8 @@
 Unit Tests for Ephemeral Session Cleaner & Multi-Pass File Shredder in Module D.
 """
 
-import pytest
 import uuid
+
 from module_d.privacy.session_cleaner import session_cleaner
 
 

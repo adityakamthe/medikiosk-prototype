@@ -1,12 +1,10 @@
 """
 Unit tests for Computer Vision Preprocessor module (CV & Line Extraction).
 """
-import pytest
-import numpy as np
 import cv2
-
-from cv.preprocessor import cv_preprocessor, PreprocessEngine
-from ocr.line_extractor import line_extractor, LineExtractor
+import numpy as np
+from cv.preprocessor import cv_preprocessor
+from ocr.line_extractor import line_extractor
 
 
 def test_ink_color_separation():
@@ -48,9 +46,9 @@ def test_horizontal_line_strip_segmentation():
 
     lines = line_extractor.extract_lines(img, min_line_height=10, min_line_width=50)
     assert len(lines) >= 3
-    for l in lines:
-        assert l.bbox.y >= 0
-        assert l.bbox.height > 0
+    for line in lines:
+        assert line.bbox.y >= 0
+        assert line.bbox.height > 0
 
 
 def test_high_res_dewarp_preservation():

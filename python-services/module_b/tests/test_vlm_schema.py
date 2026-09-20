@@ -1,26 +1,13 @@
 """
 Tests for Constrained Output Schema Validation and 1-Shot Retry Gate
 """
-import pytest
 try:
     from ocr.schema_parser import (
         parse_vlm_output_with_retry,
-        parse_and_validate_extraction,
-        extract_partial_fallback
-    )
-    from schemas.intake_schemas import (
-        ConstrainedMedicationExtraction,
-        ConstrainedPrescriptionExtraction
     )
 except (ImportError, ModuleNotFoundError):
     from module_b.ocr.schema_parser import (
         parse_vlm_output_with_retry,
-        parse_and_validate_extraction,
-        extract_partial_fallback
-    )
-    from module_b.schemas.intake_schemas import (
-        ConstrainedMedicationExtraction,
-        ConstrainedPrescriptionExtraction
     )
 
 

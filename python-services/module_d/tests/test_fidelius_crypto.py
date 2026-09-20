@@ -3,12 +3,13 @@ Unit Tests for ABDM Fidelius Cryptographic Engine (Curve25519 ECDH + AES-256-GCM
 """
 
 import pytest
+
 from module_d.privacy.crypto_fidelius import fidelius_crypto
 
 
 def test_keypair_generation():
     """Verify X25519 keypair generation produces valid Base64 encoded keys."""
-    priv, pub, priv_b64, pub_b64 = fidelius_crypto.generate_keypair()
+    _priv, _pub, priv_b64, pub_b64 = fidelius_crypto.generate_keypair()
     assert len(priv_b64) > 40
     assert len(pub_b64) > 40
     # Loading keys back must succeed

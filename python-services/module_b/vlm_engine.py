@@ -9,16 +9,13 @@ Implements:
 3. Integration with CDSCO formulary and verbal context anchoring.
 """
 
-import os
-import json
 import re
-from typing import Dict, Any, List, Optional, Tuple
-from rapidfuzz import fuzz
+from typing import Any
 
 from cdsco_normalizer import match_against_cdsco
+from rapidfuzz import fuzz
 
-
-COMMONWEALTH_SHORTHAND_LEXICON: Dict[str, str] = {
+COMMONWEALTH_SHORTHAND_LEXICON: dict[str, str] = {
     "1+0+1": "Twice daily (1-0-1)",
     "bd": "Twice daily",
     "bid": "Twice daily",
@@ -60,7 +57,7 @@ def decode_shorthand_sig(sig: str) -> str:
 
 
 def build_vlm_clinical_prompt(
-    verbal_context: Optional[str] = None,
+    verbal_context: str | None = None,
     line_strips_count: int = 0
 ) -> str:
     """
@@ -112,17 +109,17 @@ def normalize_token_name(token: str) -> str:
 
 
 def resolve_token_agreement(
-    vlm1_meds: List[Dict[str, Any]],
-    vlm2_meds: List[Dict[str, Any]],
-    verbal_context: Optional[str] = None
-) -> List[Dict[str, Any]]:
+    vlm1_meds: list[dict[str, Any]],
+    vlm2_meds: list[dict[str, Any]],
+    verbal_context: str | None = None
+) -> list[dict[str, Any]]:
     """
     Applies Ensemble Agreement Logic:
     1. If both models yield matching drug tokens, automatically confirm the token.
     2. If tokens conflict (e.g. 'Baclofen 10mg' vs 'Bactrim 10mg'), bypass hard consensus
        and forward both candidate strings to cdsco_normalizer for candidate ranking.
     """
-    resolved_medications: List[Dict[str, Any]] = []
+    resolved_medications: list[dict[str, Any]] = []
     used_vlm2_indices = set()
 
     for idx1, med1 in enumerate(vlm1_meds):
@@ -220,10 +217,10 @@ def resolve_token_agreement(
 
 
 def run_ensemble_decoding(
-    vlm1_output: Dict[str, Any],
-    vlm2_output: Dict[str, Any],
-    verbal_context: Optional[str] = None
-) -> Dict[str, Any]:
+    vlm1_output: dict[str, Any],
+    vlm2_output: dict[str, Any],
+    verbal_context: str | None = None
+) -> dict[str, Any]:
     """
     Ensembles Pixtral 12B and Qwen2.5-VL-7B outputs, merges laboratory evaluations,
     and applies token agreement logic for medications.
@@ -239,11 +236,11 @@ def run_ensemble_decoding(
     combined_labs = []
     seen_lab_names = set()
 
-    for l in labs1 + labs2:
-        lname = str(l.get("name", "")).lower().strip()
+    for lab_item in labs1 + labs2:
+        lname = str(lab_item.get("name", "")).lower().strip()
         if lname and lname not in seen_lab_names:
             seen_lab_names.add(lname)
-            combined_labs.append(l)
+            combined_labs.append(lab_item)
 
     return {
         "ensemble_engine": "Pixtral-12B + Qwen2.5-VL-7B",

@@ -3,78 +3,69 @@ Master Pipeline Coordinator for MediKiosk Module B.
 Unifies CV preprocessing, projection line slicing, VLM consensus, Bhashini translation,
 CDSCO/LOINC grounding, clinical safety verification, and FHIR R4 generation.
 """
-from typing import Dict, Any, List, Optional
 import os
-import cv2
-import numpy as np
+from typing import Any
 
 try:
-    from module_b.schemas.intake_schemas import DocumentIntakePayload, RawPrescriptionLine
-    from module_b.schemas.verification_schemas import (
-        VerificationReport,
-        NormalizedMedicationItem,
-        EvaluatedLabItem,
-        ClinicalAlert,
-        VerificationActionGate,
-        LongitudinalEpisode
-    )
     from module_b.cv.preprocessor import cv_preprocessor
-    from module_b.ocr.line_extractor import line_extractor
-    from module_b.ocr.vlm_ensemble import vlm_ensemble, resolve_token_agreement
-    from module_b.vernacular.bhashini_service import bhashini_translator
-    from module_b.normalizers.cdsco_normalizer import cdsco_matcher
-    from module_b.normalizers.loinc_mapper import loinc_mapper
+    from module_b.fhir.bundle_builder import fhir_builder
     from module_b.intelligence.lab_verifier import lab_verifier
     from module_b.intelligence.med_verifier import medication_verifier
     from module_b.intelligence.timeline_cluster import cluster_into_episodes
-    from module_b.ocr.secondary_recognizer import secondary_recognizer, apply_disagreement_gate
-    from module_b.ocr.schema_parser import parse_vlm_output_with_retry
-    from module_b.fhir.bundle_builder import fhir_builder
+    from module_b.normalizers.cdsco_normalizer import cdsco_matcher
+    from module_b.normalizers.loinc_mapper import loinc_mapper
+    from module_b.ocr.line_extractor import line_extractor
+    from module_b.ocr.secondary_recognizer import apply_disagreement_gate
+    from module_b.schemas.intake_schemas import DocumentIntakePayload
+    from module_b.schemas.verification_schemas import (
+        ClinicalAlert,
+        EvaluatedLabItem,
+        NormalizedMedicationItem,
+        VerificationActionGate,
+        VerificationReport,
+    )
+    from module_b.vernacular.bhashini_service import bhashini_translator
 except (ImportError, ValueError):
     try:
-        from .schemas.intake_schemas import DocumentIntakePayload, RawPrescriptionLine
-        from .schemas.verification_schemas import (
-            VerificationReport,
-            NormalizedMedicationItem,
-            EvaluatedLabItem,
-            ClinicalAlert,
-            VerificationActionGate,
-            LongitudinalEpisode
-        )
         from .cv.preprocessor import cv_preprocessor
-        from .ocr.line_extractor import line_extractor
-        from .ocr.vlm_ensemble import vlm_ensemble, resolve_token_agreement
-        from .ocr.secondary_recognizer import secondary_recognizer, apply_disagreement_gate
-        from .ocr.schema_parser import parse_vlm_output_with_retry
-        from .vernacular.bhashini_service import bhashini_translator
-        from .normalizers.cdsco_normalizer import cdsco_matcher
-        from .normalizers.loinc_mapper import loinc_mapper
+        from .fhir.bundle_builder import fhir_builder
         from .intelligence.lab_verifier import lab_verifier
         from .intelligence.med_verifier import medication_verifier
         from .intelligence.timeline_cluster import cluster_into_episodes
-        from .fhir.bundle_builder import fhir_builder
-    except (ImportError, ValueError):
-        from schemas.intake_schemas import DocumentIntakePayload, RawPrescriptionLine
-        from schemas.verification_schemas import (
-            VerificationReport,
-            NormalizedMedicationItem,
-            EvaluatedLabItem,
+        from .normalizers.cdsco_normalizer import cdsco_matcher
+        from .normalizers.loinc_mapper import loinc_mapper
+        from .ocr.line_extractor import line_extractor
+        from .ocr.secondary_recognizer import apply_disagreement_gate
+        from .schemas.intake_schemas import DocumentIntakePayload
+        from .schemas.verification_schemas import (
             ClinicalAlert,
+            EvaluatedLabItem,
+            NormalizedMedicationItem,
             VerificationActionGate,
-            LongitudinalEpisode
+            VerificationReport,
         )
-        from cv.preprocessor import cv_preprocessor
-        from ocr.line_extractor import line_extractor
-        from ocr.vlm_ensemble import vlm_ensemble, resolve_token_agreement
-        from ocr.secondary_recognizer import secondary_recognizer, apply_disagreement_gate
-        from ocr.schema_parser import parse_vlm_output_with_retry
-        from vernacular.bhashini_service import bhashini_translator
-        from normalizers.cdsco_normalizer import cdsco_matcher
-        from normalizers.loinc_mapper import loinc_mapper
-        from intelligence.lab_verifier import lab_verifier
-        from intelligence.med_verifier import medication_verifier
-        from intelligence.timeline_cluster import cluster_into_episodes
-        from fhir.bundle_builder import fhir_builder
+        from .vernacular.bhashini_service import bhashini_translator
+    except (ImportError, ValueError):
+        from cv.preprocessor import cv_preprocessor  # type: ignore[no-redef]
+        from fhir.bundle_builder import fhir_builder  # type: ignore[no-redef]
+        from intelligence.lab_verifier import lab_verifier  # type: ignore[no-redef]
+        from intelligence.med_verifier import medication_verifier  # type: ignore[no-redef]
+        from intelligence.timeline_cluster import cluster_into_episodes  # type: ignore[no-redef]
+        from normalizers.cdsco_normalizer import cdsco_matcher  # type: ignore[no-redef]
+        from normalizers.loinc_mapper import loinc_mapper  # type: ignore[no-redef]
+        from ocr.line_extractor import line_extractor  # type: ignore[no-redef]
+        from ocr.secondary_recognizer import (  # type: ignore[no-redef]
+            apply_disagreement_gate,
+        )
+        from schemas.intake_schemas import DocumentIntakePayload  # type: ignore[no-redef]
+        from schemas.verification_schemas import (  # type: ignore[no-redef]
+            ClinicalAlert,
+            EvaluatedLabItem,
+            NormalizedMedicationItem,
+            VerificationActionGate,
+            VerificationReport,
+        )
+        from vernacular.bhashini_service import bhashini_translator  # type: ignore[no-redef]
 
 
 class PipelineCoordinator:
@@ -94,12 +85,12 @@ class PipelineCoordinator:
 
     def run_pipeline(
         self,
-        image_bytes: Optional[bytes] = None,
-        image_path: Optional[str] = None,
-        intake_payload: Optional[DocumentIntakePayload] = None,
-        session_id: Optional[str] = None,
-        verbal_context: Optional[str] = None,
-        mock_vlm_predictions: Optional[List[Dict[str, Any]]] = None
+        image_bytes: bytes | None = None,
+        image_path: str | None = None,
+        intake_payload: DocumentIntakePayload | None = None,
+        session_id: str | None = None,
+        verbal_context: str | None = None,
+        mock_vlm_predictions: list[dict[str, Any]] | None = None
     ) -> VerificationReport:
         """
         Executes the entire Module B verification pipeline.
@@ -128,8 +119,8 @@ class PipelineCoordinator:
             line_strips_count = len(strips)
 
         # Step 3: Extract or collect raw medications & labs
-        extracted_meds: List[Dict[str, Any]] = []
-        extracted_labs: List[Dict[str, Any]] = []
+        extracted_meds: list[dict[str, Any]] = []
+        extracted_labs: list[dict[str, Any]] = []
         context_text = verbal_context or ""
 
         if intake_payload:
@@ -137,8 +128,8 @@ class PipelineCoordinator:
                 context_text = f"{context_text} {intake_payload.metadata.verbal_transcription}".strip()
             for m in intake_payload.medications:
                 extracted_meds.append(m.model_dump())
-            for l in intake_payload.labs:
-                extracted_labs.append(l.model_dump())
+            for lab in intake_payload.labs:
+                extracted_labs.append(lab.model_dump())
 
         if mock_vlm_predictions:
             for pred in mock_vlm_predictions:
@@ -148,7 +139,7 @@ class PipelineCoordinator:
                     extracted_meds.append(pred)
 
         # Step 4: Normalize and Ground Medications (Bhashini + CDSCO)
-        normalized_medications: List[NormalizedMedicationItem] = []
+        normalized_medications: list[NormalizedMedicationItem] = []
         for raw_med in extracted_meds:
             raw_name = raw_med.get("raw_text") or raw_med.get("name") or ""
             raw_dose = raw_med.get("dosage") or raw_med.get("dose") or ""
@@ -204,7 +195,7 @@ class PipelineCoordinator:
             normalized_medications.append(norm_item)
 
         # Step 5: Evaluate Diagnostic Labs (LOINC)
-        evaluated_labs: List[EvaluatedLabItem] = []
+        evaluated_labs: list[EvaluatedLabItem] = []
         for raw_lab in extracted_labs:
             t_name = raw_lab.get("test_name") or raw_lab.get("name") or ""
             r_val = raw_lab.get("value") or raw_lab.get("raw_value") or ""
@@ -227,7 +218,7 @@ class PipelineCoordinator:
         med_alerts, gastro_status, has_critical = self.med_verifier.audit_medications(med_dicts_for_audit)
 
         # Lab panic alerts added to total alerts
-        all_alerts: List[ClinicalAlert] = list(med_alerts)
+        all_alerts: list[ClinicalAlert] = list(med_alerts)
         for lab_item in evaluated_labs:
             if lab_item.is_panic and lab_item.alert_message:
                 all_alerts.append(ClinicalAlert(

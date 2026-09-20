@@ -3,10 +3,11 @@ Line-Level Bounding Box Extractor for MediKiosk Module B
 Implements horizontal projection profiling and connected contour strip extraction.
 """
 
+import base64
+from typing import Any
+
 import cv2
 import numpy as np
-import base64
-from typing import List, Dict, Any
 
 
 def extract_prescription_lines(
@@ -14,7 +15,7 @@ def extract_prescription_lines(
     min_line_height: int = 18,
     min_line_width: int = 80,
     export_base64: bool = False
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Extracts ordered text line strips from a medical document image.
     Enforces minimum height 18px and minimum width 80px for reliable prescription line segmentation.
@@ -44,7 +45,7 @@ def extract_prescription_lines(
     # Sort vertically from top to bottom
     boxes = sorted(boxes, key=lambda b: b[1])
 
-    line_strips: List[Dict[str, Any]] = []
+    line_strips: list[dict[str, Any]] = []
     for idx, (x, y, cw, ch) in enumerate(boxes):
         pad = 4
         y0 = max(0, y - pad)
@@ -53,7 +54,7 @@ def extract_prescription_lines(
         x1 = min(w, x + cw + pad)
 
         crop = image_bgr[y0:y1, x0:x1]
-        line_item: Dict[str, Any] = {
+        line_item: dict[str, Any] = {
             "line_index": idx,
             "bbox": {"x": int(x0), "y": int(y0), "width": int(x1 - x0), "height": int(y1 - y0)},
             "crop_shape": {"width": int(crop.shape[1]), "height": int(crop.shape[0])}
@@ -74,7 +75,7 @@ def prepare_multimodal_vlm_input(
     min_line_height: int = 18,
     min_line_width: int = 80,
     max_strips: int = 12
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Prepares multimodal VLM input combining full-page context image and cropped line strips.
     Prevents skipped lines and column association errors.
@@ -114,14 +115,14 @@ class LineExtractor:
         min_line_height: int = 18,
         min_line_width: int = 80,
         export_base64: bool = False
-    ) -> List[Any]:
+    ) -> list[Any]:
         try:
-            from module_b.schemas.intake_schemas import RawPrescriptionLine, BoundingBox
+            from module_b.schemas.intake_schemas import BoundingBox, RawPrescriptionLine
         except (ImportError, ValueError):
             try:
-                from ..schemas.intake_schemas import RawPrescriptionLine, BoundingBox
+                from ..schemas.intake_schemas import BoundingBox, RawPrescriptionLine  # type: ignore[no-redef]
             except (ImportError, ValueError):
-                from schemas.intake_schemas import RawPrescriptionLine, BoundingBox
+                from schemas.intake_schemas import BoundingBox, RawPrescriptionLine  # type: ignore[no-redef]
 
         raw_lines = extract_prescription_lines(image_bgr, min_line_height, min_line_width, export_base64)
         results = []
@@ -140,7 +141,7 @@ class LineExtractor:
         min_line_height: int = 18,
         min_line_width: int = 80,
         max_strips: int = 12
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         return prepare_multimodal_vlm_input(
             image_bgr,
             min_line_height=min_line_height,

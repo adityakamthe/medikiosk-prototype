@@ -1,22 +1,21 @@
 """
 Unit tests for Ayurvedic Dashavidha Pariksha Synthesis Engine.
 """
-import pytest
 try:
     from engine.ayush_synthesizer import ayush_synthesizer
     from schemas.ingestion_schemas import (
-        PatientRecordPayload,
         ChiefComplaint,
+        PatientMeta,
+        PatientRecordPayload,
         SocratesHPI,
-        PatientMeta
     )
 except (ImportError, ModuleNotFoundError):
     from module_c.engine.ayush_synthesizer import ayush_synthesizer
     from module_c.schemas.ingestion_schemas import (
-        PatientRecordPayload,
         ChiefComplaint,
+        PatientMeta,
+        PatientRecordPayload,
         SocratesHPI,
-        PatientMeta
     )
 
 

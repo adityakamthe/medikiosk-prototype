@@ -2,27 +2,27 @@
 ABHA M1 Verification & Authentication Schemas for MediKiosk Module D.
 """
 
-from typing import Optional, Dict, Any, List
+from typing import Any
+
 from pydantic import BaseModel, Field
-import uuid
 
 
 class AbhaDemographics(BaseModel):
     abha_number: str = Field(..., description="14-digit ABHA Number e.g. 91-1234-5678-9012")
-    abha_id: Optional[str] = None
+    abha_id: str | None = None
     abha_address: str = Field(..., description="ABHA handle e.g. rahul.sharma@abdm")
     name: str
     gender: str  # M, F, O or Male, Female, Other
     dob: str  # YYYY-MM-DD
     year_of_birth: int
-    mobile: Optional[str] = None
-    email: Optional[str] = None
-    address: Optional[str] = None
-    district: Optional[str] = None
-    state: Optional[str] = None
-    pincode: Optional[str] = None
+    mobile: str | None = None
+    email: str | None = None
+    address: str | None = None
+    district: str | None = None
+    state: str | None = None
+    pincode: str | None = None
     is_verified: bool = True
-    auth_methods: List[str] = ["OTP", "DEMOGRAPHICS", "QR_CODE"]
+    auth_methods: list[str] = ["OTP", "DEMOGRAPHICS", "QR_CODE"]
 
     def __init__(self, **data):
         if "abha_number" in data and "abha_id" not in data:
@@ -36,9 +36,9 @@ class AbhaQRScanRequest(BaseModel):
 
 class AbhaQRScanResponse(BaseModel):
     success: bool
-    demographics: Optional[AbhaDemographics] = None
-    raw_parsed_data: Dict[str, Any] = {}
-    error: Optional[str] = None
+    demographics: AbhaDemographics | None = None
+    raw_parsed_data: dict[str, Any] = {}
+    error: str | None = None
 
 
 class OTPGenerateRequest(BaseModel):
@@ -49,7 +49,7 @@ class OTPGenerateRequest(BaseModel):
 class OTPGenerateResponse(BaseModel):
     success: bool
     txn_id: str
-    transaction_id: Optional[str] = None
+    transaction_id: str | None = None
     auth_mode: str
     masked_target: str
     message: str = "OTP successfully dispatched (Use '123456' for instant demo validation)"
@@ -61,10 +61,10 @@ class OTPGenerateResponse(BaseModel):
 
 
 class OTPVerifyRequest(BaseModel):
-    txn_id: Optional[str] = None
-    transaction_id: Optional[str] = None
+    txn_id: str | None = None
+    transaction_id: str | None = None
     otp: str = Field(default="123456", description="6-digit OTP code")
-    abha_id: Optional[str] = None
+    abha_id: str | None = None
 
     @property
     def effective_txn_id(self) -> str:

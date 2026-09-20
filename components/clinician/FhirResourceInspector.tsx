@@ -7,15 +7,10 @@ import {
   Activity, 
   Pill, 
   AlertTriangle, 
-  CheckCircle2, 
-  ShieldCheck, 
   Copy, 
   Check, 
   Code, 
-  Download, 
-  Sparkles,
-  ChevronRight,
-  Info
+  Download
 } from '@/components/Icons';
 
 interface FhirResourceInspectorProps {
@@ -30,8 +25,8 @@ export function FhirResourceInspector({
   bundle,
   patientName = 'Patient',
   onDownloadText,
-  onPushToHIS,
-  isPushing = false
+  onPushToHIS: _onPushToHIS,
+  isPushing: _isPushing = false
 }: FhirResourceInspectorProps) {
   const [activeCategory, setActiveCategory] = useState<'all' | 'Patient' | 'Condition' | 'MedicationStatement' | 'Observation' | 'AllergyIntolerance' | 'Composition'>('all');
   const [showRawJson, setShowRawJson] = useState<boolean>(false);
@@ -58,9 +53,9 @@ export function FhirResourceInspector({
   const medications = resources.filter(r => r.resourceType === 'MedicationStatement');
   const observations = resources.filter(r => r.resourceType === 'Observation');
   const allergies = resources.filter(r => r.resourceType === 'AllergyIntolerance');
-  const compositions = resources.filter(r => r.resourceType === 'Composition');
+  const _compositions = resources.filter(r => r.resourceType === 'Composition');
 
-  const filteredResources = activeCategory === 'all' 
+  const _filteredResources = activeCategory === 'all' 
     ? resources 
     : resources.filter(r => r.resourceType === activeCategory);
 

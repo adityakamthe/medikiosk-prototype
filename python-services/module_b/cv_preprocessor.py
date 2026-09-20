@@ -9,10 +9,11 @@ Implements:
 4. Fast Non-Local Means Denoising and Adaptive Gaussian Thresholding for ink stroke isolation.
 """
 
+import base64
+from typing import Any
+
 import cv2
 import numpy as np
-import base64
-from typing import Tuple, Optional, Dict, Any, List
 
 
 def order_points(pts: np.ndarray) -> np.ndarray:
@@ -62,7 +63,7 @@ def four_point_transform(image: np.ndarray, pts: np.ndarray) -> np.ndarray:
     return warped
 
 
-def detect_document_boundary(image: np.ndarray) -> Optional[np.ndarray]:
+def detect_document_boundary(image: np.ndarray) -> np.ndarray | None:
     """
     Finds the 4 corners of the medical document in the image using Canny edge detection
     and contour approximation on a downscaled 500px proxy.
@@ -109,20 +110,20 @@ def enhance_ink_contrast_lab(image_bgr: np.ndarray) -> np.ndarray:
     """
     h, w = image_bgr.shape[:2]
     lab = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2LAB)
-    l, a, b = cv2.split(lab)
+    l_chan, a, b = cv2.split(lab)
 
     k_size = max(35, min(w, h) // 16)
     k_size = min(k_size, max(3, min(w, h) - 1))
     if k_size % 2 == 0:
         k_size += 1
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (k_size, k_size))
-    bg = cv2.morphologyEx(l, cv2.MORPH_OPEN, kernel)
+    bg = cv2.morphologyEx(l_chan, cv2.MORPH_OPEN, kernel)
 
     if bg.mean() > 50:
         bg = np.maximum(bg, 30)
-        norm_l = cv2.divide(l, bg, scale=255)
+        norm_l = cv2.divide(l_chan, bg, scale=255)
     else:
-        norm_l = l
+        norm_l = l_chan
 
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
     enhanced_l = clahe.apply(norm_l)
@@ -211,7 +212,7 @@ def segment_prescription_lines(
     image_bgr: np.ndarray,
     min_line_height: int = 18,
     min_line_width: int = 80
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Segments horizontal prescription line strips (individual medications, dosage lines,
     investigation items) using horizontal projection profiling and contour bounding box detection.
@@ -241,7 +242,7 @@ def segment_prescription_lines(
     # Sort vertically from top of prescription to bottom
     boxes = sorted(boxes, key=lambda b: b[1])
 
-    line_strips: List[Dict[str, Any]] = []
+    line_strips: list[dict[str, Any]] = []
     for idx, (x, y, cw, ch) in enumerate(boxes):
         pad = 4
         y0 = max(0, y - pad)
@@ -270,7 +271,7 @@ def preprocess_medical_document(
     apply_binary_mask: bool = False,
     apply_ink_isolation: bool = False,
     extract_lines: bool = False
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     End-to-End Stage 1 Preprocessing Pipeline with Full-Resolution Dewarp
     and LAB Illumination Division + CLAHE Ink Contrast Enhancement.

@@ -1,10 +1,11 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import jsQR from 'jsqr';
 import { 
-  Volume2, Mic, MicOff, Camera, Upload, CheckCircle2 as CheckCircle, AlertTriangle, 
+  Volume2, Mic, Camera, Upload, CheckCircle2 as CheckCircle, AlertTriangle, 
   ChevronRight, HeartPulse, User, Clock, ShieldCheck,
   HelpCircle, FileText, XCircle, Globe, RefreshCw, Lock, Stethoscope,
   QrCode, ScanLine, Printer
@@ -14,8 +15,7 @@ import {
   getEstimatedQueueTime, 
   playEmergencySirenAudio, 
   playHospitalChime,
-  DoctorProfile,
-  DOCTOR_ROSTER
+  DoctorProfile
 } from '@/lib/doctors';
 import {
   AYUSH_DASHIVIDHA_QUESTIONS,
@@ -72,6 +72,7 @@ export default function KioskPortal() {
     } else if (step === 'consent_declined') {
       speakPrompt(currentLang.reception_prompt || 'Digital consent was not provided. Please visit the central hospital reception desk on the ground floor for manual registration and offline assistance.');
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
   // Fetch continuous sequential queue token on load
@@ -270,6 +271,7 @@ export default function KioskPortal() {
     return () => {
       if (interval) clearInterval(interval);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isScanningCamera, cameraStream]);
 
   // Clean up camera on unmount
@@ -305,7 +307,7 @@ export default function KioskPortal() {
   const [qualityWarning, setQualityWarning] = useState<string | null>(null);
   const [scanningStatus, setScanningStatus] = useState<string | null>(null);
   const [showDocCameraModal, setShowDocCameraModal] = useState<boolean>(false);
-  const [isDocCameraActive, setIsDocCameraActive] = useState<boolean>(false);
+  const [_isDocCameraActive, setIsDocCameraActive] = useState<boolean>(false);
   const [docCameraStream, setDocCameraStream] = useState<MediaStream | null>(null);
   const docVideoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -1304,7 +1306,7 @@ export default function KioskPortal() {
       } else {
         setQualityWarning(data.error || 'Document quality check warning: Please ensure paper is flat and readable.');
       }
-    } catch (err: any) {
+    } catch {
       setIsScanning(false);
       setScanningStatus(null);
       setQualityWarning('Upload failed. Please try scanning again.');

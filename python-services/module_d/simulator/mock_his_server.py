@@ -5,18 +5,23 @@ Provides zero-docker local emulation of OpenMRS / Bahmni REST & HAPI-FHIR endpoi
 
 import uuid
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional
-from ..schemas.his_schemas import OpenMRSPatientPayload, OpenMRSVisitPayload, OpenMRSEncounterPayload
+from typing import Any
+
+from ..schemas.his_schemas import (
+    OpenMRSEncounterPayload,
+    OpenMRSPatientPayload,
+    OpenMRSVisitPayload,
+)
 
 
 class MockHISServer:
     """In-memory OpenMRS REST & FHIR R4 repository."""
 
     def __init__(self):
-        self.patients: Dict[str, Dict[str, Any]] = {}
-        self.visits: Dict[str, Dict[str, Any]] = {}
-        self.encounters: Dict[str, Dict[str, Any]] = {}
-        self.fhir_bundles: Dict[str, Dict[str, Any]] = {}
+        self.patients: dict[str, dict[str, Any]] = {}
+        self.visits: dict[str, dict[str, Any]] = {}
+        self.encounters: dict[str, dict[str, Any]] = {}
+        self.fhir_bundles: dict[str, dict[str, Any]] = {}
         self._seed_default_patients()
 
     def _seed_default_patients(self):
@@ -33,7 +38,7 @@ class MockHISServer:
         }
         self.patients[default_patient["identifier"]] = default_patient
 
-    def lookup_patient(self, identifier: str) -> Optional[Dict[str, Any]]:
+    def lookup_patient(self, identifier: str) -> dict[str, Any] | None:
         """Find patient by ABHA number, national ID, or queue token."""
         # Direct identifier match
         if identifier in self.patients:
@@ -44,7 +49,7 @@ class MockHISServer:
                 return p
         return None
 
-    def create_patient(self, payload: OpenMRSPatientPayload) -> Dict[str, Any]:
+    def create_patient(self, payload: OpenMRSPatientPayload) -> dict[str, Any]:
         """Register a new patient into the mock OpenMRS database."""
         existing = self.lookup_patient(payload.identifier)
         if existing:
@@ -65,7 +70,7 @@ class MockHISServer:
         self.patients[payload.identifier] = record
         return record
 
-    def create_visit(self, payload: OpenMRSVisitPayload) -> Dict[str, Any]:
+    def create_visit(self, payload: OpenMRSVisitPayload) -> dict[str, Any]:
         """Create an active OPD Visit record for a patient."""
         visit_uuid = str(uuid.uuid4())
         record = {
@@ -80,7 +85,7 @@ class MockHISServer:
         self.visits[visit_uuid] = record
         return record
 
-    def create_encounter(self, payload: OpenMRSEncounterPayload) -> Dict[str, Any]:
+    def create_encounter(self, payload: OpenMRSEncounterPayload) -> dict[str, Any]:
         """Create an OPD Consultation Encounter linked to a patient visit."""
         encounter_uuid = str(uuid.uuid4())
         record = {
@@ -96,7 +101,7 @@ class MockHISServer:
         self.encounters[encounter_uuid] = record
         return record
 
-    def ingest_fhir_bundle(self, bundle: Dict[str, Any]) -> Dict[str, Any]:
+    def ingest_fhir_bundle(self, bundle: dict[str, Any]) -> dict[str, Any]:
         """Store an attested FHIR R4 Document Bundle."""
         bundle_id = bundle.get("id") or str(uuid.uuid4())
         record = {

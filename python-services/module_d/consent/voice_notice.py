@@ -3,13 +3,12 @@ Vernacular Voice Notice Generator for MediKiosk Module D (DPDP Act 2023).
 Provides spoken audio notice hooks in Hindi, English, Marathi, Tamil, Telugu, etc.
 """
 
-from typing import Dict, Optional, Any
-import httpx
+from typing import Any
+
 from ..config import settings
 
-
 # Pre-formulated spoken notices across key Indian languages
-SPOKEN_NOTICES: Dict[str, str] = {
+SPOKEN_NOTICES: dict[str, str] = {
     "hi": (
         "नमस्ते। आपकी चिकित्सा जानकारी केवल डॉक्टर के परामर्श और पूर्व-जांच सारांश तैयार करने के लिए ली जा रही है। "
         "यह डेटा पूरी तरह गोपनीय है और डॉक्टर के सत्यापन के बाद कियोस्क से स्वतः हटा दिया जाएगा। "
@@ -67,7 +66,7 @@ def generate_vernacular_audio_notice(
     language: str = "hi",
     data_fiduciary: str = settings.DATA_FIDUCIARY,
     purpose: str = "clinical OPD intake and consultation preparation"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Generates localized audio notice strings in Hindi, Bengali, Marathi, and English
     describing data collected, Data Fiduciary identity, and purpose before seeking consent.
@@ -117,7 +116,7 @@ class VoiceNoticeService:
     def generate_notice(self, language: str = "hi", data_fiduciary: str = settings.DATA_FIDUCIARY, purpose: str = "OPD intake"):
         return generate_vernacular_audio_notice(language, data_fiduciary, purpose)
 
-    async def generate_voice_notice_stream(self, language: str = "hi") -> Dict[str, str]:
+    async def generate_voice_notice_stream(self, language: str = "hi") -> dict[str, str]:
         """
         Synthesize or retrieve audio stream descriptor for the voice notice.
         Returns text and audio source reference for client audio elements.

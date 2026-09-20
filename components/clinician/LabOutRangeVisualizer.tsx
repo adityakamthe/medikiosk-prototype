@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Activity, AlertOctagon, AlertTriangle, CheckCircle2, TrendingUp, TrendingDown } from '@/components/Icons';
+import { Activity, AlertOctagon, AlertTriangle, CheckCircle2 } from '@/components/Icons';
 
 export interface LabResultItem {
   test_name: string;

@@ -4,11 +4,12 @@ Mandate: 0 bytes retained on kiosk once clinical record is ingested or consent r
 Complies with DPDP Act 2023 Ephemeral Data Processing provisions.
 """
 
-import os
 import gc
+import os
 import shutil
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Any
+
 from ..config import settings
 
 
@@ -72,7 +73,7 @@ class KioskSessionCleaner:
             f.write(content)
         return target_path
 
-    def purge_session(self, session_id: str) -> Dict[str, Any]:
+    def purge_session(self, session_id: str) -> dict[str, Any]:
         """
         Purge all ephemeral files, temporary images, OCR bounding boxes, audio buffers,
         and directories for the session.

@@ -3,11 +3,11 @@ DPDP Act 2023 Consent Artifact Schemas for MediKiosk Module D.
 Standard Version: DPDP v5.0 Itemized Affirmative Action.
 """
 
-from enum import Enum
-from typing import List, Dict, Optional, Any
-from datetime import datetime, timezone
-from pydantic import BaseModel, Field
 import uuid
+from enum import Enum
+from typing import Any
+
+from pydantic import BaseModel, Field
 
 
 class ConsentPurpose(str, Enum):
@@ -44,7 +44,7 @@ class ItemizedPurposeDetail(BaseModel):
     purpose: ConsentPurpose
     title: str
     description: str
-    data_elements: List[ConsentDataElement]
+    data_elements: list[ConsentDataElement]
     retention: RetentionPolicy = RetentionPolicy.EPHEMERAL_POST_INGESTION
     is_mandatory: bool = False
     default_granted: bool = True
@@ -52,7 +52,7 @@ class ItemizedPurposeDetail(BaseModel):
 
 class ConsentNoticeRequest(BaseModel):
     language: str = Field(default="hi", description="BCP-47 language code e.g. hi, en, mr, ta")
-    patient_id: Optional[str] = None
+    patient_id: str | None = None
 
 
 class ConsentNoticeResponse(BaseModel):
@@ -63,57 +63,57 @@ class ConsentNoticeResponse(BaseModel):
     language: str
     title: str
     body: str
-    itemized_purposes: List[ItemizedPurposeDetail]
-    rights_summary: Dict[str, str]
+    itemized_purposes: list[ItemizedPurposeDetail]
+    rights_summary: dict[str, str]
     audio_notice_available: bool = True
     notice_timestamp: str
 
 
 class ConsentArtifactCreate(BaseModel):
     session_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    patient_id: Optional[str] = None
-    abha_id: Optional[str] = None
-    granted_purposes: List[ConsentPurpose] = Field(
+    patient_id: str | None = None
+    abha_id: str | None = None
+    granted_purposes: list[ConsentPurpose] = Field(
         default=[ConsentPurpose.CARE_INTAKE, ConsentPurpose.DOCTOR_CONSULTATION, ConsentPurpose.DOCUMENT_DIGITIZATION]
     )
     language: str = "hi"
     method: ConsentMethod = ConsentMethod.TOUCH
     is_guardian_consent: bool = False
-    guardian_name: Optional[str] = None
-    guardian_relationship: Optional[str] = None
+    guardian_name: str | None = None
+    guardian_relationship: str | None = None
     is_emergency_exception: bool = False  # DPDP Act Section 7(a)
-    emergency_justification: Optional[str] = None
-    ip_address: Optional[str] = "127.0.0.1"
-    device_fingerprint: Optional[str] = "medikiosk-hardware-kiosk-01"
+    emergency_justification: str | None = None
+    ip_address: str | None = "127.0.0.1"
+    device_fingerprint: str | None = "medikiosk-hardware-kiosk-01"
 
 
 class ConsentArtifact(BaseModel):
     artifact_id: str
     session_id: str
-    patient_id: Optional[str]
-    abha_id: Optional[str]
+    patient_id: str | None
+    abha_id: str | None
     notice_version: str
-    granted_purposes: List[ConsentPurpose]
+    granted_purposes: list[ConsentPurpose]
     language: str
     method: ConsentMethod
     is_guardian_consent: bool
-    guardian_name: Optional[str]
-    guardian_relationship: Optional[str]
+    guardian_name: str | None
+    guardian_relationship: str | None
     is_emergency_exception: bool
-    emergency_justification: Optional[str]
+    emergency_justification: str | None
     created_at: str
     expires_at: str
-    dataEraseAt: Optional[str] = None  # DPDP v5.0 erase timestamp (default: 120 minutes)
+    dataEraseAt: str | None = None  # DPDP v5.0 erase timestamp (default: 120 minutes)
     is_active: bool = True
-    revoked_at: Optional[str] = None
-    revocation_reason: Optional[str] = None
+    revoked_at: str | None = None
+    revocation_reason: str | None = None
     sha256_signature: str
 
 
 class ConsentVerifyResponse(BaseModel):
     is_valid: bool
-    artifact: Optional[ConsentArtifact] = None
-    reasons: List[str] = []
+    artifact: ConsentArtifact | None = None
+    reasons: list[str] = []
 
 
 class ConsentRevokeRequest(BaseModel):
@@ -137,6 +137,6 @@ class ConsentAuditEntry(BaseModel):
     session_id: str
     action: str  # NOTICE_ISSUED, CONSENT_GRANTED, CONSENT_REVOKED, EMERGENCY_OVERRIDE, MEMORY_PURGED
     actor: str
-    details: Dict[str, Any]
-    prev_checksum: Optional[str] = None
+    details: dict[str, Any]
+    prev_checksum: str | None = None
     checksum: str

@@ -2,8 +2,10 @@
 Unit Tests for HIS / OpenMRS Connector and Idempotent FHIR Forwarding in Module D.
 """
 
-import pytest
 import uuid
+
+import pytest
+
 from module_d.his.fhir_connector import fhir_connector
 from module_d.his.idempotency import idempotency_manager
 from module_d.schemas.his_schemas import FHIRBundlePushRequest

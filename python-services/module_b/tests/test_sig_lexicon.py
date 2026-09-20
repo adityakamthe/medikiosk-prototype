@@ -1,13 +1,11 @@
 """
 Tests for Externalized Vernacular Sig Lexicon and Regex Pre-Processing
 """
-import pytest
 from vernacular.bhashini_service import (
     load_sig_lexicon,
+    normalize_vernacular_numerals,
     regex_preprocess_sig,
     translate_vernacular_sig,
-    normalize_vernacular_numerals,
-    SIG_LEXICON
 )
 
 

@@ -1,20 +1,19 @@
 """
 Unit tests for ABDM FHIR R4 Document Bundle Generation.
 """
-import pytest
 try:
     from module_b.fhir.bundle_builder import fhir_builder
     from module_b.schemas.verification_schemas import (
-        NormalizedMedicationItem,
         EvaluatedLabItem,
-        SeverityTier
+        NormalizedMedicationItem,
+        SeverityTier,
     )
 except ImportError:
-    from fhir.bundle_builder import fhir_builder
-    from schemas.verification_schemas import (
-        NormalizedMedicationItem,
+    from fhir.bundle_builder import fhir_builder  # type: ignore[no-redef]
+    from schemas.verification_schemas import (  # type: ignore[no-redef]
         EvaluatedLabItem,
-        SeverityTier
+        NormalizedMedicationItem,
+        SeverityTier,
     )
 
 

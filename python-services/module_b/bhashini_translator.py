@@ -10,12 +10,11 @@ Implements:
 4. Translation of colloquial meal relationships ('খাওয়ার পর' -> 'After Meals', 'খাওয়ার আগে' -> 'Before Meals').
 """
 
+import json
 import os
 import re
-import json
-import unicodedata
 import urllib.request
-from typing import Dict, Any, Optional
+from typing import Any
 
 # Deterministic mappings of regional Indic digits to Arabic digits
 VERNACULAR_DIGITS_MAP = {
@@ -102,7 +101,7 @@ def normalize_vernacular_numerals(text: str) -> str:
     return ''.join(result)
 
 
-def translate_vernacular_sig(text: str) -> Dict[str, Any]:
+def translate_vernacular_sig(text: str) -> dict[str, Any]:
     """
     Translates vernacular clinical instructions and sig codes into standardized
     English clinical syntax.
@@ -150,13 +149,12 @@ def call_bhashini_nmt_api(
     source_text: str,
     source_lang: str = "bn",
     target_lang: str = "en"
-) -> Optional[str]:
+) -> str | None:
     """
     Calls the official Government of India Bhashini ULCA NMT API if credentials are set.
     """
     user_id = os.environ.get("BHASHINI_USER_ID") or os.environ.get("BHASHINI_UDYAT_KEY")
     api_key = os.environ.get("BHASHINI_API_KEY") or os.environ.get("BHASHINI_INFERENCE_KEY")
-    pipeline_id = os.environ.get("BHASHINI_PIPELINE_ID") or "64332142daac500bd5c70325"
 
     if not (user_id and api_key):
         # Fall back directly to deterministic dictionary
@@ -194,7 +192,7 @@ def call_bhashini_nmt_api(
             data = json.loads(resp.read().decode())
             output = data.get("pipelineResponse", [{}])[0].get("output", [{}])[0].get("target")
             return output
-    except Exception as e:
+    except Exception:
         # Fallback to local dictionary
         return None
 
@@ -202,7 +200,7 @@ def call_bhashini_nmt_api(
 def call_bhashini_ocr_api(
     image_bytes_or_b64: Any,
     source_lang: str = "hi"
-) -> Optional[str]:
+) -> str | None:
     """
     Calls the official Government of India Bhashini ULCA OCR API.
     Sends cropped prescription line strips with Indic script to extract vernacular text.
@@ -259,7 +257,7 @@ def call_bhashini_ocr_api(
 def route_indic_crop_to_bhashini(
     crop_image: Any,
     detected_script: str = "hi"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Routes an Indic line crop directly to the Bhashini Indic-OCR endpoint,
     followed by the clinical vernacular sig normalizer.

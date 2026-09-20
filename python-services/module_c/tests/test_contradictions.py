@@ -1,30 +1,25 @@
 """
 Unit tests for Module C Contradiction Interception Engine.
 """
-import pytest
 try:
     from engine.contradiction_engine import contradiction_engine
     from schemas.ingestion_schemas import (
-        PatientRecordPayload,
         ChiefComplaint,
-        SocratesHPI,
-        ReportedAllergy,
         CurrentMedicationItem,
         MedicalItem,
+        PatientRecordPayload,
         PriorInvestigationItem,
-        PatientMeta
+        ReportedAllergy,
     )
 except (ImportError, ModuleNotFoundError):
     from module_c.engine.contradiction_engine import contradiction_engine
     from module_c.schemas.ingestion_schemas import (
-        PatientRecordPayload,
         ChiefComplaint,
-        SocratesHPI,
-        ReportedAllergy,
         CurrentMedicationItem,
         MedicalItem,
+        PatientRecordPayload,
         PriorInvestigationItem,
-        PatientMeta
+        ReportedAllergy,
     )
 
 

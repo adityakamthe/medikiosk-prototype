@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 
 MODULE_B_DIR = os.path.dirname(os.path.abspath(__file__))
 if MODULE_B_DIR in sys.path:

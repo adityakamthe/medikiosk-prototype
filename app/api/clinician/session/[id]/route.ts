@@ -155,11 +155,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     // Enrich documents with extracted_entities so diagnoses and medications are properly populated
     const allEntities = entitiesRes.rows || [];
     documents = documents.map(doc => {
-      let qc = typeof doc.quality_check_result === 'string'
+      const qc = typeof doc.quality_check_result === 'string'
         ? (() => { try { return JSON.parse(doc.quality_check_result); } catch { return {}; } })()
         : (doc.quality_check_result || {});
 
-      let summary = qc.extracted_summary || {};
+      const summary = qc.extracted_summary || {};
       const docEntities = allEntities.filter(e => e.document_upload_id === doc.id);
       const relevantEntities = docEntities.length > 0 ? docEntities : allEntities;
 

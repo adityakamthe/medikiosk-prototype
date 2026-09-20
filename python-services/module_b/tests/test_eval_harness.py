@@ -1,9 +1,8 @@
 """
 Unit tests for Module B Evaluation Harness and Calibration
 """
-import pytest
-from eval_harness.run_eval import run_evaluation, load_benchmark_dataset
-from eval_harness.threshold_calibration import calculate_cer, CALIBRATION_PROFILES
+from eval_harness.run_eval import load_benchmark_dataset, run_evaluation
+from eval_harness.threshold_calibration import calculate_cer
 
 
 def test_benchmark_dataset_integrity():

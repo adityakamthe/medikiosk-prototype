@@ -12,10 +12,10 @@ Endpoints:
 - POST /api/v1/full-pipeline: Complete end-to-end processing
 """
 
-import sys
-import os
 import base64
-from typing import List, Dict, Any, Optional
+import os
+import sys
+from typing import Any
 
 # Ensure module_b directory and python-services are on sys.path
 _CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -25,16 +25,14 @@ _PARENT_DIR = os.path.abspath(os.path.join(_CURRENT_DIR, ".."))
 if _PARENT_DIR not in sys.path:
     sys.path.insert(0, _PARENT_DIR)
 
-from fastapi import FastAPI, HTTPException, Body
+from bhashini_translator import translate_vernacular_sig
+from cdsco_normalizer import match_against_cdsco, query_rxnorm_rxcui
+from clinical_intelligence import audit_prescriptions_safety, evaluate_lab_result
+from cv_preprocessor import preprocess_medical_document
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-
-from cv_preprocessor import preprocess_medical_document
-from cdsco_normalizer import match_against_cdsco, query_rxnorm_rxcui
-from bhashini_translator import translate_vernacular_sig
-from clinical_intelligence import evaluate_lab_result, audit_prescriptions_safety
-from timeline_reconstruct import cluster_into_episodes, parse_indian_date, extract_dates_from_raw_text
-
+from timeline_reconstruct import cluster_into_episodes
 
 app = FastAPI(
     title="MediKiosk Module B Engine",
@@ -63,7 +61,7 @@ class PreprocessRequest(BaseModel):
 
 class CDSCOMatchRequest(BaseModel):
     query: str
-    verbal_context: Optional[str] = None
+    verbal_context: str | None = None
 
 class VernacularTranslateRequest(BaseModel):
     text: str
@@ -71,29 +69,29 @@ class VernacularTranslateRequest(BaseModel):
 class LabItem(BaseModel):
     name: str
     value: Any
-    unit: Optional[str] = None
+    unit: str | None = None
 
 class EvaluateLabsRequest(BaseModel):
-    labs: List[LabItem]
+    labs: list[LabItem]
 
 class PrescriptionItem(BaseModel):
     name: str
-    dose: Optional[str] = None
-    frequency: Optional[str] = None
-    duration: Optional[str] = None
-    raw_text: Optional[str] = None
+    dose: str | None = None
+    frequency: str | None = None
+    duration: str | None = None
+    raw_text: str | None = None
 
 class CheckSafetyRequest(BaseModel):
-    medications: List[PrescriptionItem]
+    medications: list[PrescriptionItem]
 
 class TimelineClusterRequest(BaseModel):
-    records: List[Dict[str, Any]]
+    records: list[dict[str, Any]]
     day_threshold: int = 45
 
 class EnsembleResolveRequest(BaseModel):
-    vlm1_medications: List[Dict[str, Any]]
-    vlm2_medications: List[Dict[str, Any]]
-    verbal_context: Optional[str] = None
+    vlm1_medications: list[dict[str, Any]]
+    vlm2_medications: list[dict[str, Any]]
+    verbal_context: str | None = None
 
 
 @app.get("/health")
@@ -189,11 +187,11 @@ def timeline_cluster(req: TimelineClusterRequest):
 
 
 class FullPipelineRequest(BaseModel):
-    image_base64: Optional[str] = None
-    session_id: Optional[str] = None
-    verbal_context: Optional[str] = None
-    intake_payload: Optional[Dict[str, Any]] = None
-    mock_predictions: Optional[List[Dict[str, Any]]] = None
+    image_base64: str | None = None
+    session_id: str | None = None
+    verbal_context: str | None = None
+    intake_payload: dict[str, Any] | None = None
+    mock_predictions: list[dict[str, Any]] | None = None
 
 
 @app.post("/api/v1/full-pipeline")
@@ -213,7 +211,7 @@ def full_pipeline(req: FullPipelineRequest):
         try:
             img_bytes = base64.b64decode(raw_b64)
         except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Invalid base64 image: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"Invalid base64 image: {e!s}")
 
     intake_obj = None
     if req.intake_payload:

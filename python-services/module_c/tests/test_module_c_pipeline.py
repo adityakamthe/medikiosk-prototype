@@ -1,30 +1,27 @@
 """
 Integration test for Module C Master Pipeline Coordinator.
 """
-import pytest
 try:
     from module_c.coordinator import module_c_coordinator
     from module_c.schemas.ingestion_schemas import (
-        PatientRecordPayload,
         ChiefComplaint,
-        SocratesHPI,
-        ReportedAllergy,
         CurrentMedicationItem,
         MedicalItem,
-        PriorInvestigationItem,
-        PatientMeta
+        PatientMeta,
+        PatientRecordPayload,
+        ReportedAllergy,
+        SocratesHPI,
     )
 except (ImportError, ModuleNotFoundError):
-    from coordinator import module_c_coordinator
-    from schemas.ingestion_schemas import (
-        PatientRecordPayload,
+    from coordinator import module_c_coordinator  # type: ignore[no-redef]
+    from schemas.ingestion_schemas import (  # type: ignore[no-redef]
         ChiefComplaint,
-        SocratesHPI,
-        ReportedAllergy,
         CurrentMedicationItem,
         MedicalItem,
-        PriorInvestigationItem,
-        PatientMeta
+        PatientMeta,
+        PatientRecordPayload,
+        ReportedAllergy,
+        SocratesHPI,
     )
 
 

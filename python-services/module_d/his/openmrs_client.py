@@ -3,10 +3,16 @@ OpenMRS / Bahmni REST Client for MediKiosk Module D.
 Handles Patient lookup, registration, Visit initiation, and Consultation Encounter creation.
 """
 
-from typing import Dict, Any, Optional
+from typing import Any
+
 import httpx
+
 from ..config import settings
-from ..schemas.his_schemas import OpenMRSPatientPayload, OpenMRSVisitPayload, OpenMRSEncounterPayload
+from ..schemas.his_schemas import (
+    OpenMRSEncounterPayload,
+    OpenMRSPatientPayload,
+    OpenMRSVisitPayload,
+)
 from ..simulator.mock_his_server import mock_his_server
 
 
@@ -23,7 +29,7 @@ class OpenMRSClient:
     def _get_auth(self):
         return (self.username, self.password)
 
-    async def lookup_patient(self, identifier: str) -> Optional[Dict[str, Any]]:
+    async def lookup_patient(self, identifier: str) -> dict[str, Any] | None:
         """Find patient by ABHA number or National ID in OpenMRS or Mock HIS."""
         if self.use_mock:
             return mock_his_server.lookup_patient(identifier)
@@ -44,7 +50,7 @@ class OpenMRSClient:
             # Fallback to local emulator
             return mock_his_server.lookup_patient(identifier)
 
-    async def register_patient(self, payload: OpenMRSPatientPayload) -> Dict[str, Any]:
+    async def register_patient(self, payload: OpenMRSPatientPayload) -> dict[str, Any]:
         """Register patient into OpenMRS or Mock HIS."""
         if self.use_mock:
             return mock_his_server.create_patient(payload)
@@ -71,7 +77,7 @@ class OpenMRSClient:
         except Exception:
             return mock_his_server.create_patient(payload)
 
-    async def start_visit(self, payload: OpenMRSVisitPayload) -> Dict[str, Any]:
+    async def start_visit(self, payload: OpenMRSVisitPayload) -> dict[str, Any]:
         """Initiate an OPD Visit in OpenMRS or Mock HIS."""
         if self.use_mock:
             return mock_his_server.create_visit(payload)
@@ -91,7 +97,7 @@ class OpenMRSClient:
         except Exception:
             return mock_his_server.create_visit(payload)
 
-    async def create_encounter(self, payload: OpenMRSEncounterPayload, idempotency_key: Optional[str] = None) -> Dict[str, Any]:
+    async def create_encounter(self, payload: OpenMRSEncounterPayload, idempotency_key: str | None = None) -> dict[str, Any]:
         """Create a clinical consultation encounter in OpenMRS or Mock HIS via POST /openmrs/ws/rest/v1/encounter."""
         if self.use_mock:
             return mock_his_server.create_encounter(payload)
@@ -118,10 +124,10 @@ class OpenMRSClient:
 
     async def forward_attested_bundle(
         self,
-        fhir_bundle: Dict[str, Any],
+        fhir_bundle: dict[str, Any],
         idempotency_key: str,
-        target_endpoint: Optional[str] = None
-    ) -> Dict[str, Any]:
+        target_endpoint: str | None = None
+    ) -> dict[str, Any]:
         """
         Forward attested NRCeS FHIR R4 Bundle to OpenMRS fhir2 or HAPI-FHIR
         with X-MediKiosk-Idempotency-Key header.
