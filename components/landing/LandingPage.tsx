@@ -220,9 +220,6 @@ export default function LandingPage() {
           />
           <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 md:px-6 md:py-24 lg:grid-cols-[1.1fr_0.9fr]">
             <div>
-              <p className="mb-5 inline-flex rounded-full border border-border-strong bg-peach-glow/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-pine-teal">
-                AI Clinical Intake · SIH 2026
-              </p>
               <h1 className="font-[family-name:var(--font-sora)] text-4xl font-bold leading-[1.12] tracking-tight md:text-6xl">
                 <LineMaskReveal
                   lines={["Structured clinical history —", "before the patient enters the room."]}
