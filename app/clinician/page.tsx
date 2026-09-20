@@ -4,20 +4,21 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { 
   Stethoscope, User, Clock, AlertTriangle, CheckCircle2,
-  ShieldCheck, Download, Eye, Info, RefreshCw, FileText, Lock, Unlock,
-  ChevronDown, Printer, Save, Trash2, UserCheck, Activity, ShieldAlert, Calendar,
-  Camera, ScanLine, Play, Pause, Square, Volume2, RotateCw, ZoomIn, ZoomOut, Maximize2, X,
-  Copy, Check
+  ShieldCheck, Download, Info, RefreshCw, FileText, Lock, Unlock,
+  ChevronDown, Printer, Save, Trash2, Activity,
+  Camera, Play, Pause, Square, RotateCw, ZoomIn, ZoomOut, X,
+  Copy, Check, Pill
 } from '@/components/Icons';
-import { computeDashavidhaPariksha, DashavidhaPariksha } from '@/lib/ayush';
+import { computeDashavidhaPariksha } from '@/lib/ayush';
 import { generateTextualClinicalReport } from '@/lib/fhir';
-import { DOCTOR_ROSTER, DoctorProfile, playEmergencySirenAudio, playHospitalChime } from '@/lib/doctors';
+import { DOCTOR_ROSTER, playEmergencySirenAudio } from '@/lib/doctors';
 import { MedicalTimeline } from '@/components/clinician/MedicalTimeline';
 import { LabOutRangeVisualizer } from '@/components/clinician/LabOutRangeVisualizer';
 import { DrugSafetyCard } from '@/components/clinician/DrugSafetyCard';
 import { ScannedDocumentsViewer } from '@/components/clinician/ScannedDocumentsViewer';
-import { DigitalPrescriptionEditor, PrescribedMedicine, OutOfRangeLabItem } from '@/components/clinician/DigitalPrescriptionEditor';
+import { DigitalPrescriptionEditor } from '@/components/clinician/DigitalPrescriptionEditor';
 import { FhirResourceInspector } from '@/components/clinician/FhirResourceInspector';
+import { PrescriptionModal } from '@/components/clinician/PrescriptionModal';
 
 // Helper function to safely convert any clinical value (string, object, array) into a string to prevent React child object errors
 function formatClinicalText(val: any): string {
@@ -72,6 +73,8 @@ export default function ClinicianDashboard() {
   const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null);
   const [reportCopied, setReportCopied] = useState<boolean>(false);
   const [attestError, setAttestError] = useState<string | null>(null);
+  const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState<boolean>(false);
+  const [savedPrescription, setSavedPrescription] = useState<any>(null);
 
   // Database Persistence Status
   const [saveStatus, setSaveStatus] = useState<{
@@ -241,6 +244,19 @@ export default function ClinicianDashboard() {
         if (sfRes?.success) setSafetyData(sfRes);
       } catch (e) {
         console.warn('Module B extra data fetch notice:', e);
+      }
+
+      // Fetch Digital Prescription if already issued
+      try {
+        const pRes = await fetch(`/api/clinician/session/${sessionId}/prescription`);
+        const pData = await pRes.json();
+        if (pData?.success && pData.prescription) {
+          setSavedPrescription(pData.prescription);
+        } else {
+          setSavedPrescription(null);
+        }
+      } catch {
+        setSavedPrescription(null);
       }
     } catch (err) {
       console.error('Error loading session details:', err);
@@ -496,6 +512,7 @@ export default function ClinicianDashboard() {
       }
 
       setIsAttested(true);
+      setIsPrescriptionModalOpen(true);
       fetchQueue(false);
       loadSessionDetails(selectedSession.id);
     } catch (err: any) {
@@ -561,6 +578,7 @@ export default function ClinicianDashboard() {
           savedAt: new Date().toLocaleTimeString()
         });
         setIsAttested(true);
+        setIsPrescriptionModalOpen(true);
         fetchQueue(false);
         loadSessionDetails(selectedSession.id);
       } else {
@@ -2688,6 +2706,7 @@ export default function ClinicianDashboard() {
                     patientName={selectedSession.patient_name || selectedSession.patient_ref}
                     patientAge={selectedSession.age}
                     patientGender={selectedSession.gender}
+                    patientAbhaId={selectedSession.abha_mock_id}
                     extractedEntities={sessionDetail?.extracted_entities || []}
                     onAddMedicationToDraft={(medText) => {
                       const currentMeds = editedValues['medications'] || formatClinicalText(draftContent.medications) || '';
@@ -2784,6 +2803,15 @@ export default function ClinicianDashboard() {
                     }`}
                   >
                     <Download className="w-4 h-4" /> Export FHIR Bundle
+                  </button>
+
+                  <button
+                    onClick={() => setIsPrescriptionModalOpen(true)}
+                    className="px-4 py-3 rounded-2xl text-xs font-bold flex items-center gap-1.5 bg-teal-50 hover:bg-teal-100 text-[#004643] border border-teal-300 shadow-sm transition-all cursor-pointer"
+                    title="Write digital prescription with voice dictation & typing"
+                  >
+                    <Pill className="w-4 h-4 text-teal-700" />
+                    <span>{savedPrescription ? 'View / Edit Prescription' : 'Write Prescription (Rx)'}</span>
                   </button>
 
                   <button
@@ -3051,6 +3079,44 @@ export default function ClinicianDashboard() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* DIGITAL PRESCRIPTION MODAL (Voice & Typing with Hospital Header & DB Push) */}
+      {selectedSession && (
+        <PrescriptionModal
+          isOpen={isPrescriptionModalOpen}
+          onClose={() => setIsPrescriptionModalOpen(false)}
+          sessionId={selectedSession.id}
+          patientName={selectedSession.patient_name || selectedSession.patient_ref}
+          patientAge={selectedSession.age || '42'}
+          patientGender={selectedSession.gender || 'Male'}
+          patientAbhaId={selectedSession.abha_mock_id}
+          queueId={selectedSession.queue_id}
+          clinicalMode={selectedSession.clinical_mode}
+          hospitalId={selectedSession.clinical_mode === 'ayurveda' ? 'AIIA' : 'AIIMS'}
+          hospitalName={
+            selectedSession.clinical_mode === 'ayurveda'
+              ? 'ALL INDIA INSTITUTE OF AYURVEDA (AIIA), NEW DELHI'
+              : 'ALL INDIA INSTITUTE OF MEDICAL SCIENCES (AIIMS), NEW DELHI'
+          }
+          doctorName="Dr. Vikram Sharma"
+          doctorQualification="MBBS, MD (General Medicine)"
+          provisionalDiagnosis={
+            editedValues['provisional_diagnoses'] || 
+            (sessionDetail?.latest_draft?.clinician_summary?.provisional_diagnoses
+              ? formatClinicalText(sessionDetail.latest_draft.clinician_summary.provisional_diagnoses)
+              : '')
+          }
+          initialMedications={
+            Array.isArray(sessionDetail?.latest_draft?.clinician_summary?.medications)
+              ? sessionDetail.latest_draft.clinician_summary.medications
+              : []
+          }
+          onPrescriptionSaved={(rx) => {
+            setSavedPrescription(rx);
+            loadSessionDetails(selectedSession.id);
+          }}
+        />
       )}
       </main>
     </div>

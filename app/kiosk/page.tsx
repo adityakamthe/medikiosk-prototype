@@ -22,6 +22,7 @@ import {
   AYUSH_ASHTAVIDHA_QUESTIONS,
   AYUSH_TRIVIDHA_QUESTIONS
 } from '@/lib/ayush';
+import { PATIENT_PREFIX_MAP } from '@/lib/clinicalQuestions';
 import { LOCALIZED_LANGUAGES, LanguagePack } from '@/lib/languages';
 
 // Helper function to safely convert any clinical value (string, object, array) into a string
@@ -286,7 +287,7 @@ export default function KioskPortal() {
   const [currentQuestion, setCurrentQuestion] = useState<any>({
     id: 'q_chief_complaint',
     question_localized: currentLang.initial_q,
-    question_en: 'What primary symptom or complaint brings you to the health center today?',
+    question_en: 'What brings you to the clinic today?',
     section: 'chief_complaint',
     field_name: 'chief_complaint',
     options: currentLang.initial_options
@@ -1017,7 +1018,7 @@ export default function KioskPortal() {
     setCurrentQuestion({
       id: 'q_chief_complaint',
       question_localized: isAyurveda ? `${targetPack.initial_q} (${targetPack.ayurveda_title || 'AYUSH'})` : targetPack.initial_q,
-      question_en: isAyurveda ? 'What primary Ayurvedic or general health symptom brings you here today?' : 'What primary symptom or health complaint brings you to the clinic today?',
+      question_en: isAyurveda ? 'What brings you to the Ayurvedic clinic today?' : 'What brings you to the clinic today?',
       section: isAyurveda ? 'ayush_chief_complaint' : 'chief_complaint',
       field_name: 'chief_complaint',
       options: isAyurveda ? ayushInitialOptions : targetPack.initial_options
@@ -1125,29 +1126,10 @@ export default function KioskPortal() {
     let personalizedEnQ = currentLang.initial_q;
 
     if (cleanName) {
-      const honorific = currentLang.greeting_honorific ? ` ${currentLang.greeting_honorific}` : '';
-      if (language === 'hi') {
-        personalizedQ = `${cleanName}${honorific}, आज आप अस्पताल किस मुख्य बीमारी या तकलीफ के लिए आए हैं?`;
-      } else if (language === 'en') {
-        personalizedQ = `Hello ${cleanName}, what primary symptom or health complaint brings you to the clinic today?`;
-      } else if (language === 'ta') {
-        personalizedQ = `${cleanName} அவர்களே, இன்று நீங்கள் என்ன பிரதான உடல்நலப் பிரச்சனைக்காக மருத்துவமனைக்கு வந்துள்ளீர்கள்?`;
-      } else if (language === 'te') {
-        personalizedQ = `${cleanName} గారు, ఈ రోజు మీరు ఆసుపత్రికి ఏ ప్రధాన సమస్య కోసం వచ్చారు?`;
-      } else if (language === 'bn') {
-        personalizedQ = `${cleanName} বাবু, আজ আপনি প্রধানত কী शारीरिक সমস্যার জন্য এসেছেন?`;
-      } else if (language === 'mr') {
-        personalizedQ = `${cleanName} जी, आज तुम्ही दवाखान्यात कोणत्या मुख्य त्रासासाठी आला आहात?`;
-      } else if (language === 'gu') {
-        personalizedQ = `${cleanName} ભાઈ/બહેન, આજે તમે કઈ મુખ્ય તકલીફ માટે હૉસ્પિટલ આવ્યા છો?`;
-      } else if (language === 'pa') {
-        personalizedQ = `${cleanName} ਜੀ, ਅੱਜ ਤੁਸੀਂ ਹਸਪਤਾਲ ਕਿਸ ਮੁੱਖ ਤਕਲੀਫ਼ ਲਈ ਆਏ ਹੋ?`;
-      } else if (language === 'kn') {
-        personalizedQ = `${cleanName} ಅವರੇ, ಇಂದು ನೀವು ಆಸ್ಪತ್ರೆಗೆ ಯಾವ ಮುಖ್ಯ ಆರೋಗ್ಯ ಸಮಸ್ಯೆಯಿಂದ ಬಂದಿದ್ದೀರಿ?`;
-      } else if (language === 'ml') {
-        personalizedQ = `${cleanName}, ഇന്ന് നിങ്ങൾ എന്തൊക്കെ പ്രധാന അസുഖങ്ങൾക്കാണ് ആശുപത്രിയിൽ എത്തിയത്?`;
-      }
-      personalizedEnQ = `Hello ${cleanName}, what primary symptom or health complaint brings you to the clinic today?`;
+      const prefixFn = PATIENT_PREFIX_MAP[language] || PATIENT_PREFIX_MAP.en;
+      const prefix = prefixFn ? prefixFn(cleanName) : (currentLang.greeting_honorific ? `${cleanName} ${currentLang.greeting_honorific}, ` : `Hello ${cleanName}, `);
+      personalizedQ = `${prefix}${currentLang.initial_q}`;
+      personalizedEnQ = `Hello ${cleanName}, what brings you to the clinic today?`;
     }
 
     setCurrentQuestion({

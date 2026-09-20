@@ -175,6 +175,21 @@ function evaluateDomainCoverage(
 export { getStructuredClinicalQuestion, validateLanguageScript };
 
 /**
+ * Strips parenthetical example lists and extra verbose padding from question text,
+ * ensuring all questions delivered to the patient are short, crisp, and direct (5-10 words).
+ */
+export function cleanQuestionText(q: string): string {
+  if (!q || typeof q !== 'string') return '';
+  // Strip parenthetical expressions e.g. (such as ...), (like ...), (e.g. ...)
+  let cleaned = q.replace(/\s*\([^)]*\)/g, '').trim();
+  // Clean whitespace before punctuation
+  cleaned = cleaned.replace(/\s+([?,.!])/g, '$1');
+  // Collapse duplicate whitespace
+  cleaned = cleaned.replace(/\s+/g, ' ');
+  return cleaned;
+}
+
+/**
  * Module A: Multi-Language Conversational Intelligent Follow-Up AI Agent
  * Implements clinical SOCRATES pain/symptom framework, past medical conditions,
  * medications, allergies, family history, and real-time clinical severity evaluation.
@@ -205,74 +220,73 @@ export async function generateConversationalFollowUp(
 
     if (turnCount <= 1) {
       targetDomainObjective = `CLINICAL OBJECTIVE: SOCRATES SITE & CHARACTER OF SENSATION
-Ask ONE clear, dynamic question inquiring about the exact physical location and the sensation character (e.g. sharp, burning, dull ache, heavy pressure, throbbing), specifically adapting to what the patient described about "${chiefComplaintItem}".`;
+Ask ONE short, direct question inquiring about the exact physical location and how the sensation feels, specifically adapting to "${chiefComplaintItem}". Do NOT list pain types or examples in the question.`;
       targetFrameworkStage = 'socrates_character_radiation';
       targetSection = 'hpi';
       targetFieldName = 'socrates_character_and_radiation';
     } else if (turnCount === 2) {
-      targetDomainObjective = `CLINICAL OBJECTIVE: SOCRATES RADIATION & DAILY TIMING
-Inquire if the sensation spreads or radiates anywhere else (e.g. to back, shoulders, arms, abdomen) and whether it is constant, intermittent, or worse at specific times of day or night.`;
+      targetDomainObjective = `CLINICAL OBJECTIVE: SOCRATES RADIATION & TIMING
+Ask ONE short question asking if the sensation spreads anywhere else or what time it occurs. Do NOT include example locations in the question.`;
       targetFrameworkStage = 'socrates_associations_timing';
       targetSection = 'hpi';
       targetFieldName = 'socrates_associations_and_timing';
     } else if (turnCount === 3) {
       targetDomainObjective = `CLINICAL OBJECTIVE: ASSOCIATED SYSTEMIC SYMPTOMS
-Inquire dynamically about any associated warning signs directly relevant to their complaint (e.g. nausea/vomiting, fever, dizziness, breathing difficulty, excessive sweating, weakness).`;
+Ask ONE short question inquiring if they are experiencing any other symptoms along with this. Do NOT list example symptoms in the question.`;
       targetFrameworkStage = 'socrates_associations';
       targetSection = 'hpi';
       targetFieldName = 'associated_symptoms';
     } else if (turnCount === 4) {
       targetDomainObjective = `CLINICAL OBJECTIVE: TRIGGERS & RELIEF FACTORS
-Ask what specific activities, postures, movement, food, or rest make the symptom worse or bring relief.`;
+Ask ONE short question inquiring what makes the symptom better or worse. Do NOT include examples in the question.`;
       targetFrameworkStage = 'socrates_severity_triggers';
       targetSection = 'hpi';
       targetFieldName = 'socrates_triggers_and_relief';
     } else if (turnCount === 5) {
-      targetDomainObjective = `CLINICAL OBJECTIVE: SEVERITY SCALE (1-10) & FUNCTIONAL DAILY IMPACT
-Ask the patient to rate the severity from 1 to 10 and describe whether it disrupts their sleep, work, or routine physical mobility.`;
+      targetDomainObjective = `CLINICAL OBJECTIVE: SEVERITY SCALE (1-10)
+Ask ONE short question asking the patient to rate the severity from 1 to 10. Keep it direct and short.`;
       targetFrameworkStage = 'socrates_severity_triggers';
       targetSection = 'hpi';
       targetFieldName = 'socrates_severity_and_impact';
     } else if (!domainCoverage.hasPastIllness && (turnCount === 6 || turnCount >= 6)) {
       targetDomainObjective = `CLINICAL OBJECTIVE: MANDATORY CLINICAL PILLAR 1 — PREVIOUS ILLNESSES & CHRONIC CONDITIONS
-Formulate a dynamic, compassionate question inquiring if the patient has any pre-existing chronic conditions (such as Diabetes/Sugar, High Blood Pressure/Hypertension, Thyroid, Asthma/respiratory disorders, Heart disease, or prior surgeries).
-Adapt the question naturally to their presenting complaint ("${chiefComplaintItem}") so it feels relevant to their visit.`;
+Ask ONE short, direct question inquiring if the patient has any pre-existing chronic illnesses or past surgeries. Do NOT list specific illnesses like diabetes or BP in the question text.`;
       targetFrameworkStage = 'past_medical_history';
       targetSection = 'past_history';
       targetFieldName = 'chronic_illnesses';
     } else if (!domainCoverage.hasMedications && (turnCount === 7 || turnCount >= 7)) {
       targetDomainObjective = `CLINICAL OBJECTIVE: CURRENT MEDICATIONS & TREATMENTS
-Inquire dynamically what regular prescription medicines, daily tablets, pain relievers, or ayurvedic/home remedies they are taking.`;
+Ask ONE short question asking what regular medications or daily treatments they are currently taking. Do NOT list medicine examples in the question.`;
       targetFrameworkStage = 'medications';
       targetSection = 'medications';
       targetFieldName = 'current_medications';
     } else if (!domainCoverage.hasAllergies && (turnCount === 8 || turnCount >= 8)) {
       targetDomainObjective = `CLINICAL OBJECTIVE: MANDATORY CLINICAL PILLAR 2 — KNOWN ALLERGIES
-Formulate a dynamic safety question inquiring if the patient has any known allergies to medicines (such as penicillin, pain medications/NSAIDs), foods, or dust before the physician recommends treatment.`;
+Ask ONE short question asking if they have any known allergies to medicines or food. Do NOT list specific drug names or food items in the question.`;
       targetFrameworkStage = 'allergies';
       targetSection = 'allergies';
       targetFieldName = 'known_allergies';
     } else if (!domainCoverage.hasFamilyHistory && (turnCount === 9 || turnCount >= 9)) {
       targetDomainObjective = `CLINICAL OBJECTIVE: MANDATORY CLINICAL PILLAR 3 — FAMILY MEDICAL HISTORY
-Formulate a dynamic question inquiring whether parents or siblings have any family history of chronic or hereditary conditions (heart disease, diabetes, high blood pressure, asthma, stroke, or cancer).`;
+Ask ONE short question inquiring if immediate family members have any chronic health conditions. Do NOT list disease names in the question.`;
       targetFrameworkStage = 'family_history';
       targetSection = 'family_history';
       targetFieldName = 'family_medical_history';
     } else if (turnCount === 10) {
-      targetDomainObjective = `CLINICAL OBJECTIVE: LIFESTYLE & ENVIRONMENTAL RISK FACTORS
-Inquire dynamically about lifestyle habits, daily physical strain, hydration, dietary habits, sleep, or tobacco/smoking/alcohol exposure.`;
+      targetDomainObjective = `CLINICAL OBJECTIVE: LIFESTYLE & HABITS
+Ask ONE short question inquiring about daily habits like tobacco, smoking, or alcohol. Keep it brief and direct.`;
       targetFrameworkStage = 'lifestyle_exposures';
       targetSection = 'hpi';
       targetFieldName = 'lifestyle_and_exposures';
     } else if (turnCount === 11) {
-      targetDomainObjective = `CLINICAL OBJECTIVE: SYSTEMIC REVIEW & FINAL DOCTOR CONCERNS
-Ask if there are any other specific symptoms, changes, or concerns the patient would like the consulting doctor to know.`;
+      targetDomainObjective = `CLINICAL OBJECTIVE: SYSTEMIC REVIEW & FINAL CONCERNS
+Ask ONE short question asking if there is any other health concern they want the doctor to know.`;
       targetFrameworkStage = 'systemic_review';
       targetSection = 'hpi';
       targetFieldName = 'systemic_review';
     } else {
       targetDomainObjective = `CLINICAL OBJECTIVE: INTAKE COMPLETION
-All necessary clinical dimensions within the 10-12 question budget have been systematically probed. Conclude the intake respectfully.`;
+All necessary clinical dimensions have been probed. Conclude the intake in one brief sentence.`;
       targetFrameworkStage = 'completed';
       targetSection = 'completed';
       targetFieldName = 'intake_completed';
@@ -346,7 +360,9 @@ All necessary clinical dimensions within the 10-12 question budget have been sys
     INSTRUCTIONS FOR GENERATING NEXT QUESTION:
     - Review what has already been answered in the history above.
     - Ask ONE clear, concise, tailored clinical question addressing the MANDATORY OBJECTIVE FOR THIS TURN.
-    - CONVERSATIONAL VOICE SPEED GUIDELINE: Keep the question natural, punchy, and concise (1 to 2 sentences maximum, 15 to 25 words).
+    - CRITICAL LENGTH & CONCISENESS MANDATE: Keep questions very short, direct, and on-point (strictly 5 to 10 words, 1 short sentence maximum).
+    - NEVER GIVE EXAMPLES IN THE QUESTION: Do NOT include example lists or parentheses (e.g. NEVER write "such as diabetes, BP, thyroid" or "like sharp, burning, dull ache") inside the question. Put examples ONLY in the options list, NEVER in the question text.
+    - CONVERSATIONAL VOICE SPEED: Crisp, direct single question (5 to 10 words).
     ${isEnglish ? '- CRITICAL LANGUAGE RULE: Patient chose ENGLISH. You MUST output "question_localized", "options", and "emergency_instruction_localized" STRICTLY IN ENGLISH. NEVER output Hindi words or Devanagari script.' : `- Output "question_localized" in ${langConfig.name} (${langConfig.native}) script.`}
     - Output "question_en" in clear English.
     - Provide 4 to 6 smart, realistic quick-tap options${isEnglish ? ' in English ONLY.' : ` formatted as: "Option in ${langConfig.name} / English".`}
@@ -378,6 +394,10 @@ All necessary clinical dimensions within the 10-12 question budget have been sys
 
     const content = await executeLlmChatCompletion(prompt, true);
     const parsed = typeof content === 'string' ? JSON.parse(content) : JSON.parse(JSON.stringify(content));
+
+    // Guarantee questions are crisp and devoid of parenthetical example lists
+    if (parsed.question_en) parsed.question_en = cleanQuestionText(parsed.question_en);
+    if (parsed.question_localized) parsed.question_localized = cleanQuestionText(parsed.question_localized);
 
     // When patient is English, ensure English is strictly assigned and devoid of any Devanagari/Hindi
     if (isEnglish) {
@@ -486,6 +506,9 @@ All necessary clinical dimensions within the 10-12 question budget have been sys
       parsed.section = "completed";
       parsed.field_name = "intake_completed";
     }
+
+    if (parsed.question_en) parsed.question_en = cleanQuestionText(parsed.question_en);
+    if (parsed.question_localized) parsed.question_localized = cleanQuestionText(parsed.question_localized);
 
     return parsed;
   } catch (err: any) {

@@ -136,16 +136,19 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     );
 
     let documents = docRes.rows;
-    // If this session has no documents uploaded yet, fetch any historical records so clinician has access to scans
-    if (documents.length === 0) {
-      const fallbackDocs = await query(
-        `SELECT id, session_id, file_ref, mime_type, quality_check_result, uploaded_at 
-         FROM document_uploads 
-         ORDER BY uploaded_at DESC 
-         LIMIT 4`
+    // Strictly fetch prior records only if patient has an identical ABHA ID in the database
+    if (documents.length === 0 && session.abha_mock_id) {
+      const priorDocs = await query(
+        `SELECT d.id, d.session_id, d.file_ref, d.mime_type, d.quality_check_result, d.uploaded_at 
+         FROM document_uploads d
+         JOIN sessions s ON s.id = d.session_id
+         WHERE s.abha_mock_id = $1 AND s.id != $2
+         ORDER BY d.uploaded_at DESC 
+         LIMIT 6`,
+        [session.abha_mock_id, sessionId]
       );
-      if (fallbackDocs.rows.length > 0) {
-        documents = fallbackDocs.rows.map(d => ({ ...d, is_historical: true }));
+      if (priorDocs.rows.length > 0) {
+        documents = priorDocs.rows.map(d => ({ ...d, is_historical: true }));
       }
     }
 

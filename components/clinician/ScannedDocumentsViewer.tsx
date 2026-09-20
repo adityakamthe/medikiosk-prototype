@@ -5,7 +5,6 @@ import {
   Camera, 
   Upload, 
   Eye, 
-  Download, 
   RefreshCw, 
   CheckCircle2, 
   AlertTriangle, 
@@ -35,6 +34,7 @@ interface ScannedDocumentsViewerProps {
   patientName?: string;
   patientAge?: string | number;
   patientGender?: string;
+  patientAbhaId?: string;
   extractedEntities?: any[];
   onAddMedicationToDraft?: (medText: string) => void;
   onRefresh?: () => void;
@@ -46,6 +46,7 @@ export const ScannedDocumentsViewer: React.FC<ScannedDocumentsViewerProps> = ({
   patientName = 'Patient',
   patientAge,
   patientGender,
+  patientAbhaId,
   extractedEntities = [],
   onAddMedicationToDraft,
   onRefresh
@@ -57,6 +58,12 @@ export const ScannedDocumentsViewer: React.FC<ScannedDocumentsViewerProps> = ({
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [addedMeds, setAddedMeds] = useState<Record<string, boolean>>({});
 
+  // Cross-Hospital Federated Records State (Strictly matching ABHA ID)
+  const [crossHospitalRecords, setCrossHospitalRecords] = useState<any[]>([]);
+  const [isFetchingCrossHospital, setIsFetchingCrossHospital] = useState<boolean>(false);
+  const [crossHospitalStatus, setCrossHospitalStatus] = useState<string | null>(null);
+  const [hasQueriedCrossHospital, setHasQueriedCrossHospital] = useState<boolean>(false);
+
   // Upload modal state
   const [isUploadOpen, setIsUploadOpen] = useState<boolean>(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -67,9 +74,8 @@ export const ScannedDocumentsViewer: React.FC<ScannedDocumentsViewerProps> = ({
 
   const activeDoc = documents[selectedIndex] || documents[0] || null;
   const qcResult = activeDoc?.quality_check_result || {};
-  const extractedSummary = qcResult?.extracted_summary || {};
-  const medications = Array.isArray(extractedSummary?.medications) ? extractedSummary.medications : [];
-  const diagnoses = Array.isArray(extractedSummary?.diagnoses) ? extractedSummary.diagnoses : [];
+  const extractedSummary = useMemo(() => qcResult?.extracted_summary || {}, [qcResult]);
+  const medications = useMemo(() => Array.isArray(extractedSummary?.medications) ? extractedSummary.medications : [], [extractedSummary]);
   const adviceList = Array.isArray(extractedSummary?.key_findings?.advice) 
     ? extractedSummary.key_findings.advice 
     : (typeof extractedSummary?.key_findings === 'string' ? [extractedSummary.key_findings] : []);
@@ -205,6 +211,33 @@ export const ScannedDocumentsViewer: React.FC<ScannedDocumentsViewerProps> = ({
     }
   };
 
+  // Federated Cross-Hospital Retrieval strictly by verified ABHA ID
+  const handleFetchCrossHospital = async () => {
+    if (!patientAbhaId || !patientAbhaId.trim()) {
+      setCrossHospitalStatus('No ABHA ID linked to this patient. A verified ABHA ID is strictly required to query prior hospital databases.');
+      setHasQueriedCrossHospital(true);
+      return;
+    }
+
+    setIsFetchingCrossHospital(true);
+    setCrossHospitalStatus(null);
+    try {
+      const res = await fetch(`/api/exchange/cross-hospital?abha_id=${encodeURIComponent(patientAbhaId.trim())}&current_session_id=${sessionId}`);
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setCrossHospitalRecords(data.records || []);
+        setCrossHospitalStatus(data.notice || `Found ${data.records?.length || 0} genuine records.`);
+      } else {
+        setCrossHospitalStatus(data.error || 'Failed to query other hospital databases.');
+      }
+    } catch (e: any) {
+      setCrossHospitalStatus(e.message || 'Error querying other hospital databases.');
+    } finally {
+      setIsFetchingCrossHospital(false);
+      setHasQueriedCrossHospital(true);
+    }
+  };
+
   // Check if file_ref has real base64 renderable image data
   const hasRenderableImage = activeDoc?.file_ref && (
     activeDoc.file_ref.startsWith('data:image/') || 
@@ -256,6 +289,156 @@ export const ScannedDocumentsViewer: React.FC<ScannedDocumentsViewerProps> = ({
             <span>Scan / Upload Document</span>
           </button>
         </div>
+      </div>
+
+      {/* ============================================================== */}
+      {/* FEDERATED CROSS-HOSPITAL RECORD RETRIEVAL (STRICTLY BY ABHA ID) */}
+      {/* ============================================================== */}
+      <div className="bg-gradient-to-r from-slate-900 via-teal-950 to-slate-900 text-white rounded-2xl p-4 border border-teal-800/60 shadow-md">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30 text-[10px] font-black uppercase tracking-wider">
+                Cross-Hospital Exchange (ABDM)
+              </span>
+              <span className="text-xs text-slate-400">•</span>
+              <span className="text-xs font-mono font-bold text-amber-300">
+                ABHA ID: {patientAbhaId || 'Not Linked'}
+              </span>
+            </div>
+            <h4 className="text-sm font-extrabold text-white">
+              Fetch Patient Consultation Data from Previous Hospitals
+            </h4>
+            <p className="text-[11px] text-slate-300 max-w-xl">
+              Strictly queries other hospital databases (AIIMS & AIIA) matching this exact ABHA ID. Zero mock data is generated.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleFetchCrossHospital}
+              disabled={isFetchingCrossHospital}
+              className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-md ${
+                isFetchingCrossHospital
+                  ? 'bg-slate-700 text-slate-300 cursor-not-allowed'
+                  : 'bg-teal-600 hover:bg-teal-500 text-white active:scale-[0.98]'
+              }`}
+            >
+              {isFetchingCrossHospital ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>Querying Hospital Databases...</span>
+                </>
+              ) : (
+                <>
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>Fetch Prior Records (ABHA ID)</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Cross-Hospital Results Display */}
+        {hasQueriedCrossHospital && (
+          <div className="mt-4 pt-3 border-t border-teal-800/40 space-y-3">
+            {crossHospitalStatus && (
+              <div className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2.5 ${
+                crossHospitalRecords.length > 0
+                  ? 'bg-teal-900/40 text-teal-200 border border-teal-700/50'
+                  : 'bg-slate-800/80 text-amber-200 border border-amber-600/30'
+              }`}>
+                {crossHospitalRecords.length > 0 ? (
+                  <CheckCircle2 className="w-4 h-4 text-teal-400 flex-shrink-0" />
+                ) : (
+                  <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                )}
+                <span>{crossHospitalStatus}</span>
+              </div>
+            )}
+
+            {/* List of genuine prior hospital encounters */}
+            {crossHospitalRecords.length > 0 && (
+              <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                {crossHospitalRecords.map((rec, rIdx) => (
+                  <div
+                    key={rec.session_id || rIdx}
+                    className="p-3.5 rounded-xl bg-slate-800/90 border border-slate-700 space-y-2.5"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-md border ${
+                          rec.hospital_id === 'AIIA'
+                            ? 'bg-emerald-950 text-emerald-300 border-emerald-700'
+                            : 'bg-teal-950 text-teal-300 border-teal-700'
+                        }`}>
+                          {rec.hospital_name}
+                        </span>
+                        <span className="text-[11px] text-slate-400 font-mono">
+                          Date: {rec.encounter_date}
+                        </span>
+                      </div>
+                      <span className="text-xs font-bold text-amber-300">
+                        Doctor: {rec.consulting_doctor}
+                      </span>
+                    </div>
+
+                    <div className="text-xs text-slate-200">
+                      <span className="font-bold text-slate-400">Chief Complaint: </span>
+                      {rec.chief_complaint}
+                    </div>
+
+                    {/* Prescriptions from previous hospital */}
+                    {rec.medications && rec.medications.length > 0 && (
+                      <div className="p-2.5 rounded-lg bg-slate-900/70 border border-slate-800 space-y-1.5">
+                        <span className="text-[11px] font-bold text-teal-400 uppercase tracking-wider block">
+                          Prior Prescriptions ({rec.medications.length} items):
+                        </span>
+                        <div className="flex flex-wrap gap-2">
+                          {rec.medications.map((m: any, mIdx: number) => {
+                            const medName = m.name || m;
+                            const dose = m.dosage || m.dose || '';
+                            const freq = m.frequency || m.frequency_english || '';
+                            const medText = `${medName} ${dose} ${freq}`.trim();
+                            return (
+                              <span
+                                key={mIdx}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800 border border-slate-700 text-xs text-white"
+                              >
+                                <Pill className="w-3 h-3 text-teal-400" />
+                                <span className="font-semibold">{medName}</span>
+                                {dose && <span className="text-slate-400 text-[10px]">({dose})</span>}
+                                {onAddMedicationToDraft && (
+                                  <button
+                                    onClick={() => onAddMedicationToDraft(medText)}
+                                    className="ml-1 text-[10px] text-teal-400 hover:text-teal-200 font-bold underline cursor-pointer"
+                                    title="Import to current consultation draft"
+                                  >
+                                    + Import
+                                  </button>
+                                )}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Prior Physical Scans / Uploads from that hospital encounter */}
+                    {rec.documents && rec.documents.length > 0 && (
+                      <div className="flex items-center gap-2 pt-1 text-[11px] text-slate-400">
+                        <FileText className="w-3.5 h-3.5 text-amber-400" />
+                        <span>
+                          {rec.documents.length} physical document scan(s) attached from this previous encounter.
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Main Workspace Layout */}

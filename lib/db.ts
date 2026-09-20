@@ -35,8 +35,39 @@ try {
   console.warn('[DB AYUSH] Failed to initialize Neon connection pool:', err);
 }
 
-// Backward compatibility default pool reference
-const pool = poolAiims;
+// Auto-initialize schema extensions (e.g. prescriptions table)
+let schemaInitialized = false;
+async function initSchema() {
+  if (schemaInitialized) return;
+  schemaInitialized = true;
+  const createPrescriptionsSQL = `
+    CREATE TABLE IF NOT EXISTS prescriptions (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      session_id UUID,
+      abha_id VARCHAR(64),
+      hospital_id VARCHAR(64),
+      hospital_name VARCHAR(255),
+      doctor_name VARCHAR(255),
+      doctor_qualification VARCHAR(255),
+      patient_name VARCHAR(255),
+      patient_age VARCHAR(16),
+      patient_gender VARCHAR(16),
+      queue_id VARCHAR(32),
+      diagnosis TEXT,
+      medications JSONB NOT NULL DEFAULT '[]'::jsonb,
+      general_advice TEXT,
+      follow_up_date VARCHAR(64),
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `;
+  if (poolAiims) {
+    poolAiims.query(createPrescriptionsSQL).catch(err => console.warn('[DB AIIMS] initSchema notice:', err.message));
+  }
+  if (poolAyush) {
+    poolAyush.query(createPrescriptionsSQL).catch(err => console.warn('[DB AYUSH] initSchema notice:', err.message));
+  }
+}
+initSchema();
 
 // -------------------------------------------------------------
 // Resilient In-Memory Mock Store for Demo Profiles & Offline Mode
@@ -250,6 +281,8 @@ const mockConsentRecords: Record<string, any> = {
   },
 };
 
+const mockPrescriptions: any[] = [];
+
 // -------------------------------------------------------------
 // Fallback Mock Query Handler
 // -------------------------------------------------------------
@@ -377,6 +410,41 @@ function queryMock(text: string, params: any[] = []): { rows: any[]; rowCount: n
     return { rows: list, rowCount: list.length };
   }
 
+  // 8. Prescriptions
+  if (normalized.includes('from prescriptions')) {
+    if (params.length > 0) {
+      const p1 = String(params[0] || '').trim();
+      const matched = mockPrescriptions.filter(
+        p => p.session_id === p1 || p.abha_id === p1 || p.id === p1
+      );
+      return { rows: matched, rowCount: matched.length };
+    }
+    return { rows: mockPrescriptions, rowCount: mockPrescriptions.length };
+  }
+
+  if (normalized.includes('insert into prescriptions')) {
+    const newRx = {
+      id: `rx-${Date.now()}`,
+      session_id: params[0] || null,
+      abha_id: params[1] || null,
+      hospital_id: params[2] || 'AIIMS',
+      hospital_name: params[3] || 'AIIMS New Delhi',
+      doctor_name: params[4] || 'Dr. Sharma',
+      doctor_qualification: params[5] || 'MBBS, MD',
+      patient_name: params[6] || 'Patient',
+      patient_age: params[7] || '40',
+      patient_gender: params[8] || 'Male',
+      queue_id: params[9] || 'Q-101',
+      diagnosis: params[10] || '',
+      medications: typeof params[11] === 'string' ? JSON.parse(params[11]) : (params[11] || []),
+      general_advice: params[12] || '',
+      follow_up_date: params[13] || '',
+      created_at: new Date().toISOString(),
+    };
+    mockPrescriptions.unshift(newRx);
+    return { rows: [newRx], rowCount: 1 };
+  }
+
   // Default fallback empty result
   return { rows: [], rowCount: 0 };
 }
@@ -396,7 +464,6 @@ export function getHospitalPool(hospitalId?: string | null): Pool | null {
 
 export async function queryHospital(hospitalId: string | null | undefined, text: string, params?: any[]) {
   const targetPool = getHospitalPool(hospitalId);
-  const isAyush = hospitalId && (hospitalId.toLowerCase().includes('ayush') || hospitalId.toLowerCase().includes('aiia'));
 
   if (targetPool) {
     try {
