@@ -13,42 +13,42 @@ for _p in [_MODULE_C_DIR, _SERVICES_DIR]:
         sys.path.insert(0, _p)
 
 try:
-    from .engine.ayush_synthesizer import ayush_synthesizer
-    from .engine.contradiction_engine import contradiction_engine
-    from .engine.dual_coder import dual_coder
-    from .engine.sbar_synthesizer import sbar_synthesizer
-    from .fhir.dual_coded_bundle import dual_coded_fhir_builder
-    from .schemas.ingestion_schemas import PatientRecordPayload
-    from .schemas.synthesis_schemas import (
+    from module_c.engine.ayush_synthesizer import ayush_synthesizer
+    from module_c.engine.contradiction_engine import contradiction_engine
+    from module_c.engine.dual_coder import dual_coder
+    from module_c.engine.sbar_synthesizer import sbar_synthesizer
+    from module_c.fhir.dual_coded_bundle import dual_coded_fhir_builder
+    from module_c.schemas.ingestion_schemas import PatientRecordPayload
+    from module_c.schemas.synthesis_schemas import (
         ClinicalSynthesisResponse,
         ContradictionItem,
         DashavidhaReport,
         DualCodingEntry,
         Standard8PartSummary,
     )
-except (ImportError, ValueError):
+except (ImportError, ModuleNotFoundError, ValueError):
     try:
-        from module_c.engine.ayush_synthesizer import ayush_synthesizer
-        from module_c.engine.contradiction_engine import contradiction_engine
-        from module_c.engine.dual_coder import dual_coder
-        from module_c.engine.sbar_synthesizer import sbar_synthesizer
-        from module_c.fhir.dual_coded_bundle import dual_coded_fhir_builder
-        from module_c.schemas.ingestion_schemas import PatientRecordPayload
-        from module_c.schemas.synthesis_schemas import (
+        from engine.ayush_synthesizer import ayush_synthesizer  # type: ignore[import-not-found,no-redef]
+        from engine.contradiction_engine import contradiction_engine  # type: ignore[import-not-found,no-redef]
+        from engine.dual_coder import dual_coder  # type: ignore[import-not-found,no-redef]
+        from engine.sbar_synthesizer import sbar_synthesizer  # type: ignore[import-not-found,no-redef]
+        from fhir.dual_coded_bundle import dual_coded_fhir_builder  # type: ignore[import-not-found,no-redef]
+        from schemas.ingestion_schemas import PatientRecordPayload  # type: ignore[import-not-found,no-redef]
+        from schemas.synthesis_schemas import (  # type: ignore[import-not-found,no-redef]
             ClinicalSynthesisResponse,
             ContradictionItem,
             DashavidhaReport,
             DualCodingEntry,
             Standard8PartSummary,
         )
-    except (ImportError, ValueError):
-        from engine.ayush_synthesizer import ayush_synthesizer  # type: ignore[no-redef]
-        from engine.contradiction_engine import contradiction_engine  # type: ignore[no-redef]
-        from engine.dual_coder import dual_coder  # type: ignore[no-redef]
-        from engine.sbar_synthesizer import sbar_synthesizer  # type: ignore[no-redef]
-        from fhir.dual_coded_bundle import dual_coded_fhir_builder  # type: ignore[no-redef]
-        from schemas.ingestion_schemas import PatientRecordPayload  # type: ignore[no-redef]
-        from schemas.synthesis_schemas import (  # type: ignore[no-redef]
+    except (ImportError, ModuleNotFoundError, ValueError):
+        from .engine.ayush_synthesizer import ayush_synthesizer  # type: ignore[no-redef]
+        from .engine.contradiction_engine import contradiction_engine  # type: ignore[no-redef]
+        from .engine.dual_coder import dual_coder  # type: ignore[no-redef]
+        from .engine.sbar_synthesizer import sbar_synthesizer  # type: ignore[no-redef]
+        from .fhir.dual_coded_bundle import dual_coded_fhir_builder  # type: ignore[no-redef]
+        from .schemas.ingestion_schemas import PatientRecordPayload  # type: ignore[no-redef]
+        from .schemas.synthesis_schemas import (  # type: ignore[no-redef]
             ClinicalSynthesisResponse,
             ContradictionItem,
             DashavidhaReport,
@@ -87,14 +87,16 @@ class ModuleCCoordinator:
         # Step 3: Ayurvedic Dashavidha Pariksha Synthesis
         dashavidha_report: DashavidhaReport | None = None
         dashavidha_summary_str = None
-        if payload.patient_meta.clinical_mode == "ayurveda" or payload.ayush_dashavidha:
+        clinical_mode = getattr(payload.patient_meta, "clinical_mode", "allopathy") if payload.patient_meta else "allopathy"
+        if clinical_mode == "ayurveda" or getattr(payload, "ayush_dashavidha", None):
             dashavidha_report = self.ayush_synthesizer.synthesize_dashavidha(payload)
-            dashavidha_summary_str = (
-                f"{dashavidha_report.prakriti_vikriti} | {dashavidha_report.agni_koshtha} | {dashavidha_report.bala_dhatu_sarata}"
-            )
+            if dashavidha_report:
+                dashavidha_summary_str = (
+                    f"{dashavidha_report.prakriti_vikriti} | {dashavidha_report.agni_koshtha} | {dashavidha_report.bala_dhatu_sarata}"
+                )
 
         # Step 4: Simultaneous Dual-Coding (NAMASTE + WHO ICD-11 TM2 + SNOMED CT)
-        findings_to_code = []
+        findings_to_code: list[str] = []
         cc = payload.chief_complaint
         if cc is not None and not isinstance(cc, str) and hasattr(cc, "normalized") and cc.normalized:
             findings_to_code.append(cc.normalized)
@@ -102,8 +104,10 @@ class ModuleCCoordinator:
                 findings_to_code.append(cc.verbatim)
         elif isinstance(cc, str) and cc:
             findings_to_code.append(cc)
-        for h in payload.past_history:
-            findings_to_code.append(h.condition)
+        for h in getattr(payload, "past_history", []) or []:
+            cond = getattr(h, "condition", None) if not isinstance(h, dict) else h.get("condition")
+            if cond:
+                findings_to_code.append(cond)
 
         dual_codings: list[DualCodingEntry] = self.dual_coder.code_multiple(findings_to_code)
 
