@@ -1,0 +1,14 @@
+{
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/python-services",
+    "${workspaceFolder}/python-services/module_b",
+    "${workspaceFolder}/python-services/module_c",
+    "${workspaceFolder}/python-services/module_d"
+  ],
+  "python.autoComplete.extraPaths": [
+    "${workspaceFolder}/python-services",
+    "${workspaceFolder}/python-services/module_b",
+    "${workspaceFolder}/python-services/module_c",
+    "${workspaceFolder}/python-services/module_d"
+  ]
+}

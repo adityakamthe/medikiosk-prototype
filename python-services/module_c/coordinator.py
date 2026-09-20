@@ -27,34 +27,19 @@ try:
         Standard8PartSummary,
     )
 except (ImportError, ModuleNotFoundError, ValueError):
-    try:
-        from engine.ayush_synthesizer import ayush_synthesizer  # type: ignore[import-not-found,no-redef]
-        from engine.contradiction_engine import contradiction_engine  # type: ignore[import-not-found,no-redef]
-        from engine.dual_coder import dual_coder  # type: ignore[import-not-found,no-redef]
-        from engine.sbar_synthesizer import sbar_synthesizer  # type: ignore[import-not-found,no-redef]
-        from fhir.dual_coded_bundle import dual_coded_fhir_builder  # type: ignore[import-not-found,no-redef]
-        from schemas.ingestion_schemas import PatientRecordPayload  # type: ignore[import-not-found,no-redef]
-        from schemas.synthesis_schemas import (  # type: ignore[import-not-found,no-redef]
-            ClinicalSynthesisResponse,
-            ContradictionItem,
-            DashavidhaReport,
-            DualCodingEntry,
-            Standard8PartSummary,
-        )
-    except (ImportError, ModuleNotFoundError, ValueError):
-        from .engine.ayush_synthesizer import ayush_synthesizer  # type: ignore[no-redef]
-        from .engine.contradiction_engine import contradiction_engine  # type: ignore[no-redef]
-        from .engine.dual_coder import dual_coder  # type: ignore[no-redef]
-        from .engine.sbar_synthesizer import sbar_synthesizer  # type: ignore[no-redef]
-        from .fhir.dual_coded_bundle import dual_coded_fhir_builder  # type: ignore[no-redef]
-        from .schemas.ingestion_schemas import PatientRecordPayload  # type: ignore[no-redef]
-        from .schemas.synthesis_schemas import (  # type: ignore[no-redef]
-            ClinicalSynthesisResponse,
-            ContradictionItem,
-            DashavidhaReport,
-            DualCodingEntry,
-            Standard8PartSummary,
-        )
+    from engine.ayush_synthesizer import ayush_synthesizer  # type: ignore[import-not-found,no-redef]
+    from engine.contradiction_engine import contradiction_engine  # type: ignore[import-not-found,no-redef]
+    from engine.dual_coder import dual_coder  # type: ignore[import-not-found,no-redef]
+    from engine.sbar_synthesizer import sbar_synthesizer  # type: ignore[import-not-found,no-redef]
+    from fhir.dual_coded_bundle import dual_coded_fhir_builder  # type: ignore[import-not-found,no-redef]
+    from schemas.ingestion_schemas import PatientRecordPayload  # type: ignore[import-not-found,no-redef]
+    from schemas.synthesis_schemas import (  # type: ignore[import-not-found,no-redef]
+        ClinicalSynthesisResponse,
+        ContradictionItem,
+        DashavidhaReport,
+        DualCodingEntry,
+        Standard8PartSummary,
+    )
 
 
 class ModuleCCoordinator:
