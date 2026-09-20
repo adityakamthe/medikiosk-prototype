@@ -133,7 +133,7 @@ export default function HospitalLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FBF7EE] text-[#1B1B1B] flex flex-col justify-between selection:bg-[#F2A900]/30 font-sans">
+    <div className="min-h-screen bg-white text-[#1B1B1B] flex flex-col justify-between selection:bg-[#F2A900]/30 font-sans">
       {/* Top Navigation */}
       <header className="sticky top-0 z-40 bg-[#004643] text-white shadow-sm">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5 md:px-6">

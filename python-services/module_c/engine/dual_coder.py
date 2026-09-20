@@ -5,17 +5,26 @@ Provides simultaneous semantic mapping between:
 2. WHO ICD-11 TM2 (Chapter 26: Traditional Medicine conditions - Module 2)
 3. Modern Biomedicine: SNOMED CT and ICD-11 MMS.
 """
-from typing import Dict, Any, List, Optional
+import sys
+import os
 import re
+from typing import Dict, Any, List, Optional
 from rapidfuzz import fuzz, process
 
+_ENGINE_DIR = os.path.dirname(os.path.abspath(__file__))
+_MODULE_C_DIR = os.path.abspath(os.path.join(_ENGINE_DIR, ".."))
+_SERVICES_DIR = os.path.abspath(os.path.join(_MODULE_C_DIR, ".."))
+for _p in [_MODULE_C_DIR, _SERVICES_DIR]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
 try:
-    from ..schemas.synthesis_schemas import DualCodingEntry
-except (ImportError, ValueError):
+    from module_c.schemas.synthesis_schemas import DualCodingEntry
+except (ImportError, ModuleNotFoundError, ValueError):
     try:
-        from module_c.schemas.synthesis_schemas import DualCodingEntry
-    except (ImportError, ValueError):
         from schemas.synthesis_schemas import DualCodingEntry
+    except (ImportError, ModuleNotFoundError, ValueError):
+        from ..schemas.synthesis_schemas import DualCodingEntry
 
 
 DUAL_CODING_REGISTRY: Dict[str, Dict[str, Any]] = {

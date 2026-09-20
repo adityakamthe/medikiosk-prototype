@@ -4,20 +4,29 @@ Transforms pre-validated multimodal slots into the standard universal sequential
 Chief Complaint -> HPI (SOCRATES) -> Past History -> Meds/Allergies -> Family -> Personal/Social -> ROS -> Prior Labs.
 Generates both physician-facing technical documentation and patient-facing mother-tongue audio script.
 """
-from typing import Dict, Any, List, Optional
+import sys
+import os
 import hashlib
 from datetime import datetime, timezone
+from typing import Dict, Any, List, Optional
+
+_ENGINE_DIR = os.path.dirname(os.path.abspath(__file__))
+_MODULE_C_DIR = os.path.abspath(os.path.join(_ENGINE_DIR, ".."))
+_SERVICES_DIR = os.path.abspath(os.path.join(_MODULE_C_DIR, ".."))
+for _p in [_MODULE_C_DIR, _SERVICES_DIR]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 try:
-    from ..schemas.ingestion_schemas import PatientRecordPayload
-    from ..schemas.synthesis_schemas import Standard8PartSummary, PatientAudioView
-except (ImportError, ValueError):
+    from module_c.schemas.ingestion_schemas import PatientRecordPayload, ChiefComplaint
+    from module_c.schemas.synthesis_schemas import Standard8PartSummary, PatientAudioView
+except (ImportError, ModuleNotFoundError, ValueError):
     try:
-        from module_c.schemas.ingestion_schemas import PatientRecordPayload
-        from module_c.schemas.synthesis_schemas import Standard8PartSummary, PatientAudioView
-    except (ImportError, ValueError):
-        from schemas.ingestion_schemas import PatientRecordPayload
+        from schemas.ingestion_schemas import PatientRecordPayload, ChiefComplaint
         from schemas.synthesis_schemas import Standard8PartSummary, PatientAudioView
+    except (ImportError, ModuleNotFoundError, ValueError):
+        from ..schemas.ingestion_schemas import PatientRecordPayload, ChiefComplaint
+        from ..schemas.synthesis_schemas import Standard8PartSummary, PatientAudioView
 
 
 class SBARSynthesizer:
@@ -58,21 +67,42 @@ class SBARSynthesizer:
         Synthesizes the standard 8-part sequential clinical history.
         """
         # 1. Chief Complaint
-        cc_str = f"{payload.chief_complaint.normalized} (Duration: {payload.chief_complaint.duration})"
-        if payload.chief_complaint.verbatim and payload.chief_complaint.verbatim.lower() != payload.chief_complaint.normalized.lower():
-            cc_str += f" [Patient stated: \"{payload.chief_complaint.verbatim}\"]"
+        if hasattr(payload.chief_complaint, "normalized") and getattr(payload.chief_complaint, "normalized"):
+            norm_cc = getattr(payload.chief_complaint, "normalized")
+            dur_cc = getattr(payload.chief_complaint, "duration", "Active") or "Active"
+            verb_cc = getattr(payload.chief_complaint, "verbatim", norm_cc) or norm_cc
+        elif isinstance(payload.chief_complaint, str) and payload.chief_complaint:
+            norm_cc = payload.chief_complaint
+            dur_cc = "Active"
+            verb_cc = payload.chief_complaint
+        else:
+            norm_cc = "Not documented"
+            dur_cc = "Unknown"
+            verb_cc = ""
+
+        cc_str = f"{norm_cc} (Duration: {dur_cc})"
+        if verb_cc and verb_cc.lower() != norm_cc.lower():
+            cc_str += f" [Patient stated: \"{verb_cc}\"]"
 
         # 2. HPI (SOCRATES Chronological Narrative)
         soc = payload.socrates_hpi
-        assoc_str = ", ".join(soc.associations) if soc.associations else "None reported"
+        assoc_str = ", ".join(soc.associations or []) if soc.associations else "None reported"
+        char_desc = (soc.character or "unspecified").lower()
+        site_desc = soc.site or "unspecified anatomical region"
+        onset_desc = soc.onset or "gradual"
+        timing_desc = soc.timing or "intermittent"
+        exac_desc = soc.exacerbating_relieving or "unspecified"
+        sev_desc = soc.severity or "unspecified"
+        rad_desc = soc.radiation or "None"
+
         hpi_parts = [
-            f"Patient presents with {soc.character.lower()} pain localized to {soc.site}.",
-            f"Onset was described as {soc.onset}.",
-            f"Radiation: {soc.radiation}.",
+            f"Patient presents with {char_desc} pain localized to {site_desc}.",
+            f"Onset was described as {onset_desc}.",
+            f"Radiation: {rad_desc}.",
             f"Associated symptoms: {assoc_str}.",
-            f"Temporal pattern: {soc.timing}.",
-            f"Exacerbating / Relieving factors: {soc.exacerbating_relieving}.",
-            f"Severity rated at {soc.severity} on clinical assessment."
+            f"Temporal pattern: {timing_desc}.",
+            f"Exacerbating / Relieving factors: {exac_desc}.",
+            f"Severity rated at {sev_desc} on clinical assessment."
         ]
         hpi_narrative = " ".join(hpi_parts)
 
@@ -194,7 +224,9 @@ class SBARSynthesizer:
             "prior_investigations": summary_8_part.prior_investigations,
             "ayush_profile": dashavidha_summary or "Standard clinical intake recorded.",
             "dashavidha_pariksha": dashavidha_summary or "Ayurvedic Dashavidha Pariksha evaluated.",
-            "provisional_diagnoses": f"Provisional clinical evaluation of {payload.chief_complaint.normalized} pending physical examination."
+            "provisional_diagnoses": (
+                f"Provisional clinical evaluation of {getattr(payload.chief_complaint, 'normalized', None) or (payload.chief_complaint if isinstance(payload.chief_complaint, str) else 'presenting complaint')} pending physical examination."
+            )
         }
 
     def generate_patient_audio_view(
@@ -208,14 +240,22 @@ class SBARSynthesizer:
         template = self.LANGUAGE_AUDIO_TEMPLATES.get(lang, self.LANGUAGE_AUDIO_TEMPLATES["en"])
 
         name = payload.patient_meta.name or "Patient"
-        complaint = payload.chief_complaint.verbatim or payload.chief_complaint.normalized
-        duration = payload.chief_complaint.duration or "some days"
+        if hasattr(payload.chief_complaint, "normalized") and getattr(payload.chief_complaint, "normalized"):
+            complaint = getattr(payload.chief_complaint, "verbatim", None) or getattr(payload.chief_complaint, "normalized")
+            duration = getattr(payload.chief_complaint, "duration", None) or "some days"
+        elif isinstance(payload.chief_complaint, str) and payload.chief_complaint:
+            complaint = payload.chief_complaint
+            duration = "some days"
+        else:
+            complaint = "Health Concern"
+            duration = "some days"
 
         audio_script = template.format(name=name, complaint=complaint, duration=duration)
 
         # Generate DPDP Act 2023 Cryptographic Consent Token (SHA-256 of encounter + timestamp + script)
         now_utc = datetime.now(timezone.utc).isoformat()
-        token_input = f"{payload.encounter_id}_{now_utc}_{lang}_{audio_script}".encode("utf-8")
+        enc_id = payload.encounter_id or payload.session_id or "sess-default"
+        token_input = f"{enc_id}_{now_utc}_{lang}_{audio_script}".encode("utf-8")
         consent_token = f"DPDP2023-CONSENT-{hashlib.sha256(token_input).hexdigest()[:16].upper()}"
 
         return PatientAudioView(

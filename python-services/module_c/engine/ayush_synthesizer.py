@@ -4,19 +4,28 @@ Synthesizes conversational responses and clinical indicators into the classical 
 Prakriti/Vikriti, Agni/Koshtha, Bala/Dhatu Sarata, Ahara/Vihara Shakti, Desha/Kala/Satmya.
 Aligned with Ministry of Ayush / AIIA standards (Charaka Samhita Vimana Sthana 8/94).
 """
-from typing import Dict, Any, List, Optional
+import sys
+import os
 import re
+from typing import Dict, Any, List, Optional
+
+_ENGINE_DIR = os.path.dirname(os.path.abspath(__file__))
+_MODULE_C_DIR = os.path.abspath(os.path.join(_ENGINE_DIR, ".."))
+_SERVICES_DIR = os.path.abspath(os.path.join(_MODULE_C_DIR, ".."))
+for _p in [_MODULE_C_DIR, _SERVICES_DIR]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 try:
-    from ..schemas.ingestion_schemas import PatientRecordPayload
-    from ..schemas.synthesis_schemas import DashavidhaReport
-except (ImportError, ValueError):
+    from module_c.schemas.ingestion_schemas import PatientRecordPayload, ChiefComplaint
+    from module_c.schemas.synthesis_schemas import DashavidhaReport
+except (ImportError, ModuleNotFoundError, ValueError):
     try:
-        from module_c.schemas.ingestion_schemas import PatientRecordPayload
-        from module_c.schemas.synthesis_schemas import DashavidhaReport
-    except (ImportError, ValueError):
-        from schemas.ingestion_schemas import PatientRecordPayload
+        from schemas.ingestion_schemas import PatientRecordPayload, ChiefComplaint
         from schemas.synthesis_schemas import DashavidhaReport
+    except (ImportError, ModuleNotFoundError, ValueError):
+        from ..schemas.ingestion_schemas import PatientRecordPayload, ChiefComplaint
+        from ..schemas.synthesis_schemas import DashavidhaReport
 
 
 class AyushSynthesizer:
@@ -31,7 +40,12 @@ class AyushSynthesizer:
         raw_ayush = payload.ayush_dashavidha or {}
         personal = payload.personal_social or {}
         socrates = payload.socrates_hpi
-        cc_text = f"{payload.chief_complaint.normalized} {payload.chief_complaint.verbatim}".lower()
+        if hasattr(payload.chief_complaint, "normalized"):
+            cc_text = f"{getattr(payload.chief_complaint, 'normalized', '')} {getattr(payload.chief_complaint, 'verbatim', '')}".lower()
+        elif isinstance(payload.chief_complaint, str):
+            cc_text = payload.chief_complaint.lower()
+        else:
+            cc_text = ""
 
         # -------------------------------------------------------------
         # 1. PRAKRITI (Baseline Constitution) & VIKRITI (Active Vitiation)
@@ -41,22 +55,26 @@ class AyushSynthesizer:
         pitta_score = 1.0
         kapha_score = 1.0
 
+        char_lower = (socrates.character or "").lower()
+        timing_lower = (socrates.timing or "").lower()
+        assoc_lower = " ".join(socrates.associations or []).lower()
+
         # Vata indicators: sharp/throbbing pain, variable timing, dry skin, constipation, anxiety
-        if "sharp" in socrates.character.lower() or "throbbing" in socrates.character.lower():
+        if "sharp" in char_lower or "throbbing" in char_lower:
             vata_score += 1.5
-        if "variable" in socrates.timing.lower() or "intermittent" in socrates.timing.lower():
+        if "variable" in timing_lower or "intermittent" in timing_lower:
             vata_score += 1.0
         if "joint" in cc_text or "knee" in cc_text or "back" in cc_text:
             vata_score += 2.0
 
         # Pitta indicators: burning sensation, fever, inflammation, hyperacidity, loose stools
-        if "burning" in socrates.character.lower() or "acid" in cc_text or "ulcer" in cc_text:
+        if "burning" in char_lower or "acid" in cc_text or "ulcer" in cc_text:
             pitta_score += 2.5
-        if "fever" in " ".join(socrates.associations).lower() or "heat" in cc_text:
+        if "fever" in assoc_lower or "heat" in cc_text:
             pitta_score += 2.0
 
         # Kapha indicators: dull ache, heaviness, congestion, cough, swelling, lethargy
-        if "dull" in socrates.character.lower() or "heavy" in socrates.character.lower():
+        if "dull" in char_lower or "heavy" in char_lower:
             kapha_score += 1.5
         if "cough" in cc_text or "cold" in cc_text or "mucus" in cc_text:
             kapha_score += 2.5
@@ -103,10 +121,10 @@ class AyushSynthesizer:
         if "burn" in cc_text or "acid" in cc_text:
             agni = "Tikshnagni (Hyperactive / Intense Digestive Fire)"
             koshtha = "Mridu Koshtha (Sensitive / Rapid GI motility)"
-        elif "constipat" in bowel_status or "hard" in bowel_status or "irregular" in socrates.timing.lower():
+        elif "constipat" in bowel_status or "hard" in bowel_status or "irregular" in timing_lower:
             agni = "Vishamagni (Irregular / Vata-provoked Digestion)"
             koshtha = "Krura Koshtha (Sluggish / Hard Constipated Bowel)"
-        elif "heavy" in socrates.character.lower() or "sluggish" in bowel_status:
+        elif "heavy" in char_lower or "sluggish" in bowel_status:
             agni = "Mandagni (Low / Slow Metabolic Fire with Ama formation)"
             koshtha = "Madhyama Koshtha (Normal-Moderate motility)"
         else:
@@ -131,7 +149,7 @@ class AyushSynthesizer:
             bala = "Madhyama to Pravara Bala (Moderate to High Functional Resilience)"
             vayas = "Madhyama Vayas (Adult 18-60 years)"
 
-        site_lower = socrates.site.lower()
+        site_lower = (socrates.site or "").lower()
         if "joint" in cc_text or "knee" in cc_text or "sandhi" in cc_text or "sandhi" in site_lower or "knee" in site_lower:
             dhatu_sarata = "Asthi & Sandhi Dhatu involvement (Articular degeneration)"
         else:

@@ -18,9 +18,9 @@ def test_dual_coding_amlapitta():
     entry = dual_coder.code_finding("Amlapitta / Severe Hyperacidity")
     assert entry is not None
     assert entry.namaste_code == "AYU-DG-0142"
-    assert "Amlapitta" in entry.namaste_display
+    assert entry.namaste_display is not None and "Amlapitta" in entry.namaste_display
     assert entry.who_tm2_code == "TM2-SD-8812"
-    assert "WHO TM2" in entry.who_tm2_display
+    assert entry.who_tm2_display is not None and "WHO TM2" in entry.who_tm2_display
     assert entry.snomed_code == "196727004"
     assert entry.icd11_mms_code == "MD90.0"
 
@@ -58,9 +58,9 @@ def test_dual_coded_fhir_r4_bundle_generation():
         review_of_systems="GI symptoms present",
         prior_investigations="Pending"
     )
-    dual_entries = [
-        dual_coder.code_finding("Amlapitta")
-    ]
+    entry_aml = dual_coder.code_finding("Amlapitta")
+    assert entry_aml is not None
+    dual_entries = [entry_aml]
 
     bundle = dual_coded_fhir_builder.build_bundle(
         encounter_id="ENC-FHIR-01",

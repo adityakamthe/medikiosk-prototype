@@ -7,7 +7,7 @@ Emulates the NHA ABDM End-to-End Encryption Protocol for Health Data Transfer.
 import os
 import base64
 import json
-from typing import Dict, Tuple, Any
+from typing import Dict, Tuple, Any, Optional
 from cryptography.hazmat.primitives.asymmetric import x25519
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF

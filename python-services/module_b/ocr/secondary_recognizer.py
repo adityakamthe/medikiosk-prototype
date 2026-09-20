@@ -47,7 +47,7 @@ class SecondaryRecognizer:
         """Runs secondary recognition on a single segmented line strip."""
         if self.backend == "tesseract":
             try:
-                import pytesseract
+                import pytesseract  # type: ignore
                 return pytesseract.image_to_string(strip_image).strip()
             except Exception:
                 pass

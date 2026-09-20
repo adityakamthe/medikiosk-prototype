@@ -3,7 +3,7 @@ Vernacular Voice Notice Generator for MediKiosk Module D (DPDP Act 2023).
 Provides spoken audio notice hooks in Hindi, English, Marathi, Tamil, Telugu, etc.
 """
 
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 import httpx
 from ..config import settings
 
@@ -67,7 +67,7 @@ def generate_vernacular_audio_notice(
     language: str = "hi",
     data_fiduciary: str = settings.DATA_FIDUCIARY,
     purpose: str = "clinical OPD intake and consultation preparation"
-) -> Dict[str, str]:
+) -> Dict[str, Any]:
     """
     Generates localized audio notice strings in Hindi, Bengali, Marathi, and English
     describing data collected, Data Fiduciary identity, and purpose before seeking consent.

@@ -87,7 +87,7 @@ def test_end_to_end_coordinator_pipeline():
     # Verify Bengali sig translation
     ultrafen = next(m for m in report.medications if "ultrafen" in m.name.lower())
     assert ultrafen.standardized_sig == "1-0-1 After Meals"
-    assert "Diclofenac" in ultrafen.generic_name
+    assert ultrafen.generic_name is not None and "Diclofenac" in ultrafen.generic_name
     assert ultrafen.action_gate == VerificationActionGate.AUTO_APPROVED
 
     # Verify Lab Panic detection

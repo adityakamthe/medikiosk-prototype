@@ -172,23 +172,23 @@ export default function AyushParikshaVisualizer() {
   return (
     <div className="w-full overflow-hidden rounded-3xl border border-border bg-peach-glow/20 p-5 shadow-lg backdrop-blur-sm sm:p-7">
       {/* Top Mode Tabs */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-4">
-        <div className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-pine-teal text-cornsilk">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-4">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-pine-teal text-white shadow-xs">
             <Sparkles className="h-4 w-4" />
           </span>
-          <span className="font-[family-name:var(--font-sora)] text-xs font-bold uppercase tracking-wider text-pine-teal">
+          <span className="font-[family-name:var(--font-sora)] text-xs sm:text-sm font-bold uppercase tracking-wider text-pine-teal">
             Ayurvedic Clinical Frameworks
           </span>
         </div>
 
-        <div className="flex rounded-xl bg-cornsilk/80 p-1 border border-border">
+        <div className="flex rounded-xl bg-white p-1 border border-border shadow-xs">
           <button
             type="button"
             onClick={() => handleModeChange("trividha")}
             className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
               activeMode === "trividha"
-                ? "bg-pine-teal text-cornsilk shadow-sm"
+                ? "bg-pine-teal text-white shadow-sm"
                 : "text-text-secondary hover:text-pine-teal"
             }`}
           >
@@ -199,7 +199,7 @@ export default function AyushParikshaVisualizer() {
             onClick={() => handleModeChange("ashtavidha")}
             className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
               activeMode === "ashtavidha"
-                ? "bg-pine-teal text-cornsilk shadow-sm"
+                ? "bg-pine-teal text-white shadow-sm"
                 : "text-text-secondary hover:text-pine-teal"
             }`}
           >
@@ -210,7 +210,7 @@ export default function AyushParikshaVisualizer() {
             onClick={() => handleModeChange("dashavidha")}
             className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
               activeMode === "dashavidha"
-                ? "bg-pine-teal text-cornsilk shadow-sm"
+                ? "bg-pine-teal text-white shadow-sm"
                 : "text-text-secondary hover:text-pine-teal"
             }`}
           >
@@ -223,12 +223,12 @@ export default function AyushParikshaVisualizer() {
       <div className="mt-6 grid gap-6 lg:grid-cols-12 items-center">
         {/* Left Interactive Circular Wheel Diagram */}
         <div className="lg:col-span-6 flex flex-col items-center justify-center">
-          <div className="relative flex h-72 w-72 sm:h-80 sm:w-80 items-center justify-center rounded-full border-2 border-pine-teal/30 bg-cornsilk/90 p-4 shadow-inner">
+          <div className="relative flex h-72 w-72 sm:h-80 sm:w-80 items-center justify-center rounded-full border-2 border-pine-teal/30 bg-white p-4 shadow-inner">
             {/* Outer Subtle Orbit Ring */}
             <div className="absolute inset-2 rounded-full border border-dashed border-pine-teal/20 pointer-events-none" />
 
             {/* Central Lotus & Framework Core */}
-            <div className="relative z-10 flex h-28 w-28 flex-col items-center justify-center rounded-full border-2 border-pine-teal bg-pine-teal text-cornsilk shadow-md text-center p-2">
+            <div className="relative z-10 flex h-28 w-28 flex-col items-center justify-center rounded-full border-2 border-pine-teal bg-pine-teal text-white shadow-md text-center p-2">
               <svg viewBox="0 0 24 24" className="h-6 w-6 fill-none stroke-metallic-gold" strokeWidth="2">
                 <path d="M12 3c1.5 3 4 5 7 5-2 3-5 5-7 9-2-4-5-6-7-9 3 0 5.5-2 7-5z" fill="currentColor" fillOpacity="0.3" />
                 <circle cx="12" cy="12" r="2" fill="currentColor" />
@@ -260,7 +260,7 @@ export default function AyushParikshaVisualizer() {
                   className={`group absolute flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full border transition-all duration-200 ${
                     isSelected
                       ? "scale-110 border-2 border-pine-teal bg-peach-glow text-pine-teal shadow-md ring-2 ring-pine-teal/20"
-                      : "border-border bg-cornsilk text-pine-teal hover:border-pine-teal hover:scale-105"
+                      : "border-border bg-white text-pine-teal hover:border-pine-teal hover:scale-105"
                   }`}
                   title={`${item.name} (${item.translation})`}
                 >
@@ -286,18 +286,18 @@ export default function AyushParikshaVisualizer() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.18 }}
-              className="rounded-2xl border border-border bg-cornsilk p-5 shadow-sm"
+              className="rounded-2xl border border-border bg-white p-5 shadow-sm"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-peach-glow text-pine-teal border border-border">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-peach-glow text-pine-teal border border-border">
                     {(() => {
                       const IconComp = activeItem.icon;
                       return <IconComp className="h-5 w-5" />;
                     })()}
                   </span>
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h4 className="font-[family-name:var(--font-sora)] text-lg font-bold text-pine-teal">
                         {activeItem.name}
                       </h4>
@@ -305,14 +305,14 @@ export default function AyushParikshaVisualizer() {
                         {activeItem.sanskrit}
                       </span>
                     </div>
-                    <p className="text-xs text-text-secondary font-medium">{activeItem.translation}</p>
+                    <p className="text-xs text-text-secondary font-medium mt-0.5">{activeItem.translation}</p>
                   </div>
                 </div>
 
                 <span
-                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                  className={`shrink-0 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
                     activeItem.kioskRole.includes("Kiosk")
-                      ? "bg-pine-teal text-cornsilk"
+                      ? "bg-pine-teal text-white"
                       : "border border-pine-teal/40 bg-peach-glow/20 text-pine-teal"
                   }`}
                 >
@@ -344,7 +344,7 @@ export default function AyushParikshaVisualizer() {
           </AnimatePresence>
 
           {/* Quick Select Pill Buttons */}
-          <div className="mt-3 flex flex-wrap gap-1.5">
+          <div className="mt-3 flex flex-wrap gap-1.5 items-center">
             {currentItems.map((item) => (
               <button
                 key={item.id}
@@ -352,8 +352,8 @@ export default function AyushParikshaVisualizer() {
                 onClick={() => setSelectedItemId(item.id)}
                 className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-all ${
                   item.id === activeItem.id
-                    ? "bg-pine-teal text-cornsilk shadow-xs"
-                    : "border border-border bg-cornsilk/80 text-text-secondary hover:border-pine-teal hover:text-pine-teal"
+                    ? "bg-pine-teal text-white shadow-xs"
+                    : "border border-border bg-white text-text-secondary hover:border-pine-teal hover:text-pine-teal"
                 }`}
               >
                 {item.name}
@@ -364,15 +364,15 @@ export default function AyushParikshaVisualizer() {
       </div>
 
       {/* Bottom Classical Guardrail Banner */}
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-cornsilk/90 px-4 py-3 text-xs text-text-secondary">
-        <div className="flex items-center gap-2">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-white px-4 py-3 text-xs text-text-secondary">
+        <div className="flex items-center gap-2 flex-1 min-w-[260px]">
           <Info className="h-4 w-4 text-pine-teal shrink-0" />
-          <span>
-            <strong>Prashna (Interrogation)</strong> is kiosk-administered across 22 Indic languages;{" "}
-            <strong>Darshana</strong> and <strong>Sparshana</strong> remain with the physician.
+          <span className="leading-snug">
+            <strong className="font-semibold text-pine-teal">Prashna (Interrogation)</strong> is kiosk-administered across 22 Indic languages;{" "}
+            <strong className="font-semibold text-pine-teal">Darshana</strong> and <strong className="font-semibold text-pine-teal">Sparshana</strong> remain with the physician.
           </span>
         </div>
-        <span className="rounded-md border border-border bg-peach-glow/40 px-2 py-0.5 font-semibold text-pine-teal text-[11px]">
+        <span className="rounded-md border border-border bg-peach-glow/40 px-2.5 py-1 font-semibold text-pine-teal text-[11px] shrink-0">
           Charaka & Sushruta Samhita Aligned
         </span>
       </div>

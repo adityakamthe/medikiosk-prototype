@@ -82,7 +82,7 @@ def test_emergency_exception_override():
     artifact = dpdp_manager.capture_consent(req)
 
     assert artifact.is_emergency_exception is True
-    assert "chest pain" in artifact.emergency_justification
+    assert artifact.emergency_justification is not None and "chest pain" in artifact.emergency_justification
 
     # Emergency consent must still be active and verifiable
     assert dpdp_manager.verify_consent(session_id).is_valid is True

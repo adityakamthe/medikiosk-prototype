@@ -145,7 +145,7 @@ def normalize_illumination(gray_image: np.ndarray) -> np.ndarray:
     background = cv2.morphologyEx(gray_image, cv2.MORPH_OPEN, kernel)
 
     divided = cv2.divide(gray_image, background, scale=255)
-    normalized = cv2.normalize(divided, None, 0, 255, cv2.NORM_MINMAX)
+    normalized = cv2.normalize(divided, np.zeros_like(divided), 0, 255, cv2.NORM_MINMAX)
     return normalized
 
 

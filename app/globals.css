@@ -3,20 +3,20 @@
 :root {
   --ink-black: #0c1618;
   --pine-teal: #004643;
-  --cornsilk: #faf4d3;
+  --cornsilk: #ffffff;
   --metallic-gold: #d1ac00;
   --peach-glow: #f6be9a;
   --border: rgba(12, 22, 24, 0.12);
   --border-strong: rgba(12, 22, 24, 0.24);
   --text-secondary: rgba(12, 22, 24, 0.65);
   --text-on-gold: #0c1618;
-  --text-on-dark: #faf4d3;
+  --text-on-dark: #ffffff;
 }
 
 @theme inline {
   --color-ink-black: #0c1618;
   --color-pine-teal: #004643;
-  --color-cornsilk: #faf4d3;
+  --color-cornsilk: #ffffff;
   --color-metallic-gold: #d1ac00;
   --color-peach-glow: #f6be9a;
   --color-border: rgba(12, 22, 24, 0.12);
@@ -29,7 +29,7 @@ html {
 }
 
 body {
-  background-color: var(--cornsilk);
+  background-color: #ffffff;
   color: var(--ink-black);
   font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
   margin: 0;
@@ -69,7 +69,7 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--cornsilk);
+  background: #ffffff;
 }
 ::-webkit-scrollbar-thumb {
   background: var(--pine-teal);

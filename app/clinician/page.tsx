@@ -719,7 +719,7 @@ export default function ClinicianDashboard() {
   // DOCTOR DASHBOARD PRIVACY GATE (PASSWORD: MediKiosk)
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-cornsilk text-ink-black flex flex-col relative overflow-hidden">
+      <div className="min-h-screen bg-white text-ink-black flex flex-col relative overflow-hidden">
         {/* Abstract Background Texture matching Landing Page */}
         <img
           src="/assets/illustrations/bg-abstract.svg"
@@ -864,7 +864,7 @@ export default function ClinicianDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-cornsilk text-ink-black flex flex-col">
+    <div className="min-h-screen bg-white text-ink-black flex flex-col">
       {/* MediKiosk Sticky Top Navigation Header */}
       <header className="sticky top-0 z-50 bg-pine-teal border-b border-white/10 shadow-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 md:px-6">

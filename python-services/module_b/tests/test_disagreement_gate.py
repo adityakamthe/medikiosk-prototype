@@ -2,12 +2,20 @@
 Tests for Secondary Independent Recognizer & Cross-Model Disagreement Gate
 """
 import pytest
-from ocr.secondary_recognizer import (
-    evaluate_cross_model_agreement,
-    apply_disagreement_gate,
-    normalize_drug_token
-)
-from schemas.verification_schemas import VerificationActionGate
+try:
+    from ocr.secondary_recognizer import (
+        evaluate_cross_model_agreement,
+        apply_disagreement_gate,
+        normalize_drug_token
+    )
+    from schemas.verification_schemas import VerificationActionGate
+except (ImportError, ModuleNotFoundError):
+    from module_b.ocr.secondary_recognizer import (
+        evaluate_cross_model_agreement,
+        apply_disagreement_gate,
+        normalize_drug_token
+    )
+    from module_b.schemas.verification_schemas import VerificationActionGate
 
 
 def test_token_normalization():

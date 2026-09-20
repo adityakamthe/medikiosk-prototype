@@ -263,7 +263,7 @@ class DPDPManager:
         self._append_audit_entry(
             session_id=payload.session_id,
             action=action_name,
-            actor=payload.guardian_name if payload.is_guardian_consent else "PATIENT",
+            actor=(payload.guardian_name or "GUARDIAN") if payload.is_guardian_consent else "PATIENT",
             details={
                 "artifact_id": artifact_id,
                 "purposes": [p.value for p in payload.granted_purposes],

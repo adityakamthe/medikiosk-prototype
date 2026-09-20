@@ -66,7 +66,7 @@ const STEPS = [
   },
 ];
 
-import { Lock, Building2 } from "lucide-react";
+import { Lock, Building2, User, Monitor, Stethoscope } from "lucide-react";
 
 export default function LandingPage() {
   const [demoOpen, setDemoOpen] = useState(false);
@@ -101,7 +101,7 @@ export default function LandingPage() {
   }, [demoOpen]);
 
   return (
-    <div className="min-h-screen bg-cornsilk text-ink-black">
+    <div className="min-h-screen bg-white text-ink-black">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-md focus:bg-metallic-gold focus:px-3 focus:py-2"
@@ -128,23 +128,25 @@ export default function LandingPage() {
           <div className="flex items-center gap-2">
             {/* Hospital Authentication Gatekeeper Badge / Action */}
             {activeHospital ? (
-              <div className="flex items-center gap-1.5 bg-white/10 border border-white/20 rounded-full px-2.5 py-1 text-xs text-white">
-                <Building2 className="w-3.5 h-3.5 text-metallic-gold" />
-                <span className="font-bold text-metallic-gold max-w-[120px] sm:max-w-none truncate">{activeHospital.name}</span>
+              <div className="w-[132px] h-9 bg-white/10 border border-white/20 rounded-full px-2.5 text-xs text-white inline-flex items-center justify-between gap-1 shadow-xs">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Building2 className="w-3.5 h-3.5 text-metallic-gold shrink-0" />
+                  <span className="font-bold text-metallic-gold truncate text-[11px]">{activeHospital.name}</span>
+                </div>
                 <button
                   onClick={handleHospitalLogout}
                   title="Switch hospital facility"
-                  className="ml-1 text-[10px] text-cornsilk/70 hover:text-white underline cursor-pointer"
+                  className="text-[10px] text-white/70 hover:text-white underline cursor-pointer shrink-0"
                 >
-                  Switch
+                  ✕
                 </button>
               </div>
             ) : (
               <Link
                 href="/hospital-login"
-                className="rounded-full bg-metallic-gold/90 hover:bg-metallic-gold text-ink-black px-3 py-1.5 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                className="w-[132px] h-9 rounded-full bg-metallic-gold hover:brightness-105 text-ink-black text-xs font-bold transition-all shadow-xs inline-flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
               >
-                <Building2 className="w-3.5 h-3.5" />
+                <Building2 className="w-3.5 h-3.5 shrink-0" />
                 <span>Hospital Login</span>
               </Link>
             )}
@@ -152,26 +154,28 @@ export default function LandingPage() {
             {/* Patient Portal Always Available */}
             <Link
               href="/patient"
-              className="hidden sm:inline-block rounded-full bg-cornsilk/10 hover:bg-cornsilk/20 border border-cornsilk/30 px-3 py-2 text-xs font-semibold text-cornsilk md:px-3.5 md:text-sm transition-all"
+              className="hidden sm:inline-flex w-[132px] h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-semibold transition-all items-center justify-center gap-1.5 whitespace-nowrap"
             >
-              Patient Portal
+              <User className="w-3.5 h-3.5 shrink-0" />
+              <span>Patient Portal</span>
             </Link>
 
             {/* On-Site Kiosk: Unlocked only if Hospital logged in */}
             {activeHospital ? (
               <Link
                 href="/kiosk"
-                className="hidden md:inline-block rounded-full border border-cornsilk/30 px-3 py-2 text-xs font-semibold text-cornsilk/90 hover:text-cornsilk hover:bg-white/10 transition-all md:px-3.5 md:text-sm"
+                className="hidden md:inline-flex w-[132px] h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-semibold transition-all items-center justify-center gap-1.5 whitespace-nowrap"
               >
-                On-Site Kiosk
+                <Monitor className="w-3.5 h-3.5 shrink-0" />
+                <span>On-Site Kiosk</span>
               </Link>
             ) : (
               <Link
                 href="/hospital-login"
                 title="Hospital Login required to unlock on-site kiosk"
-                className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/20 px-3 py-2 text-xs font-semibold text-cornsilk/60 hover:text-cornsilk/90 hover:border-white/40 transition-all md:px-3.5 md:text-sm"
+                className="hidden md:inline-flex w-[132px] h-9 rounded-full border border-white/20 bg-black/20 text-white/80 hover:text-white hover:border-white/40 text-xs font-semibold transition-all items-center justify-center gap-1.5 whitespace-nowrap"
               >
-                <Lock className="w-3 h-3 text-metallic-gold" />
+                <Lock className="w-3.5 h-3.5 text-metallic-gold shrink-0" />
                 <span>On-Site Kiosk</span>
               </Link>
             )}
@@ -180,17 +184,18 @@ export default function LandingPage() {
             {activeHospital ? (
               <Link
                 href="/clinician"
-                className="rounded-full bg-metallic-gold hover:brightness-105 px-3 py-2 text-xs font-semibold text-ink-black md:px-4 md:text-sm transition-all shadow-xs"
+                className="w-[132px] h-9 rounded-full bg-metallic-gold hover:brightness-105 text-ink-black text-xs font-bold transition-all shadow-xs inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
               >
-                Clinician Login
+                <Stethoscope className="w-3.5 h-3.5 shrink-0" />
+                <span>Clinician Login</span>
               </Link>
             ) : (
               <Link
                 href="/hospital-login"
                 title="Hospital Login required to unlock clinician portal"
-                className="inline-flex items-center gap-1.5 rounded-full bg-metallic-gold/40 border border-metallic-gold/50 px-3 py-2 text-xs font-semibold text-ink-black/80 hover:bg-metallic-gold/60 md:px-4 md:text-sm transition-all shadow-xs"
+                className="inline-flex w-[132px] h-9 rounded-full bg-metallic-gold/30 hover:bg-metallic-gold/45 border border-metallic-gold/50 text-white text-xs font-semibold transition-all shadow-xs items-center justify-center gap-1.5 whitespace-nowrap"
               >
-                <Lock className="w-3 h-3" />
+                <Lock className="w-3.5 h-3.5 text-metallic-gold shrink-0" />
                 <span>Clinician Login</span>
               </Link>
             )}
@@ -250,7 +255,7 @@ export default function LandingPage() {
               </div>
             </div>
             <MockupTilt>
-              <div className="raised-card overflow-hidden rounded-3xl border border-border bg-cornsilk">
+              <div className="raised-card overflow-hidden rounded-3xl border border-border bg-white">
                 <img
                   src="/assets/images/hero-kiosk.jpg"
                   alt="MediKiosk self-service intake screen"
@@ -259,7 +264,7 @@ export default function LandingPage() {
               </div>
             </MockupTilt>
           </div>
-          <div className="relative border-t border-border bg-cornsilk">
+          <div className="relative border-t border-border bg-white">
             <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 md:grid-cols-3 md:px-6">
               <StatBlock
                 label="Patients moving through a busy Indian OPD each day"
@@ -274,11 +279,11 @@ export default function LandingPage() {
                 joiner="–"
                 suffix=" min"
               />
-              <div>
+              <div className="flex flex-col">
                 <p className="font-[family-name:var(--font-sora)] text-3xl font-bold text-metallic-gold md:text-4xl">
                   <CountUp to={40} />%
                 </p>
-                <p className="mt-2 text-sm text-text-secondary">Time lost to paper records before the physician even looks up</p>
+                <p className="mt-2 text-sm text-text-secondary leading-snug">Time lost to paper records before the physician even looks up</p>
               </div>
             </div>
           </div>
@@ -287,20 +292,20 @@ export default function LandingPage() {
         {/* Problem */}
         <section id="product" className="mx-auto max-w-6xl px-4 py-20 md:px-6 md:py-28">
           <SectionIntro eyebrow="The Problem">
-            <h2 className="font-[family-name:var(--font-sora)] text-3xl font-bold tracking-tight md:text-5xl">
+            <h2 className="font-[family-name:var(--font-sora)] text-3xl font-bold tracking-tight md:text-5xl text-balance">
               <LineMaskReveal lines={["The consult is short.", "The history is not."]} />
             </h2>
           </SectionIntro>
           <div className="mt-12 grid gap-6 md:grid-cols-2">
-            <article className="raised-card rounded-3xl border border-border bg-white/40 p-8">
-              <h3 className="font-[family-name:var(--font-sora)] text-xl font-bold">The OPD bottleneck</h3>
+            <article className="raised-card rounded-3xl border border-border bg-white p-8 flex flex-col justify-start h-full">
+              <h3 className="font-[family-name:var(--font-sora)] text-xl font-bold leading-snug">The OPD bottleneck</h3>
               <p className="mt-3 text-text-secondary leading-relaxed">
                 High-throughput OPDs compress a full history into minutes. Paper folders arrive incomplete.
                 Prior labs sit in a bag. The physician reconstructs the story while the queue grows.
               </p>
             </article>
-            <article className="raised-card rounded-3xl border border-border bg-peach-glow/35 p-8">
-              <h3 className="font-[family-name:var(--font-sora)] text-xl font-bold">The AYUSH constraint</h3>
+            <article className="raised-card rounded-3xl border border-border bg-peach-glow/20 p-8 flex flex-col justify-start h-full">
+              <h3 className="font-[family-name:var(--font-sora)] text-xl font-bold leading-snug">The AYUSH constraint</h3>
               <p className="mt-3 text-text-secondary leading-relaxed">
                 Trividha, Ashtavidha, and Dashavidha Pariksha cannot be rushed into a two-minute window. Detailed
                 assessment of Prakriti (constitution), Vikriti (imbalance), Agni (digestive capacity), Koshtha (bowel nature),
@@ -395,14 +400,14 @@ export default function LandingPage() {
 
         {/* AYUSH */}
         <section id="ayush" className="border-y border-border bg-peach-glow/25 py-14 md:py-20">
-          <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 lg:grid-cols-12 md:px-6">
-            <div className="lg:col-span-5">
+          <div className="mx-auto grid max-w-6xl items-start gap-8 lg:gap-12 px-4 lg:grid-cols-12 md:px-6">
+            <div className="lg:col-span-5 flex flex-col justify-start">
               <SectionIntro eyebrow="AYUSH Integration • Classical Clinical Pariksha">
-                <h2 className="font-[family-name:var(--font-sora)] text-3xl font-bold tracking-tight text-pine-teal md:text-5xl">
+                <h2 className="font-[family-name:var(--font-sora)] text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-pine-teal leading-tight text-balance">
                   <LineMaskReveal lines={["Trividha, Ashtavidha &", "Dashavidha Pariksha."]} />
                 </h2>
               </SectionIntro>
-              <p className="mt-6 text-text-secondary leading-relaxed text-sm md:text-base">
+              <p className="mt-5 text-text-secondary leading-relaxed text-sm md:text-base">
                 Classical Ayurvedic clinical methodology requires detailed assessment of{" "}
                 <strong className="font-semibold text-pine-teal">Prakriti</strong> (constitution),{" "}
                 <strong className="font-semibold text-pine-teal">Vikriti</strong> (current imbalance),{" "}
@@ -412,7 +417,7 @@ export default function LandingPage() {
                 <strong className="font-semibold text-pine-teal">Nidana</strong> (causative factors), and{" "}
                 <strong className="font-semibold text-pine-teal">Samprapti</strong> (pathogenesis).
               </p>
-              <p className="mt-4 text-text-secondary leading-relaxed text-sm md:text-base">
+              <p className="mt-3.5 text-text-secondary leading-relaxed text-sm md:text-base">
                 MediKiosk self-administers{" "}
                 <em className="font-[family-name:var(--font-source-serif)] not-italic font-semibold text-pine-teal">
                   Prashna
@@ -427,20 +432,20 @@ export default function LandingPage() {
                 </em>{" "}
                 (palpation) remain with the clinician. We do not oversell what a kiosk can see or feel.
               </p>
-              <div className="mt-6 flex items-center gap-3">
+              <div className="mt-5 flex items-center gap-3">
                 <IconLotus />
-                <p className="text-xs md:text-sm font-medium text-text-secondary">
+                <p className="text-xs md:text-sm font-medium text-text-secondary leading-snug">
                   Classical parameters, modern kiosk execution across 22 Indic languages.
                 </p>
               </div>
 
               {/* 7 Core Clinical Parameter Badges */}
-              <div className="mt-7">
-                <div className="flex items-center justify-between mb-3">
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-2.5">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-pine-teal">
                     Diagnostic Dimensions Evaluated:
                   </span>
-                  <span className="text-[10px] font-semibold text-pine-teal/80 bg-cornsilk px-2 py-0.5 rounded-md border border-border">
+                  <span className="text-[10px] font-semibold text-pine-teal/80 bg-white px-2 py-0.5 rounded-md border border-border shadow-2xs">
                     Charaka & Sushruta Aligned
                   </span>
                 </div>
@@ -456,19 +461,19 @@ export default function LandingPage() {
                   ].map((param) => (
                     <li
                       key={param.name}
-                      className="rounded-xl border border-border bg-cornsilk p-2.5 text-center transition-all hover:border-pine-teal/40 hover:shadow-xs"
+                      className="rounded-xl border border-border bg-white p-2 text-center transition-all hover:border-pine-teal/40 hover:shadow-xs flex flex-col justify-center items-center min-h-[52px]"
                     >
-                      <div className="font-[family-name:var(--font-source-serif)] text-xs font-semibold text-pine-teal">
+                      <div className="font-[family-name:var(--font-source-serif)] text-xs font-semibold text-pine-teal leading-snug">
                         {param.name}
                       </div>
-                      <div className="text-[9px] text-text-secondary">{param.sub}</div>
+                      <div className="text-[9px] text-text-secondary leading-tight mt-0.5">{param.sub}</div>
                     </li>
                   ))}
-                  <li className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border-strong bg-peach-glow/15 p-2 text-center">
+                  <li className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border-strong bg-peach-glow/15 p-2 text-center min-h-[52px]">
                     <span className="text-[9px] uppercase tracking-[0.14em] font-bold text-pine-teal">
                       Prashna
                     </span>
-                    <span className="text-[8px] text-text-secondary font-medium">Kiosk Captured</span>
+                    <span className="text-[8px] text-text-secondary font-medium leading-tight mt-0.5">Kiosk Captured</span>
                   </li>
                 </ul>
               </div>
@@ -476,9 +481,7 @@ export default function LandingPage() {
 
             {/* Interactive Visualizer */}
             <div className="lg:col-span-7">
-              <MockupTilt>
-                <AyushParikshaVisualizer />
-              </MockupTilt>
+              <AyushParikshaVisualizer />
             </div>
           </div>
         </section>
@@ -577,29 +580,33 @@ export default function LandingPage() {
                 Time returned to the consult. Access returned to the patient.
               </h2>
             </SectionIntro>
-            <div className="mt-14 grid gap-10 md:grid-cols-3">
-              <div>
+            <div className="mt-14 grid gap-8 md:grid-cols-3">
+              <div className="flex flex-col">
                 <p className="font-[family-name:var(--font-sora)] text-4xl font-bold text-metallic-gold md:text-5xl">
                   <CountUp to={2} />–<CountUp to={3} /> min
                 </p>
-                <p className="mt-3 text-cornsilk/75">Saved per consultation by moving history off the consult clock.</p>
+                <p className="mt-3 text-sm md:text-base text-white/80 leading-relaxed">
+                  Saved per consultation by moving history off the consult clock.
+                </p>
               </div>
-              <div>
+              <div className="flex flex-col">
                 <p className="font-[family-name:var(--font-sora)] text-4xl font-bold text-metallic-gold md:text-5xl">
                   <CountUp to={22} />
                 </p>
-                <p className="mt-3 text-cornsilk/75">Languages supported for voice and touch intake.</p>
+                <p className="mt-3 text-sm md:text-base text-white/80 leading-relaxed">
+                  Languages supported for voice and touch intake.
+                </p>
               </div>
-              <div>
+              <div className="flex flex-col">
                 <p className="font-[family-name:var(--font-sora)] text-4xl font-bold text-metallic-gold md:text-5xl">
                   <CountUp to={0} />
                 </p>
-                <p className="mt-3 text-cornsilk/75">
+                <p className="mt-3 text-sm md:text-base text-white/80 leading-relaxed">
                   Patients excluded by literacy or smartphone access — the kiosk does not require either.
                 </p>
               </div>
             </div>
-            <div className="mt-16 overflow-hidden rounded-3xl border border-cornsilk/10">
+            <div className="mt-16 overflow-hidden rounded-3xl border border-white/10">
               <object
                 type="image/svg+xml"
                 data="/assets/video/records-loop.svg"
@@ -611,83 +618,88 @@ export default function LandingPage() {
         </section>
 
         {/* Final CTA */}
-        <section className="bg-metallic-gold py-20 md:py-24">
-          <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-10 px-4 md:flex-row md:items-center md:px-6">
-            <div>
+        <section className="bg-[#e0bd26] py-14 md:py-16 overflow-hidden">
+          <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-8 px-4 md:flex-row md:items-center md:px-6">
+            <div className="max-w-xl">
               <h2 className="font-[family-name:var(--font-sora)] text-3xl font-bold tracking-tight text-ink-black md:text-5xl">
                 Ready to see MediKiosk in action?
               </h2>
-              <p className="mt-4 max-w-lg text-ink-black/75">
+              <p className="mt-4 max-w-lg text-ink-black/80 font-medium leading-relaxed">
                 SIH 2026 · Problem SIH26047 · Ministry of Ayush / All India Institute of Ayurveda
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <button
                   type="button"
                   onClick={() => setDemoOpen(true)}
-                  className="rounded-full bg-ink-black px-5 py-3 text-sm font-semibold text-cornsilk"
+                  className="rounded-full bg-ink-black hover:bg-ink-black/90 transition-all px-6 py-3.5 text-sm font-semibold text-white shadow-lg cursor-pointer active:scale-95"
                 >
                   Watch Demo
                 </button>
                 <a
                   href="#contact"
-                  className="rounded-full border border-ink-black px-5 py-3 text-sm font-semibold text-ink-black"
+                  className="rounded-full border-2 border-ink-black hover:bg-ink-black/10 transition-all px-6 py-3.5 text-sm font-bold text-ink-black cursor-pointer active:scale-95"
                 >
                   Team Contact
                 </a>
               </div>
             </div>
-            <img
-              src="/assets/images/cta-kiosk-small.svg"
-              alt="MediKiosk kiosk terminal illustration"
-              className="w-full max-w-xs"
-            />
+            <div className="flex justify-center md:justify-end w-full md:w-auto items-center self-center">
+              <img
+                src="/assets/images/cta-kiosk-small.svg"
+                alt="MediKiosk kiosk terminal illustration"
+                className="w-full max-w-[280px] sm:max-w-[340px] md:max-w-[380px] lg:max-w-[420px] h-auto max-h-[460px] drop-shadow-2xl transition-transform hover:scale-[1.02] duration-300"
+              />
+            </div>
           </div>
         </section>
       </main>
 
-      <footer id="contact" className="bg-ink-black text-cornsilk">
+      <footer id="contact" className="bg-ink-black text-white">
         <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 md:grid-cols-4 md:px-6">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-peach-glow">Product</p>
-            <ul className="mt-4 space-y-2 text-sm text-cornsilk/75">
-              <li><a href="#product">Modules</a></li>
-              <li><a href="#how-it-works">How it works</a></li>
-              <li><a href="#ayush">AYUSH integration</a></li>
+            <ul className="mt-4 space-y-2.5 text-sm text-white/75">
+              <li><a href="#product" className="hover:text-white transition-colors">Modules</a></li>
+              <li><a href="#how-it-works" className="hover:text-white transition-colors">How it works</a></li>
+              <li><a href="#ayush" className="hover:text-white transition-colors">AYUSH integration</a></li>
             </ul>
           </div>
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-peach-glow">Team</p>
-            <ul className="mt-4 space-y-2 text-sm text-cornsilk/75">
-              <li>SIH 2026 hackathon team</li>
-              <li>Built for Indian OPD workflows</li>
+            <ul className="mt-4 space-y-2.5 text-sm text-white/75">
+              <li>Team name DEBUGGERSX</li>
+              <li>Team ID - 143078</li>
             </ul>
           </div>
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-peach-glow">Contact</p>
-            <ul className="mt-4 space-y-2 text-sm text-cornsilk/75">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-peach-glow">Portals</p>
+            <ul className="mt-4 space-y-2.5 text-sm text-white/75">
               <li>
-                <Link href="/kiosk">Patient kiosk</Link>
+                <Link href="/patient" className="hover:text-white transition-colors">Patient portal</Link>
               </li>
               <li>
-                <Link href="/clinician">Clinician dashboard</Link>
+                <Link href="/kiosk" className="hover:text-white transition-colors">On-site kiosk</Link>
+              </li>
+              <li>
+                <Link href="/clinician" className="hover:text-white transition-colors">Clinician dashboard</Link>
               </li>
             </ul>
           </div>
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-peach-glow">Compliance docs</p>
-            <ul className="mt-4 space-y-2 text-sm text-cornsilk/75">
-              <li><a href="#compliance">DPDP &amp; ABDM</a></li>
-              <li><a href="#compliance">FHIR R4 / dual coding</a></li>
+            <ul className="mt-4 space-y-2.5 text-sm text-white/75">
+              <li><a href="#compliance" className="hover:text-white transition-colors">DPDP &amp; ABDM</a></li>
+              <li><a href="#compliance" className="hover:text-white transition-colors">FHIR R4 / dual coding</a></li>
             </ul>
           </div>
         </div>
-        <div className="overflow-hidden px-3 pb-8 md:px-6 flex flex-col items-center justify-center">
+        <div className="border-t border-white/10 px-4 py-8 md:px-6 flex flex-col items-center justify-center text-center">
           <img
             src="/assets/logo/medikiosk-logo.png"
             alt="MediKiosk Logo"
-            className="h-16 md:h-24 w-auto object-contain opacity-90 mb-4"
+            className="h-9 md:h-11 w-auto object-contain opacity-90 mb-3"
           />
-          <p className="text-xs text-cornsilk/50 font-medium tracking-wide">
+          <p className="text-xs text-white/50 font-medium tracking-wide">
             © {new Date().getFullYear()} MediKiosk · AI-Powered Multimodal Clinical Intake · SIH 2026
           </p>
         </div>
@@ -702,14 +714,14 @@ export default function LandingPage() {
           onClick={() => setDemoOpen(false)}
         >
           <div
-            className="max-w-3xl overflow-hidden rounded-3xl border border-border bg-cornsilk"
+            className="max-w-3xl overflow-hidden rounded-3xl border border-border bg-white"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-5 py-4">
-              <h2 id="demo-title" className="font-[family-name:var(--font-sora)] font-bold">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 id="demo-title" className="font-[family-name:var(--font-sora)] font-bold text-ink-black">
                 Paper to structured intake
               </h2>
-              <button type="button" className="text-sm font-semibold" onClick={() => setDemoOpen(false)}>
+              <button type="button" className="text-sm font-semibold text-text-secondary hover:text-ink-black transition-colors cursor-pointer" onClick={() => setDemoOpen(false)}>
                 Close
               </button>
             </div>
@@ -740,23 +752,23 @@ function StatBlock({
   suffix?: string;
 }) {
   return (
-    <div>
+    <div className="flex flex-col">
       <p className="font-[family-name:var(--font-sora)] text-3xl font-bold text-metallic-gold md:text-4xl">
         <CountUp to={left} />
         {joiner}
         <CountUp to={right} />
         {suffix}
       </p>
-      <p className="mt-2 text-sm text-text-secondary">{label}</p>
+      <p className="mt-2 text-sm text-text-secondary leading-snug">{label}</p>
     </div>
   );
 }
 
 function ProblemCard({ icon, title, copy }: { icon: ReactNode; title: string; copy: string }) {
   return (
-    <article className="raised-card rounded-3xl border border-border bg-cornsilk p-6">
-      {icon}
-      <h3 className="mt-4 font-[family-name:var(--font-sora)] text-lg font-bold">{title}</h3>
+    <article className="raised-card rounded-3xl border border-border bg-white p-6 flex flex-col h-full">
+      <div className="flex items-center">{icon}</div>
+      <h3 className="mt-4 font-[family-name:var(--font-sora)] text-lg font-bold leading-snug">{title}</h3>
       <p className="mt-2 text-sm leading-relaxed text-text-secondary">{copy}</p>
     </article>
   );
@@ -764,9 +776,9 @@ function ProblemCard({ icon, title, copy }: { icon: ReactNode; title: string; co
 
 function ModuleCard({ icon, title, copy }: { icon: ReactNode; title: string; copy: string }) {
   return (
-    <article className="raised-card group rounded-3xl border border-border bg-cornsilk p-7 transition-transform duration-300 hover:-translate-y-1">
-      {icon}
-      <h3 className="mt-5 font-[family-name:var(--font-sora)] text-xl font-bold">{title}</h3>
+    <article className="raised-card group rounded-3xl border border-border bg-white p-7 transition-transform duration-300 hover:-translate-y-1 flex flex-col h-full">
+      <div className="flex items-center">{icon}</div>
+      <h3 className="mt-5 font-[family-name:var(--font-sora)] text-xl font-bold leading-snug">{title}</h3>
       <p className="mt-2 text-sm leading-relaxed text-text-secondary">{copy}</p>
     </article>
   );
@@ -774,10 +786,10 @@ function ModuleCard({ icon, title, copy }: { icon: ReactNode; title: string; cop
 
 function TrustCard({ icon, title, copy }: { icon: ReactNode; title: string; copy: string }) {
   return (
-    <article className="raised-card rounded-2xl border border-border bg-cornsilk p-5">
-      {icon}
+    <article className="raised-card rounded-2xl border border-border bg-white p-5 flex flex-col h-full">
+      <div className="flex items-center">{icon}</div>
       <h3 className="mt-4 font-[family-name:var(--font-sora)] text-base font-bold leading-snug">{title}</h3>
-      <p className="mt-2 text-sm text-text-secondary">{copy}</p>
+      <p className="mt-2 text-sm text-text-secondary leading-relaxed">{copy}</p>
     </article>
   );
 }

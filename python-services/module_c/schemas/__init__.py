@@ -1,6 +1,6 @@
-"""
-Schemas package for MediKiosk Module C.
-"""
+import pkgutil
+__path__ = pkgutil.extend_path(__path__, __name__)
+
 from .ingestion_schemas import (
     ChiefComplaint,
     SocratesHPI,

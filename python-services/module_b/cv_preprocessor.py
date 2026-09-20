@@ -12,7 +12,7 @@ Implements:
 import cv2
 import numpy as np
 import base64
-from typing import Tuple, Optional, Dict, Any
+from typing import Tuple, Optional, Dict, Any, List
 
 
 def order_points(pts: np.ndarray) -> np.ndarray:
@@ -155,7 +155,7 @@ def normalize_illumination(gray_image: np.ndarray) -> np.ndarray:
 
     # Divide out the background illumination safely
     divided = cv2.divide(gray_image, background, scale=255)
-    normalized = cv2.normalize(divided, None, 0, 255, cv2.NORM_MINMAX)
+    normalized = cv2.normalize(divided, np.zeros_like(divided), 0, 255, cv2.NORM_MINMAX)
     return normalized
 
 

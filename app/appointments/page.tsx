@@ -144,7 +144,7 @@ export default function AppointmentBookingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-cornsilk text-ink-black flex flex-col relative overflow-hidden">
+    <div className="min-h-screen bg-white text-ink-black flex flex-col relative overflow-hidden">
       {/* Background Texture */}
       <img
         src="/assets/illustrations/bg-abstract.svg"

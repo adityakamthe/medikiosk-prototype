@@ -272,7 +272,42 @@ CDSCO_MASTER_REGISTRY: Dict[str, Dict[str, Any]] = {
 }
 
 
-def extract_dosage_form_and_strength(raw_text: str) -> Tuple[Optional[str], Optional[str]]:
+class DosageFormAndStrength(tuple):
+    """
+    Subclass of tuple (form, strength) supporting attribute access (.form, .strength)
+    and key-based dictionary access (["form"], ["strength"]).
+    """
+    def __new__(cls, form: Optional[str], strength: Optional[str]):
+        return super().__new__(cls, (form, strength))
+
+    @property
+    def form(self) -> Optional[str]:
+        if self[0] in ["tab", "tablet"]:
+            return "TABLET"
+        return self[0].upper() if self[0] else None
+
+    @property
+    def strength(self) -> Optional[str]:
+        return self[1]
+
+    def __getitem__(self, item: Any) -> Any:
+        if isinstance(item, str):
+            if item == "form":
+                return self.form
+            elif item == "strength":
+                return self.strength
+            raise KeyError(item)
+        return super().__getitem__(item)
+
+    def get(self, key: str, default: Any = None) -> Any:
+        if key == "form":
+            return self.form
+        if key == "strength":
+            return self[1]
+        return default
+
+
+def extract_dosage_form_and_strength(raw_text: str) -> DosageFormAndStrength:
     """
     Extracts dosage form prefix (tab, cap, syr, inj, etc.) and strength (e.g. 500mg, 40mg).
     """
@@ -297,32 +332,8 @@ def extract_dosage_form_and_strength(raw_text: str) -> Tuple[Optional[str], Opti
     if strength_match:
         detected_strength = strength_match.group(1).replace(" ", "")
 
-    class DosageFormAndStrength(tuple):
-        def __new__(cls, form, strength):
-            return super().__new__(cls, (form, strength))
-        @property
-        def form(self):
-            return self[0]
-        @property
-        def strength(self):
-            return self[1]
-        def __getitem__(self, item):
-            if isinstance(item, str):
-                if item == "form":
-                    return self[0]
-                elif item == "strength":
-                    return self[1]
-                raise KeyError(item)
-            return super().__getitem__(item)
-        def get(self, key, default=None):
-            try:
-                return self[key]
-            except KeyError:
-                return default
+    return DosageFormAndStrength(detected_form, detected_strength)
 
-    # Normalize detected_form label if tablet
-    form_label = "TABLET" if detected_form in ["tab", "tablet"] else (detected_form.upper() if detected_form else None)
-    return DosageFormAndStrength(form_label, detected_strength)
 
 
 def clean_medicine_string(raw_text: str) -> str:
@@ -454,7 +465,7 @@ def match_against_cdsco(
         }
 
     detected_form, detected_strength = extract_dosage_form_and_strength(raw_name)
-    target_form = form_filter or (detected_form.form if hasattr(detected_form, "form") else detected_form)
+    target_form = form_filter or detected_form
 
     # Pass 2: Retrieve Top-5 candidate shortlist
     shortlist = retrieve_candidate_shortlist(cleaned, top_k=5, form_filter=target_form)

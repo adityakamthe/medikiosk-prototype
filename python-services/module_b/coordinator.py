@@ -133,7 +133,7 @@ class PipelineCoordinator:
         context_text = verbal_context or ""
 
         if intake_payload:
-            if intake_payload.metadata.verbal_transcription:
+            if intake_payload.metadata and intake_payload.metadata.verbal_transcription:
                 context_text = f"{context_text} {intake_payload.metadata.verbal_transcription}".strip()
             for m in intake_payload.medications:
                 extracted_meds.append(m.model_dump())
@@ -241,7 +241,7 @@ class PipelineCoordinator:
 
         # Step 7: Longitudinal Episodic Clustering
         history_records = []
-        if intake_payload and intake_payload.metadata.session_id:
+        if intake_payload and intake_payload.metadata and intake_payload.metadata.session_id:
             # Current session record
             history_records.append({
                 "document_id": intake_payload.metadata.session_id,
@@ -254,12 +254,16 @@ class PipelineCoordinator:
         # Step 8: Build FHIR R4 Bundle
         patient_name = "Anonymous Patient"
         abha_id = None
-        if intake_payload:
+        doc_session_id = session_id
+        doc_type = "prescription"
+        if intake_payload and intake_payload.metadata:
             patient_name = intake_payload.metadata.patient_name or patient_name
             abha_id = intake_payload.metadata.abha_id
+            doc_session_id = doc_session_id or intake_payload.metadata.session_id
+            doc_type = intake_payload.metadata.document_type or doc_type
 
         fhir_doc = self.fhir.build_bundle(
-            session_id=session_id or (intake_payload.metadata.session_id if intake_payload else None),
+            session_id=doc_session_id or "session-unknown",
             patient_name=patient_name,
             abha_id=abha_id,
             medications=normalized_medications,
@@ -267,8 +271,8 @@ class PipelineCoordinator:
         )
 
         return VerificationReport(
-            session_id=session_id or (intake_payload.metadata.session_id if intake_payload else None),
-            document_type=intake_payload.metadata.document_type if intake_payload else "prescription",
+            session_id=doc_session_id,
+            document_type=doc_type,
             quality_assessment="optimal" if confidence_tier == "high" else ("legible" if confidence_tier == "ambiguous" else "poor"),
             confidence_tier=confidence_tier,
             was_dewarped=was_dewarped,

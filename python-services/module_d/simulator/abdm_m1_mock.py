@@ -98,8 +98,8 @@ class ABDMM1MockService:
                         parsed_year = int(parts[0])
                     elif len(parts) >= 3 and len(parts[2]) == 4:
                         parsed_year = int(parts[2])
-                elif data.get("yearOfBirth"):
-                    parsed_year = int(data.get("yearOfBirth"))
+                elif data.get("yearOfBirth") is not None:
+                    parsed_year = int(data["yearOfBirth"])
                     parsed_dob = f"{parsed_year}-01-01"
 
                 parsed_mobile = data.get("mobile")
@@ -183,7 +183,7 @@ class ABDMM1MockService:
         if req.otp != settings.ABDM_MOCK_OTP and (not record or record.get("expected_otp") != req.otp):
             raise ValueError("Invalid OTP code. Please use '123456' for verification.")
 
-        identifier = record.get("identifier") if record else "91-4582-7391-0428"
+        identifier = (record.get("identifier") if record else None) or "91-4582-7391-0428"
         patient_data = MOCK_PATIENTS_DB.get(identifier, MOCK_PATIENTS_DB["91-4582-7391-0428"])
 
         demo = AbhaDemographics(**patient_data)

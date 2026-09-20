@@ -1399,7 +1399,7 @@ export default function KioskPortal() {
   };
 
   return (
-    <div className="min-h-screen bg-cornsilk text-ink-black flex flex-col relative overflow-hidden">
+    <div className="min-h-screen bg-white text-ink-black flex flex-col relative overflow-hidden">
       {/* Abstract Background Texture matching Landing Page */}
       <img
         src="/assets/illustrations/bg-abstract.svg"

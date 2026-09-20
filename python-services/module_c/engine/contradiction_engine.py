@@ -3,20 +3,29 @@ Deterministic Cross-Modal Contradiction Interception Engine for MediKiosk Module
 Compares patient spoken assertions (Module A) against document-grounded OCR records (Module B).
 Enforces Non-Resolution by Default: preserves both sources and presents 1-click clinician adjudication cards.
 """
-from typing import List, Dict, Any, Optional
+import sys
+import os
 import re
 import uuid
+from typing import List, Dict, Any, Optional
+
+_ENGINE_DIR = os.path.dirname(os.path.abspath(__file__))
+_MODULE_C_DIR = os.path.abspath(os.path.join(_ENGINE_DIR, ".."))
+_SERVICES_DIR = os.path.abspath(os.path.join(_MODULE_C_DIR, ".."))
+for _p in [_MODULE_C_DIR, _SERVICES_DIR]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 try:
-    from ..schemas.ingestion_schemas import PatientRecordPayload, ReportedAllergy, CurrentMedicationItem, MedicalItem
-    from ..schemas.synthesis_schemas import ContradictionItem
-except (ImportError, ValueError):
+    from module_c.schemas.ingestion_schemas import PatientRecordPayload, ReportedAllergy, CurrentMedicationItem, MedicalItem
+    from module_c.schemas.synthesis_schemas import ContradictionItem
+except (ImportError, ModuleNotFoundError, ValueError):
     try:
-        from module_c.schemas.ingestion_schemas import PatientRecordPayload, ReportedAllergy, CurrentMedicationItem, MedicalItem
-        from module_c.schemas.synthesis_schemas import ContradictionItem
-    except (ImportError, ValueError):
         from schemas.ingestion_schemas import PatientRecordPayload, ReportedAllergy, CurrentMedicationItem, MedicalItem
         from schemas.synthesis_schemas import ContradictionItem
+    except (ImportError, ModuleNotFoundError, ValueError):
+        from ..schemas.ingestion_schemas import PatientRecordPayload, ReportedAllergy, CurrentMedicationItem, MedicalItem
+        from ..schemas.synthesis_schemas import ContradictionItem
 
 
 class ContradictionEngine:
@@ -132,7 +141,9 @@ class ContradictionEngine:
             for dm in doc_meds:
                 if dm.status == "Discontinued" and sm.status != "Discontinued":
                     # Check if same drug base
-                    if any(word in sm.name.lower() for word in dm.name.lower().split()):
+                    sm_name_lower = (sm.name or "").lower()
+                    dm_words = (dm.name or "").lower().split()
+                    if any(word in sm_name_lower for word in dm_words):
                         conflicts.append(ContradictionItem(
                             conflict_id=f"conf_med_disc_{uuid.uuid4().hex[:6]}",
                             field="Current Medications",
@@ -156,9 +167,9 @@ class ContradictionEngine:
         doc_hist = [h for h in payload.past_history if h.source == "document"]
 
         for sh in speech_hist:
-            if self.is_negative_assertion(sh.condition, self.NEGATIVE_CONDITION_PHRASES):
+            if self.is_negative_assertion(sh.condition or "", self.NEGATIVE_CONDITION_PHRASES):
                 for dh in doc_hist:
-                    if not self.is_negative_assertion(dh.condition, self.NEGATIVE_CONDITION_PHRASES):
+                    if not self.is_negative_assertion(dh.condition or "", self.NEGATIVE_CONDITION_PHRASES):
                         conflicts.append(ContradictionItem(
                             conflict_id=f"conf_hist_{uuid.uuid4().hex[:6]}",
                             field="Past Medical History",
@@ -177,13 +188,16 @@ class ContradictionEngine:
 
         # Case D: Check Prior Labs vs Verbal History (e.g. claims no diabetes but HbA1c > 8.0)
         for sh in speech_hist:
-            if any(term in sh.condition.lower() for term in ["no diabetes", "sugar nahi hai", "sugar normal"]):
+            sh_cond_lower = (sh.condition or "").lower()
+            if any(term in sh_cond_lower for term in ["no diabetes", "sugar nahi hai", "sugar normal"]):
                 for lab in payload.prior_investigations:
-                    if "hba1c" in lab.test_name.lower():
+                    if "hba1c" in (lab.test_name or "").lower():
                         try:
-                            val = float(re.search(r'([0-9]+(?:\.[0-9]+)?)', lab.result_value).group(1))
-                            if val >= 6.5:
-                                conflicts.append(ContradictionItem(
+                            m = re.search(r'([0-9]+(?:\.[0-9]+)?)', str(lab.result_value or ""))
+                            if m:
+                                val = float(m.group(1))
+                                if val >= 6.5:
+                                    conflicts.append(ContradictionItem(
                                     conflict_id=f"conf_lab_{uuid.uuid4().hex[:6]}",
                                     field="Diagnostic Investigations vs Verbal Claim",
                                     severity="HIGH",

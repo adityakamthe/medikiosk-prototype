@@ -3,9 +3,18 @@ ABDM FHIR R4 Dual-Coded Document Bundle Builder for MediKiosk Module C.
 Constructs valid Ayushman Bharat Digital Mission (ABDM) compliant FHIR R4 Document Bundles
 incorporating dual-coded AYUSH + Modern Condition resources with full provenance.
 """
+import sys
+import os
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
 import uuid
+
+_FHIR_DIR = os.path.dirname(os.path.abspath(__file__))
+_MODULE_C_DIR = os.path.abspath(os.path.join(_FHIR_DIR, ".."))
+_SERVICES_DIR = os.path.abspath(os.path.join(_MODULE_C_DIR, ".."))
+for _p in [_MODULE_C_DIR, _SERVICES_DIR]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 try:
     from ..schemas.synthesis_schemas import DualCodingEntry, Standard8PartSummary

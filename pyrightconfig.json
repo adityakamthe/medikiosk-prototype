@@ -1,0 +1,46 @@
+{
+  "include": [
+    "python-services",
+    "tests"
+  ],
+  "exclude": [
+    "scratch",
+    "node_modules",
+    ".next",
+    "**/__pycache__"
+  ],
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "basic",
+  "executionEnvironments": [
+    {
+      "root": "python-services/module_b",
+      "extraPaths": [
+        "python-services",
+        "python-services/module_b"
+      ]
+    },
+    {
+      "root": "python-services/module_c",
+      "extraPaths": [
+        "python-services",
+        "python-services/module_c"
+      ]
+    },
+    {
+      "root": "python-services/module_d",
+      "extraPaths": [
+        "python-services",
+        "python-services/module_d"
+      ]
+    },
+    {
+      "root": "tests",
+      "extraPaths": [
+        "python-services",
+        "python-services/module_b",
+        "python-services/module_c",
+        "python-services/module_d"
+      ]
+    }
+  ]
+}

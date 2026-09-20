@@ -3,8 +3,8 @@ Integration test for Module C Master Pipeline Coordinator.
 """
 import pytest
 try:
-    from coordinator import module_c_coordinator
-    from schemas.ingestion_schemas import (
+    from module_c.coordinator import module_c_coordinator
+    from module_c.schemas.ingestion_schemas import (
         PatientRecordPayload,
         ChiefComplaint,
         SocratesHPI,
@@ -15,8 +15,8 @@ try:
         PatientMeta
     )
 except (ImportError, ModuleNotFoundError):
-    from module_c.coordinator import module_c_coordinator
-    from module_c.schemas.ingestion_schemas import (
+    from coordinator import module_c_coordinator
+    from schemas.ingestion_schemas import (
         PatientRecordPayload,
         ChiefComplaint,
         SocratesHPI,

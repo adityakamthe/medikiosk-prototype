@@ -18,7 +18,10 @@ if CURRENT_DIR not in sys.path:
 
 from schemas.ingestion_schemas import PatientRecordPayload
 from schemas.synthesis_schemas import ClinicalSynthesisResponse
-from coordinator import module_c_coordinator
+try:
+    from module_c.coordinator import module_c_coordinator
+except (ImportError, ModuleNotFoundError):
+    from coordinator import module_c_coordinator
 from engine.contradiction_engine import contradiction_engine
 from engine.ayush_synthesizer import ayush_synthesizer
 from engine.dual_coder import dual_coder

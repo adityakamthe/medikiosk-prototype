@@ -3,7 +3,15 @@ Master Coordinator for MediKiosk Module C.
 Orchestrates multimodal ingestion, cross-modal contradiction interception, 8-part clinical synthesis,
 Ayurvedic Dashavidha Pariksha, and native FHIR R4 dual-coding into a unified ClinicalSynthesisResponse.
 """
+import sys
+import os
 from typing import Dict, Any, List, Optional
+
+_MODULE_C_DIR = os.path.dirname(os.path.abspath(__file__))
+_SERVICES_DIR = os.path.abspath(os.path.join(_MODULE_C_DIR, ".."))
+for _p in [_MODULE_C_DIR, _SERVICES_DIR]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 try:
     from .schemas.ingestion_schemas import PatientRecordPayload
@@ -87,9 +95,13 @@ class ModuleCCoordinator:
             )
 
         # Step 4: Simultaneous Dual-Coding (NAMASTE + WHO ICD-11 TM2 + SNOMED CT)
-        findings_to_code = [payload.chief_complaint.normalized]
-        if payload.chief_complaint.verbatim:
-            findings_to_code.append(payload.chief_complaint.verbatim)
+        findings_to_code = []
+        if hasattr(payload.chief_complaint, "normalized") and getattr(payload.chief_complaint, "normalized"):
+            findings_to_code.append(getattr(payload.chief_complaint, "normalized"))
+            if getattr(payload.chief_complaint, "verbatim", None):
+                findings_to_code.append(getattr(payload.chief_complaint, "verbatim"))
+        elif isinstance(payload.chief_complaint, str) and payload.chief_complaint:
+            findings_to_code.append(payload.chief_complaint)
         for h in payload.past_history:
             findings_to_code.append(h.condition)
 
@@ -120,8 +132,9 @@ class ModuleCCoordinator:
             clinician_flat["provisional_diagnoses"] = "; ".join(coded_strs)
 
         # Step 7: ABDM FHIR R4 Dual-Coded Document Bundle
+        enc_id = payload.encounter_id or payload.session_id or "sess-intake-default"
         fhir_bundle = self.fhir_builder.build_bundle(
-            encounter_id=payload.encounter_id,
+            encounter_id=enc_id,
             patient_meta=payload.patient_meta,
             summary_8_part=summary_8_part,
             dual_codings=dual_codings,
@@ -131,7 +144,7 @@ class ModuleCCoordinator:
 
         return ClinicalSynthesisResponse(
             success=True,
-            encounter_id=payload.encounter_id,
+            encounter_id=enc_id,
             status="DRAFT_UNVERIFIED" if not is_attested else "ATTESTED_COMMITTED",
             clinician_view=clinician_flat,
             standard_8_part=summary_8_part,

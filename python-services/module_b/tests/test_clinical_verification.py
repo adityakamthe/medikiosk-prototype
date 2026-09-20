@@ -30,7 +30,7 @@ def test_loinc_lab_3_tier_and_panic_flags():
     panic_hb = lab_verifier.evaluate_item("Haemoglobin", "5.8", "g/dL")
     assert panic_hb.flag == SeverityTier.CRITICAL_PANIC
     assert panic_hb.is_panic is True
-    assert "CRITICAL PANIC LOW" in panic_hb.alert_message
+    assert panic_hb.alert_message is not None and "CRITICAL PANIC LOW" in panic_hb.alert_message
 
     # Panic High Creatinine > 4.0
     panic_creat = lab_verifier.evaluate_item("S. Creatinine", "4.8", "mg/dL")
