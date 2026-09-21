@@ -85,8 +85,6 @@ class SBARSynthesizer:
             verb_cc = ""
 
         cc_str = f"{norm_cc} (Duration: {dur_cc})"
-        if verb_cc and verb_cc.lower() != norm_cc.lower():
-            cc_str += f" [Patient stated: \"{verb_cc}\"]"
 
         # 2. HPI (SOCRATES Chronological Narrative)
         soc = payload.socrates_hpi

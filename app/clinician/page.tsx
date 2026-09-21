@@ -20,6 +20,14 @@ import { ScannedDocumentsViewer } from '@/components/clinician/ScannedDocumentsV
 import { DigitalPrescriptionEditor } from '@/components/clinician/DigitalPrescriptionEditor';
 import { FhirResourceInspector } from '@/components/clinician/FhirResourceInspector';
 import { PrescriptionModal } from '@/components/clinician/PrescriptionModal';
+import {
+  translateChiefComplaint,
+  formatBriefHPI,
+  formatBriefPastMedical,
+  formatBriefFamilyHistory,
+  formatBriefAllergies,
+  formatBriefMedications,
+} from '@/lib/clinicalTranslator';
 
 // Helper function to safely convert any clinical value (string, object, array) into a string to prevent React child object errors
 function formatClinicalText(val: any): string {
@@ -136,7 +144,7 @@ export default function ClinicianDashboard() {
     const draft = sessionDetail?.latest_draft?.clinician_summary || {};
     
     // 1. Clean Chief Complaint (patient's current primary complaint)
-    let cc = formatClinicalText(draft.chief_complaint) || 'outpatient clinical consultation';
+    let cc = translateChiefComplaint(draft.chief_complaint) || formatClinicalText(draft.chief_complaint) || 'outpatient clinical consultation';
     cc = cc.replace(/^Chief complaint:?\s*/i, '').replace(/[\n\r]+/g, ' ').trim();
     if (cc.length > 130) {
       cc = cc.slice(0, 130).replace(/[,;.\s]+$/, '');
@@ -144,9 +152,9 @@ export default function ClinicianDashboard() {
 
     // 2. Extract core symptom onset / duration concisely from HPI (1 short sentence)
     let symptomDetails = '';
-    const rawHpi = formatClinicalText(draft.hpi);
+    const rawHpi = formatBriefHPI(draft.hpi) || formatClinicalText(draft.hpi);
     if (rawHpi && rawHpi.length > 8) {
-      const cleanHpi = rawHpi.replace(/[\n\r]+/g, ' ').trim();
+      const cleanHpi = rawHpi.replace(/[\n\r]+/g, ' ').replace(/^•\s*[A-Za-z\s&]+:\s*/, '').trim();
       const firstSentence = cleanHpi.split(/[.!?]\s+/)[0] || cleanHpi;
       // Avoid duplicate repeat if HPI first sentence just repeats the chief complaint verbatim
       if (firstSentence.length > 10 && !firstSentence.toLowerCase().includes(cc.toLowerCase().slice(0, 20))) {
@@ -612,12 +620,12 @@ export default function ClinicianDashboard() {
         language: selectedSession.language,
         encounter_time: new Date().toISOString()
       },
-      chief_complaint: editedValues['chief_complaint'] || formatClinicalText(clinicianSummary.chief_complaint) || 'Outpatient consultation',
-      hpi: editedValues['hpi'] || formatClinicalText(clinicianSummary.hpi) || 'Recorded via MediKiosk.',
-      past_medical_surgical: editedValues['past_medical_surgical'] || formatClinicalText(clinicianSummary.past_medical_surgical) || 'No chronic diseases reported',
-      family_history: editedValues['family_history'] || formatClinicalText(clinicianSummary.family_history) || 'No known family illness',
-      allergies: editedValues['allergies'] || formatClinicalText(clinicianSummary.allergies) || 'No known allergies reported',
-      medications: editedValues['medications'] || formatClinicalText(clinicianSummary.medications) || 'None reported',
+      chief_complaint: editedValues['chief_complaint'] || translateChiefComplaint(clinicianSummary.chief_complaint) || 'Outpatient consultation',
+      hpi: editedValues['hpi'] || formatBriefHPI(clinicianSummary.hpi) || 'Recorded via MediKiosk.',
+      past_medical_surgical: editedValues['past_medical_surgical'] || formatBriefPastMedical(clinicianSummary.past_medical_surgical) || 'No chronic diseases reported',
+      family_history: editedValues['family_history'] || formatBriefFamilyHistory(clinicianSummary.family_history) || 'No known family illness',
+      allergies: editedValues['allergies'] || formatBriefAllergies(clinicianSummary.allergies) || 'No known allergies reported',
+      medications: editedValues['medications'] || formatBriefMedications(clinicianSummary.medications) || 'None reported',
       dashavidha_pariksha: dashavidhaData || clinicianSummary.dashavidha_pariksha || null,
       ayush_profile: clinicianSummary.ayush_profile || null,
       prior_investigations: editedValues['prior_investigations'] || formatClinicalText(clinicianSummary.prior_investigations) || 'N/A',
@@ -1198,7 +1206,7 @@ export default function ClinicianDashboard() {
                 const isSelected = selectedSession?.id === item.id;
                 const hasRedFlag = item.red_flag_count > 0 || item.status === 'emergency_triaged';
                 const hasContradiction = item.contradiction_count > 0;
-                const ccText = formatClinicalText(item.latest_draft?.clinician_summary?.chief_complaint);
+                const ccText = translateChiefComplaint(item.latest_draft?.clinician_summary?.chief_complaint || item.chief_complaint);
 
                 return (
                   <button
@@ -1345,15 +1353,15 @@ export default function ClinicianDashboard() {
               {activeTab === 'one_page_history' && (() => {
                 const isAyurveda = selectedSession.clinical_mode === 'ayurveda';
                 const dashavidha = computeDashavidhaPariksha(structuredHistory, selectedSession);
-                const pastDiseases = editedValues['past_medical_surgical'] || formatClinicalText(draftContent.past_medical_surgical) || (isAyurveda ? 'कोई पूर्व व्याधि या शल्यकर्म इतिहास नहीं' : 'No chronic medical illness or prior surgeries reported');
-                const famHistory = editedValues['family_history'] || formatClinicalText(draftContent.family_history) || (isAyurveda ? 'कुल में कोई आनुवंशिक व्याधि नहीं' : 'No hereditary illness in first-degree relatives');
+                const pastDiseases = editedValues['past_medical_surgical'] || (isAyurveda ? formatClinicalText(draftContent.past_medical_surgical) || 'कोई पूर्व व्याधि या शल्यकर्म इतिहास नहीं' : formatBriefPastMedical(draftContent.past_medical_surgical));
+                const famHistory = editedValues['family_history'] || (isAyurveda ? formatClinicalText(draftContent.family_history) || 'कुल में कोई आनुवंशिक व्याधि नहीं' : formatBriefFamilyHistory(draftContent.family_history));
                 const _socialHistory = editedValues['social_history'] || formatClinicalText(draftContent.social_history) || 'Social and lifestyle history not recorded.';
                 const _backgroundSummary = formatClinicalText(draftContent.background_summary) || '';
-                const allergyText = editedValues['allergies'] || formatClinicalText(draftContent.allergies) || (isAyurveda ? 'कोई ज्ञात द्रव्य असात्म्यता नहीं' : 'No known drug or food allergies');
-                const medsText = editedValues['medications'] || formatClinicalText(draftContent.medications) || (isAyurveda ? 'कोई नियमित औषध सेवन नहीं' : 'No active prescription medications reported');
+                const allergyText = editedValues['allergies'] || (isAyurveda ? formatClinicalText(draftContent.allergies) || 'कोई ज्ञात द्रव्य असात्म्यता नहीं' : formatBriefAllergies(draftContent.allergies));
+                const medsText = editedValues['medications'] || (isAyurveda ? formatClinicalText(draftContent.medications) || 'कोई नियमित औषध सेवन नहीं' : formatBriefMedications(draftContent.medications));
                 const rosText = editedValues['review_of_systems'] || formatClinicalText(draftContent.review_of_systems) || 'Cardiovascular, respiratory, gastrointestinal, and musculoskeletal functional reviews completed without acute systemic decompensation.';
-                const ccText = editedValues['chief_complaint'] || formatClinicalText(draftContent.chief_complaint) || (isAyurveda ? 'आयुर्वेदिक ओपीडी परामर्श' : 'Outpatient consultation');
-                const hpiText = editedValues['hpi'] || formatClinicalText(draftContent.hpi) || (isAyurveda ? 'हेतु, सम्प्राप्ति एवं रोग वृद्धि का विवरण दर्ज किया गया।' : 'Recorded via MediKiosk conversational clinical intake.');
+                const ccText = editedValues['chief_complaint'] || (isAyurveda ? formatClinicalText(draftContent.chief_complaint) || 'आयुर्वेदिक ओपीडी परामर्श' : translateChiefComplaint(draftContent.chief_complaint));
+                const hpiText = editedValues['hpi'] || (isAyurveda ? formatClinicalText(draftContent.hpi) || 'हेतु, सम्प्राप्ति एवं रोग वृद्धि का विवरण दर्ज किया गया।' : formatBriefHPI(draftContent.hpi));
                 const labsText = formatClinicalText(draftContent.prior_investigations) || (isAyurveda ? 'कोई पूर्व जांच या रिपोर्ट संलग्न नहीं' : 'No previous imaging, scans or lab reports uploaded for this encounter.');
                 const ayushProfile = formatClinicalText(draftContent.dashavidha_pariksha || draftContent.ayush_profile) || 'Prakriti, Dosha vriddhi, एवं Kostha lakshanas verified.';
 
@@ -2090,15 +2098,15 @@ export default function ClinicianDashboard() {
               {activeTab === 'summary' && (() => {
                 const isAyurveda = selectedSession.clinical_mode === 'ayurveda';
                 const dashavidha = computeDashavidhaPariksha(structuredHistory, selectedSession);
-                const pastDiseases = editedValues['past_medical_surgical'] || formatClinicalText(draftContent.past_medical_surgical) || (isAyurveda ? 'कोई पूर्व व्याधि या शल्यकर्म इतिहास नहीं' : 'No chronic medical illness or prior surgeries reported');
-                const famHistory = editedValues['family_history'] || formatClinicalText(draftContent.family_history) || (isAyurveda ? 'कुल में कोई आनुवंशिक व्याधि नहीं' : 'No hereditary illness in first-degree relatives');
+                const pastDiseases = editedValues['past_medical_surgical'] || (isAyurveda ? formatClinicalText(draftContent.past_medical_surgical) || 'कोई पूर्व व्याधि या शल्यकर्म इतिहास नहीं' : formatBriefPastMedical(draftContent.past_medical_surgical));
+                const famHistory = editedValues['family_history'] || (isAyurveda ? formatClinicalText(draftContent.family_history) || 'कुल में कोई आनुवंशिक व्याधि नहीं' : formatBriefFamilyHistory(draftContent.family_history));
                 const socialHistory = editedValues['social_history'] || formatClinicalText(draftContent.social_history) || 'Social and lifestyle history not recorded.';
                 const backgroundSummary = formatClinicalText(draftContent.background_summary) || '';
-                const allergyText = editedValues['allergies'] || formatClinicalText(draftContent.allergies) || (isAyurveda ? 'कोई ज्ञात द्रव्य असात्म्यता नहीं' : 'No known drug or food allergies');
-                const medsText = editedValues['medications'] || formatClinicalText(draftContent.medications) || (isAyurveda ? 'कोई नियमित औषध सेवन नहीं' : 'No active prescription medications reported');
+                const allergyText = editedValues['allergies'] || (isAyurveda ? formatClinicalText(draftContent.allergies) || 'कोई ज्ञात द्रव्य असात्म्यता नहीं' : formatBriefAllergies(draftContent.allergies));
+                const medsText = editedValues['medications'] || (isAyurveda ? formatClinicalText(draftContent.medications) || 'कोई नियमित औषध सेवन नहीं' : formatBriefMedications(draftContent.medications));
                 const rosText = editedValues['review_of_systems'] || formatClinicalText(draftContent.review_of_systems) || 'Cardiovascular, respiratory, gastrointestinal, and musculoskeletal functional reviews completed without acute systemic decompensation.';
-                const ccText = editedValues['chief_complaint'] || formatClinicalText(draftContent.chief_complaint) || (isAyurveda ? 'आयुर्वेदिक ओपीडी परामर्श' : 'Outpatient consultation');
-                const hpiText = editedValues['hpi'] || formatClinicalText(draftContent.hpi) || (isAyurveda ? 'हेतु, सम्प्राप्ति एवं रोग वृद्धि का विवरण दर्ज किया गया।' : 'Recorded via MediKiosk conversational clinical intake.');
+                const ccText = editedValues['chief_complaint'] || (isAyurveda ? formatClinicalText(draftContent.chief_complaint) || 'आयुर्वेदिक ओपीडी परामर्श' : translateChiefComplaint(draftContent.chief_complaint));
+                const hpiText = editedValues['hpi'] || (isAyurveda ? formatClinicalText(draftContent.hpi) || 'हेतु, सम्प्राप्ति एवं रोग वृद्धि का विवरण दर्ज किया गया।' : formatBriefHPI(draftContent.hpi));
                 const labsText = formatClinicalText(draftContent.prior_investigations) || (isAyurveda ? 'कोई पूर्व जांच या रिपोर्ट संलग्न नहीं' : 'No previous imaging, scans or lab reports uploaded for this encounter.');
                 const diagText = editedValues['provisional_diagnoses'] || formatClinicalText(draftContent.provisional_diagnoses) || sessionDetail?.extracted_entities?.filter((e: any) => e.entity_type === 'diagnosis').map((e: any) => e.fields?.name || e.raw_text).join('; ') || 'Clinical diagnostic impression based on patient voice interview.';
 

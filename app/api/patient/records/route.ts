@@ -2,6 +2,14 @@ import { NextResponse } from 'next/server';
 import { query, queryHospital } from '@/lib/db';
 import { allocateDoctorAndRoom } from '@/lib/doctors';
 import { queryCentralHealthExchange } from '@/lib/centralExchange';
+import {
+  translateChiefComplaint,
+  formatBriefHPI,
+  formatBriefPastMedical,
+  formatBriefFamilyHistory,
+  formatBriefAllergies,
+  formatBriefMedications
+} from '@/lib/clinicalTranslator';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -63,6 +71,24 @@ export async function GET(req: Request) {
         try { attested = JSON.parse(attested); } catch {}
       }
 
+      if (draft) {
+        const sbar = draft.clinician_summary || draft;
+        if (sbar.chief_complaint) sbar.chief_complaint = translateChiefComplaint(sbar.chief_complaint);
+        if (sbar.hpi) sbar.hpi = formatBriefHPI(sbar.hpi);
+        if (sbar.allergies) sbar.allergies = formatBriefAllergies(sbar.allergies);
+        if (sbar.past_medical_surgical) sbar.past_medical_surgical = formatBriefPastMedical(sbar.past_medical_surgical);
+        if (sbar.family_history) sbar.family_history = formatBriefFamilyHistory(sbar.family_history);
+        if (sbar.medications) sbar.medications = formatBriefMedications(sbar.medications);
+      }
+      if (attested) {
+        if (attested.chief_complaint) attested.chief_complaint = translateChiefComplaint(attested.chief_complaint);
+        if (attested.hpi) attested.hpi = formatBriefHPI(attested.hpi);
+        if (attested.allergies) attested.allergies = formatBriefAllergies(attested.allergies);
+        if (attested.past_medical_surgical) attested.past_medical_surgical = formatBriefPastMedical(attested.past_medical_surgical);
+        if (attested.family_history) attested.family_history = formatBriefFamilyHistory(attested.family_history);
+        if (attested.medications) attested.medications = formatBriefMedications(attested.medications);
+      }
+
       const doctor = allocateDoctorAndRoom({
         clinical_mode: sess.clinical_mode || (isPriya ? 'ayush' : 'allopathy'),
         symptoms_text: draft?.chief_complaint || 'Consultation Intake',
@@ -77,10 +103,16 @@ export async function GET(req: Request) {
       };
     });
 
-    // Fetch documents
+    // Fetch documents strictly belonging to this patient's verified sessions
     let documents: any[] = [];
     try {
-      const docsRes = await query(`SELECT * FROM document_uploads ORDER BY uploaded_at DESC`);
+      const docsRes = await query(
+        `SELECT d.* FROM document_uploads d
+         JOIN sessions s ON s.id = d.session_id
+         WHERE s.abha_mock_id = $1 OR s.patient_ref = $2
+         ORDER BY d.uploaded_at DESC`,
+        [abhaId, patientRef]
+      );
       documents = docsRes.rows;
     } catch {
       // Ignore doc lookup error

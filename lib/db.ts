@@ -211,52 +211,7 @@ const mockAttestedRecords: Record<string, any> = {
   },
 };
 
-const mockDocuments: any[] = [
-  {
-    id: 'doc-101-rx',
-    session_id: 'd1111111-1111-1111-1111-111111111111',
-    file_ref: '/assets/images/dashboard-summary.png',
-    mime_type: 'image/png',
-    uploaded_at: new Date(Date.now() - 3600000).toISOString(),
-    queue_id: 'Q-101',
-    visit_date: new Date(Date.now() - 3600000).toISOString(),
-    quality_check_result: {
-      quality: 'good',
-      sharpness_score: 91,
-      document_type: 'prescription',
-      document_date: '2026-09-15',
-      extracted_summary: {
-        diagnoses: ['Acute Viral Fever', 'Frontal Cephalea'],
-        medications: [
-          { name: 'Dolo 650', dosage: '650mg', frequency: 'TDS' },
-          { name: 'Cetzine', dosage: '10mg', frequency: 'OD' },
-        ],
-      },
-    },
-  },
-  {
-    id: 'doc-105-ayush-rx',
-    session_id: 'd2222222-2222-2222-2222-222222222222',
-    file_ref: '/assets/images/dashboard-summary.png',
-    mime_type: 'image/png',
-    uploaded_at: new Date(Date.now() - 7200000).toISOString(),
-    queue_id: 'Q-105',
-    visit_date: new Date(Date.now() - 7200000).toISOString(),
-    quality_check_result: {
-      quality: 'good',
-      sharpness_score: 88,
-      document_type: 'prescription',
-      document_date: '2026-08-20',
-      extracted_summary: {
-        diagnoses: ['Ajeerna (Mandagni)', 'Klama'],
-        medications: [
-          { name: 'Trikatu Churna', dosage: '3g', frequency: 'BD' },
-          { name: 'Ashwagandharishta', dosage: '15ml', frequency: 'BD' },
-        ],
-      },
-    },
-  },
-];
+const mockDocuments: any[] = [];
 
 const mockConsentRecords: Record<string, any> = {
   'd1111111-1111-1111-1111-111111111111': {
@@ -376,6 +331,11 @@ function queryMock(text: string, params: any[] = []): { rows: any[]; rowCount: n
 
   // 4. Document uploads
   if (normalized.includes('from document_uploads')) {
+    if (params.length > 0) {
+      const sId = String(params[0] || '').trim();
+      const matched = mockDocuments.filter((d) => d.session_id === sId);
+      return { rows: matched, rowCount: matched.length };
+    }
     return { rows: mockDocuments, rowCount: mockDocuments.length };
   }
 

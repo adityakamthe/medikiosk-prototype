@@ -6,6 +6,15 @@
 
 const MODULE_C_SERVICE_URL = process.env.MODULE_C_SERVICE_URL || 'http://127.0.0.1:8002';
 
+import {
+  translateChiefComplaint,
+  formatBriefHPI,
+  formatBriefPastMedical,
+  formatBriefFamilyHistory,
+  formatBriefAllergies,
+  formatBriefMedications,
+} from './clinicalTranslator';
+
 export interface ContradictionItem {
   id?: string;
   concept: string;
@@ -469,12 +478,12 @@ function fallbackClinicalSynthesis(payload: PatientRecordPayload): ClinicalSynth
   return {
     session_id: payload.session_id,
     sbar_summary: {
-      chief_complaint: String(cc),
-      hpi_narrative: hpi || 'Patient completed conversational vocal intake.',
-      past_medical_surgical: past,
-      family_history: fam,
-      current_medications: meds,
-      allergies_adverse_reactions: String(allergy),
+      chief_complaint: isAyurveda ? String(cc) : translateChiefComplaint(cc),
+      hpi_narrative: isAyurveda ? (hpi || 'Patient completed conversational vocal intake.') : formatBriefHPI(hpi),
+      past_medical_surgical: isAyurveda ? past : formatBriefPastMedical(past),
+      family_history: isAyurveda ? fam : formatBriefFamilyHistory(fam),
+      current_medications: isAyurveda ? meds : formatBriefMedications(meds),
+      allergies_adverse_reactions: isAyurveda ? String(allergy) : formatBriefAllergies(allergy),
       review_of_systems: 'Cardiovascular, respiratory, and gastrointestinal reviews completed without acute decompensation.',
       prior_investigations: labs,
       provisional_diagnoses: diags,

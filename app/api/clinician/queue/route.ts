@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { allocateDoctorAndRoom, getEstimatedQueueTime } from '@/lib/doctors';
+import { translateChiefComplaint } from '@/lib/clinicalTranslator';
 
 export async function GET() {
   try {
@@ -44,12 +45,20 @@ export async function GET() {
         }
       }
 
+      const translatedCC = translateChiefComplaint(
+        draft?.clinician_summary?.chief_complaint || row.chief_complaint
+      );
+
+      if (draft?.clinician_summary?.chief_complaint) {
+        draft.clinician_summary.chief_complaint = translatedCC;
+      }
+
       const allocatedDoctor = allocateDoctorAndRoom({
         age: row.age,
         clinical_mode: row.clinical_mode,
         is_red_flag: row.status === 'emergency_triaged' || Number(row.red_flag_count) > 0,
         red_flag_count: row.red_flag_count,
-        symptoms_text: row.chief_complaint || ''
+        symptoms_text: translatedCC || row.chief_complaint || ''
       });
 
       const currentCount = doctorQueueCounts[allocatedDoctor.id] || 0;
@@ -59,6 +68,7 @@ export async function GET() {
 
       return {
         ...row,
+        chief_complaint: translatedCC,
         latest_draft: draft,
         allocated_doctor: allocatedDoctor,
         queue_position: currentCount + 1,

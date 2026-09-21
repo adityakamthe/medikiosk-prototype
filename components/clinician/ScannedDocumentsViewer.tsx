@@ -573,92 +573,44 @@ export const ScannedDocumentsViewer: React.FC<ScannedDocumentsViewerProps> = ({
                       className="max-h-[500px] w-auto object-contain rounded-lg shadow-2xl border border-slate-700/60 select-none pointer-events-none"
                     />
                   ) : (
-                    /* Stylized High-Fidelity Prescription Canvas Fallback */
-                    <div className="w-[380px] sm:w-[460px] bg-[#FAF8F5] text-slate-900 rounded-xl p-6 shadow-2xl border border-slate-300 relative font-sans select-none">
-                      {/* Clinic Letterhead */}
-                      <div className="border-b-2 border-slate-800 pb-3 mb-4 flex items-start justify-between">
+                    /* Genuine Document Information Card when binary image preview is not present */
+                    <div className="w-[380px] sm:w-[460px] bg-slate-900 text-slate-100 rounded-2xl p-6 shadow-2xl border border-slate-800 relative font-sans select-none">
+                      <div className="flex items-center gap-3 border-b border-slate-800 pb-4 mb-4">
+                        <div className="w-12 h-12 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center">
+                          <FileText className="w-6 h-6" />
+                        </div>
                         <div>
-                          <h4 className="text-sm font-extrabold uppercase tracking-wide text-[#004643]">
-                            {resolvedDoctor}
+                          <h4 className="text-sm font-bold text-white uppercase tracking-wide">
+                            {qcResult?.document_type ? qcResult.document_type.toUpperCase() : 'UPLOADED DOCUMENT'}
                           </h4>
-                          <p className="text-[10px] text-slate-600 font-medium">
-                            Clinical Outpatient Prescription
-                          </p>
-                          <p className="text-[9px] text-slate-500">
-                            Digital Scan Archive • Verified Record
+                          <p className="text-xs text-slate-400">
+                            Uploaded on {displayDate} • {activeDoc?.mime_type || 'Image/Document'}
                           </p>
                         </div>
-                        <div className="text-right">
-                          <span className="text-[9px] font-mono bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded font-bold">
-                            {qcResult?.document_type ? qcResult.document_type.toUpperCase() : 'OPD Rx'}
+                      </div>
+
+                      {/* Display extracted data if available */}
+                      {resolvedMedications.length > 0 ? (
+                        <div className="space-y-2 mb-4">
+                          <span className="text-[11px] font-bold text-teal-400 uppercase tracking-wider block">
+                            Extracted Medications ({resolvedMedications.length}):
                           </span>
-                          <p className="text-[10px] text-slate-500 mt-1">
-                            Date: {displayDate}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Patient Details */}
-                      <div className="bg-slate-100/70 p-2.5 rounded-lg mb-4 text-[11px] grid grid-cols-2 gap-2 text-slate-700">
-                        <div><span className="font-bold">Patient:</span> {extractedSummary?.patient?.id ? `ID #${extractedSummary.patient.id}` : patientName}</div>
-                        <div><span className="font-bold">Age/Gender:</span> {displayAge} / {displayGender}</div>
-                      </div>
-
-                      {/* Rx Symbol */}
-                      <div className="text-xl font-serif font-black text-[#004643] mb-2">
-                        ℞
-                      </div>
-
-                      {/* Medications List */}
-                      <div className="space-y-3 mb-6 text-xs">
-                        {resolvedMedications.length > 0 ? (
-                          resolvedMedications.map((med: any, idx: number) => (
-                            <div key={idx} className="border-b border-slate-200 pb-2">
-                              <div className="flex items-center justify-between font-bold text-slate-900">
-                                <span>{idx + 1}. {med.name}</span>
-                                <span className="text-[10px] bg-slate-200 px-1.5 py-0.2 rounded font-mono text-slate-700">
-                                  {med.route || 'Oral'}
-                                </span>
-                              </div>
-                              {med.dose && (
-                                <div className="text-[11px] text-slate-600 mt-0.5">
-                                  Dose: {med.dose}
-                                </div>
-                              )}
-                              {(med.frequency || med.duration) && (
-                                <div className="text-[10px] text-slate-500 italic">
-                                  {med.frequency && `Frequency: ${med.frequency}`} {med.duration && `• Duration: ${med.duration}`}
-                                </div>
-                              )}
+                          {resolvedMedications.map((med: any, idx: number) => (
+                            <div key={idx} className="p-2.5 rounded-lg bg-slate-800/80 border border-slate-700 text-xs flex items-center justify-between">
+                              <span className="font-semibold text-white">{med.name}</span>
+                              {med.dose && <span className="text-slate-400 text-[11px]">({med.dose})</span>}
                             </div>
-                          ))
-                        ) : (
-                          <div className="text-slate-400 italic text-[11px] py-2">
-                            No medications transcribed from this scan.
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Advice & Signature */}
-                      <div className="flex items-end justify-between pt-3 border-t border-slate-300">
-                        <div className="text-[10px] text-slate-600 max-w-[240px]">
-                          {adviceList.length > 0 ? (
-                            <div><span className="font-bold">Advice:</span> {adviceList.join(', ')}</div>
-                          ) : (
-                            <span className="text-slate-400 italic">No specific advice transcribed</span>
-                          )}
+                          ))}
                         </div>
-                        <div className="text-center">
-                          <div className="font-serif italic text-xs font-bold text-blue-900 opacity-80 border-b border-blue-900 px-4 pb-0.5">
-                            {resolvedDoctor.slice(0, 22)}
-                          </div>
-                          <div className="text-[9px] text-slate-500 mt-0.5">Verified Signature</div>
+                      ) : (
+                        <div className="text-xs text-slate-400 italic mb-4 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                          Direct image preview is not stored on disk in accordance with zero-disk clinical intake privacy policy.
                         </div>
-                      </div>
+                      )}
 
-                      {/* Watermark badge */}
-                      <div className="absolute bottom-2 right-2 text-[9px] text-slate-400 font-mono">
-                        Module B Scanned Evidence
+                      <div className="text-[11px] text-slate-500 border-t border-slate-800 pt-3 flex justify-between">
+                        <span>Quality: {sharpness}/100</span>
+                        <span>Document ID: {activeDoc?.id?.slice(0, 10)}...</span>
                       </div>
                     </div>
                   )}

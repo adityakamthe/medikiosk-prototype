@@ -1,5 +1,13 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import {
+  translateChiefComplaint,
+  formatBriefHPI,
+  formatBriefPastMedical,
+  formatBriefFamilyHistory,
+  formatBriefAllergies,
+  formatBriefMedications
+} from '@/lib/clinicalTranslator';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -108,6 +116,20 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
     }
 
+    // Normalize all clinician summary fields into standard professional English and crisp brief details
+    if (draftContent && draftContent.clinician_summary) {
+      const cs = draftContent.clinician_summary;
+      const isAyurveda = session.clinical_mode === 'ayurveda';
+      cs.chief_complaint = translateChiefComplaint(cs.chief_complaint);
+      if (!isAyurveda) {
+        cs.hpi = formatBriefHPI(cs.hpi);
+        cs.past_medical_surgical = formatBriefPastMedical(cs.past_medical_surgical);
+        cs.family_history = formatBriefFamilyHistory(cs.family_history);
+        cs.allergies = formatBriefAllergies(cs.allergies);
+        cs.medications = formatBriefMedications(cs.medications);
+      }
+    }
+
     // 6. Contradictions
     const contradictionsRes = await query(
       `SELECT * FROM contradictions WHERE session_id = $1 ORDER BY id ASC`,
@@ -127,6 +149,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     );
 
     // 9. Scanned Document Uploads (Module B Vision & OCR Engine)
+    // Strictly return only physical document uploads actually uploaded for THIS consultation session.
+    // Zero mock or prior encounter documents are ever auto-injected.
     const docRes = await query(
       `SELECT id, session_id, file_ref, mime_type, quality_check_result, uploaded_at 
        FROM document_uploads 
@@ -136,21 +160,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     );
 
     let documents = docRes.rows;
-    // Strictly fetch prior records only if patient has an identical ABHA ID in the database
-    if (documents.length === 0 && session.abha_mock_id) {
-      const priorDocs = await query(
-        `SELECT d.id, d.session_id, d.file_ref, d.mime_type, d.quality_check_result, d.uploaded_at 
-         FROM document_uploads d
-         JOIN sessions s ON s.id = d.session_id
-         WHERE s.abha_mock_id = $1 AND s.id != $2
-         ORDER BY d.uploaded_at DESC 
-         LIMIT 6`,
-        [session.abha_mock_id, sessionId]
-      );
-      if (priorDocs.rows.length > 0) {
-        documents = priorDocs.rows.map(d => ({ ...d, is_historical: true }));
-      }
-    }
 
     // Enrich documents with extracted_entities so diagnoses and medications are properly populated
     const allEntities = entitiesRes.rows || [];

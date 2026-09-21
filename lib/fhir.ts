@@ -11,6 +11,15 @@ export interface FHIRValidationResult {
   errors?: string[];
 }
 
+import {
+  translateChiefComplaint,
+  formatBriefHPI,
+  formatBriefPastMedical,
+  formatBriefFamilyHistory,
+  formatBriefAllergies,
+  formatBriefMedications
+} from './clinicalTranslator';
+
 export function buildSyntheticFHIRBundle(attestedRecord: any, sessionInfo: any) {
   const bundleId = `bundle-${attestedRecord.id || Date.now()}`;
   const timestamp = new Date().toISOString();
@@ -385,6 +394,13 @@ export function generateTextualClinicalReport(sessionInfo: any, attestedRecordOr
   const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
   const isAyurveda = sessionInfo?.clinical_mode === 'ayurveda' || Boolean(summary.dashavidha_pariksha || summary.ayush_profile);
 
+  const ccFormatted = isAyurveda ? (stringifyVal(summary.chief_complaint) || 'Outpatient Consultation / General Health Assessment') : translateChiefComplaint(summary.chief_complaint);
+  const hpiFormatted = isAyurveda ? (stringifyVal(summary.hpi) || 'Patient completed conversational intake triage at MediKiosk.') : formatBriefHPI(summary.hpi);
+  const pastFormatted = isAyurveda ? (stringifyVal(summary.past_medical_surgical) || 'No prior chronic diseases, hypertension, diabetes, or major surgeries reported.') : formatBriefPastMedical(summary.past_medical_surgical);
+  const famFormatted = isAyurveda ? (stringifyVal(summary.family_history) || 'No known hereditary cardiovascular, diabetic, or respiratory conditions in first-degree relatives.') : formatBriefFamilyHistory(summary.family_history);
+  const allergyFormatted = isAyurveda ? (stringifyVal(summary.allergies) || 'No known drug or environmental allergies reported.') : formatBriefAllergies(summary.allergies);
+  const medsFormatted = isAyurveda ? (stringifyVal(summary.medications) || 'No active prescription medications or herbal formulations reported.') : formatBriefMedications(summary.medications);
+
   return `================================================================================
                     MEDIKIOSK CLINICAL CONSULTATION NOTE
            Ayushman Bharat Digital Mission (ABDM) / NRCeS Aligned
@@ -404,32 +420,32 @@ Attestation    : ${attestedRecordOrDraft?.attested_by_clinician_id ? `Dr. ${atte
 --------------------------------------------------------------------------------
 1. CHIEF COMPLAINT (CC)
 --------------------------------------------------------------------------------
-${stringifyVal(summary.chief_complaint) || 'Outpatient Consultation / General Health Assessment'}
+${ccFormatted}
 
 --------------------------------------------------------------------------------
 2. HISTORY OF PRESENT ILLNESS (SOCRATES BREAKDOWN)
 --------------------------------------------------------------------------------
-${stringifyVal(summary.hpi) || 'Patient completed conversational intake triage at MediKiosk.'}
+${hpiFormatted}
 
 --------------------------------------------------------------------------------
 3. PATIENT'S HISTORY OF DISEASES (पूर्व व्याधि वृत्त / PAST MEDICAL & SURGICAL)
 --------------------------------------------------------------------------------
-${stringifyVal(summary.past_medical_surgical) || 'No prior chronic diseases, hypertension, diabetes, or major surgeries reported.'}
+${pastFormatted}
 
 --------------------------------------------------------------------------------
 4. FAMILY HISTORY (कुलज वृत्त / HEREDITARY CONDITIONS)
 --------------------------------------------------------------------------------
-${stringifyVal(summary.family_history) || 'No known hereditary cardiovascular, diabetic, or respiratory conditions in first-degree relatives.'}
+${famFormatted}
 
 --------------------------------------------------------------------------------
 5. ALLERGIES & CONTRAINDICATIONS (असात्म्यता)
 --------------------------------------------------------------------------------
-${stringifyVal(summary.allergies) || 'No known drug or environmental allergies reported.'}
+${allergyFormatted}
 
 --------------------------------------------------------------------------------
 6. CURRENT MEDICATIONS & TRADITIONAL REMEDIES (AUSHADHI)
 --------------------------------------------------------------------------------
-${stringifyVal(summary.medications) || 'No active prescription medications or herbal formulations reported.'}
+${medsFormatted}
 
 ${isAyurveda ? `--------------------------------------------------------------------------------
 7. MINISTRY OF AYUSH — DASHAVIDHA PARIKSHA (दशविध परीक्षा 10-FOLD ASSESSMENT)
