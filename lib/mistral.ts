@@ -163,11 +163,11 @@ function evaluateDomainCoverage(
 
   const hasAllergies = 
     history.some(h => (h.section || '').includes('allerg') || (h.field_name || '').includes('allerg')) ||
-    /(known allerg|penicillin|drug reaction|food allergy|reaction|एलर्जी|ऍलर्जी|অ্যালার্জি|அலர்ஜி|ಅಲರ್ಜಿ|അലർജി|అలెర్జీ|ਅਲਰਜੀ|ଆଲର୍ଜି)/i.test(historyText);
+    /(allerg|allergi|known allerg|penicillin|drug reaction|food allergy|reaction|एलर्जी|ऍलर्जी|অ্যালার্জি|அலர்ஜி|ಅಲರ್ಜಿ|അലർജി|అలెర్జీ|ਅਲਰਜੀ|ଆଲର୍ଜି)/i.test(historyText);
 
   const hasFamilyHistory = 
     history.some(h => (h.section || '').includes('family') || (h.field_name || '').includes('family')) ||
-    /(family history|parents or siblings|hereditary|genetic|माता-पिता|परिवार|कुटुंब|குடும்ப|পারিবারিক|ಕುಟುಂಬ|കുടുംബം|కుటుంబ|ਪਰਿਵਾਰ|ପରିବାର)/i.test(historyText);
+    /(family|hereditary|family history|parents or siblings|genetic|माता-पिता|परिवार|कुटुंब|குடும்ப|পারিবারিক|ಕುಟುಂಬ|കുടുംബം|కుటుంబ|ਪਰਿਵਾਰ|ପରିବାର)/i.test(historyText);
 
   return { hasPastIllness, hasMedications, hasAllergies, hasFamilyHistory };
 }
@@ -450,12 +450,18 @@ All necessary clinical dimensions have been probed. Conclude the intake in one b
       console.warn('[Anti-Repetition Guardrail] Detected repetitive AI question:', parsed.question_en);
       let substituteDomain: 'past_history' | 'allergies' | 'family_history' | 'medications' | undefined;
       if (!domainCoverage.hasPastIllness) substituteDomain = 'past_history';
+      else if (!domainCoverage.hasMedications) substituteDomain = 'medications';
       else if (!domainCoverage.hasAllergies) substituteDomain = 'allergies';
       else if (!domainCoverage.hasFamilyHistory) substituteDomain = 'family_history';
-      else if (!domainCoverage.hasMedications) substituteDomain = 'medications';
 
-      const fallbackQ = getStructuredClinicalQuestion(turnCount, patientLangCode, patientName, chiefComplaintItem, substituteDomain);
-      Object.assign(parsed, fallbackQ);
+      if (!substituteDomain && turnCount >= 10) {
+        parsed.is_intake_complete = true;
+        parsed.section = 'completed';
+        parsed.field_name = 'intake_completed';
+      } else {
+        const fallbackQ = getStructuredClinicalQuestion(turnCount, patientLangCode, patientName, chiefComplaintItem, substituteDomain);
+        Object.assign(parsed, fallbackQ);
+      }
     }
 
     // Ensure section and field_name are aligned with target if the LLM left them generic

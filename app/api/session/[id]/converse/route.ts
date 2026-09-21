@@ -9,6 +9,7 @@ import { generateConversationalFollowUp, generateBilingualSummary } from '@/lib/
 import { analyzeVoiceInputForDiagnosis } from '@/lib/diagnosis';
 import { allocateDoctorAndRoom } from '@/lib/doctors';
 import { LOCALIZED_LANGUAGES } from '@/lib/languages';
+import { getStructuredClinicalQuestion } from '@/lib/clinicalQuestions';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -57,13 +58,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     // 2. Prepare in-memory history items for instant clinical inference
     const historyItems: Array<{ question: string; answer: string; section?: string; field_name?: string }> = [];
     for (const row of allHistoryRes.rows) {
-      if (row.items && Array.isArray(row.items) && row.items.length > 0) {
-        for (const item of row.items) {
+      let rowItems = row.items;
+      if (typeof rowItems === 'string') {
+        try { rowItems = JSON.parse(rowItems); } catch {}
+      }
+      if (rowItems && Array.isArray(rowItems) && rowItems.length > 0) {
+        for (const item of rowItems) {
           historyItems.push({
-            question: item.question_text || item.question_id || item.field_name || 'Question',
-            answer: item.value || '',
+            question: item.question_text || item.question_en || item.question || item.question_id || item.field_name || row.field_name || 'Question',
+            answer: item.value || item.answer || row.value || '',
             section: row.section,
-            field_name: item.field_name
+            field_name: item.field_name || row.field_name
           });
         }
       } else {
@@ -85,7 +90,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     });
 
     const clinicalHistoryItems = historyItems.filter(h => h.section !== 'demographics' && h.section !== 'ayush_profile');
-    const turnCount = clinicalHistoryItems.length;
+    const clientTurn = Number(body.turn_index || 0);
+    const turnCount = Math.max(clinicalHistoryItems.length, clientTurn, 1);
 
     // 3. Clinical Voice Diagnosis & Symptom Extraction (In-memory, instant)
     const voiceDiagnosisAnalysis = analyzeVoiceInputForDiagnosis(
@@ -153,8 +159,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         // A. Raw Answers write
         if (existingRawRes.rows.length > 0) {
           const row = existingRawRes.rows[0];
-          const updatedQId = `${row.question_id || ''} | ${question_id}`;
-          const updatedText = `${row.transcript_text || ''}\n[${question_id}]: ${answerValue}`;
+          const updatedQId = String(question_id || 'q_turn').slice(0, 60);
+          const updatedText = `${(row.transcript_text || '').slice(-3000)}\n[${updatedQId}]: ${answerValue}`;
           writeOps.push(query(
             `UPDATE raw_answers 
              SET question_id = $1,
@@ -178,7 +184,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
              VALUES ($1, $2, $3, $4, 0.95, $5::jsonb, $6::jsonb)`,
             [
               sessionId,
-              question_id,
+              String(question_id || 'q_turn').slice(0, 60),
               source_mode,
               answerValue,
               JSON.stringify([question_text || question_id]),
@@ -188,44 +194,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         }
 
         // B. Structured History write
-        if (existingSectionRow) {
-          const updatedFieldName = existingSectionRow.field_name?.includes(field_name)
-            ? existingSectionRow.field_name
-            : `${existingSectionRow.field_name || ''}, ${field_name}`;
-          const updatedValue = `${existingSectionRow.value || ''}; ${field_name}: ${answerValue}`;
-
-          writeOps.push(query(
-            `UPDATE structured_history 
-             SET field_name = $1,
-                 value = $2,
-                 items = COALESCE(items, '[]'::jsonb) || $3::jsonb,
-                 questions = COALESCE(questions, '[]'::jsonb) || $4::jsonb,
-                 answers = COALESCE(answers, '[]'::jsonb) || $5::jsonb
-             WHERE id = $6`,
-            [
-              updatedFieldName,
-              updatedValue,
-              JSON.stringify([historyItem]),
-              JSON.stringify([question_text || question_id]),
-              JSON.stringify([answerValue]),
-              existingSectionRow.id
-            ]
-          ));
-        } else {
-          writeOps.push(query(
-            `INSERT INTO structured_history (session_id, section, field_name, value, confidence, items, questions, answers)
-             VALUES ($1, $2, $3, $4, 0.95, $5::jsonb, $6::jsonb, $7::jsonb)`,
-            [
-              sessionId,
-              section,
-              field_name,
-              answerValue,
-              JSON.stringify([historyItem]),
-              JSON.stringify([question_text || question_id]),
-              JSON.stringify([answerValue])
-            ]
-          ));
-        }
+        // CRITICAL FIX: Insert each turn as its own immutable record in structured_history
+        // with clean section and field_name (under 60 chars) to prevent VARCHAR(100) overflow!
+        writeOps.push(query(
+          `INSERT INTO structured_history (session_id, section, field_name, value, confidence, items, questions, answers)
+           VALUES ($1, $2, $3, $4, 0.95, $5::jsonb, $6::jsonb, $7::jsonb)`,
+          [
+            sessionId,
+            String(section || 'hpi').slice(0, 60),
+            String(field_name || 'clinical_turn').slice(0, 60),
+            answerValue,
+            JSON.stringify([historyItem]),
+            JSON.stringify([question_text || question_id]),
+            JSON.stringify([answerValue])
+          ]
+        ));
 
         // C. Batch insert extracted entities
         if (entitiesToInsert.length > 0) {
@@ -369,21 +352,26 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
 
     // Strict limit of 10 to 12 questions:
-    // - Never complete before turn 10 for non-severe intakes.
-    // - Between turns 10 and 12, complete only if mandatory clinical domains (previous illnesses, allergies, family history) are asked.
-    // - Strictly complete at turn >= 12 (hard maximum ceiling).
+    // - Complete when turnCount reaches 10-12 and mandatory clinical domains are asked,
+    //   or immediately when turnCount reaches hard cap (>= 12), or if AI marks complete.
     const historyTextAll = historyItems.map(h => `${h.question} ${h.answer} ${h.section || ''} ${h.field_name || ''}`).join(' ').toLowerCase();
     const hasPastIllness = historyItems.some(h => (h.section || '').includes('past') || (h.field_name || '').includes('chronic') || (h.field_name || '').includes('past_illness')) ||
       /(previous medical|chronic illness|past condition|diabetes|sugar|hypertension|blood pressure|thyroid|asthma|पुरानी बीमारी|मधुमेह|रक्तदाब|दमा|आजार|ডায়াবেটিস|উচ্চ রক্তচাপ|நீரிழிவு|మధుమేహం|డయాబెటిస్|ಅಧಿಕ ರಕ್ತದೊತ್ತಡ)/i.test(historyTextAll);
 
     const hasAllergies = historyItems.some(h => (h.section || '').includes('allerg') || (h.field_name || '').includes('allerg')) ||
-      /(known allerg|penicillin|drug reaction|food allergy|एलर्जी|ऍलर्जी|அலர்ஜி|অ্যালার্জি|అలెర్జీ|ಅಲರ್ಜಿ|ਐਲਰਜੀ)/i.test(historyTextAll);
+      /(allerg|allergi|known allerg|penicillin|drug reaction|food allergy|एलर्जी|ऍलर्जी|அலர்ஜி|অ্যালার্জি|అలెర్జీ|ಅಲರ್ಜಿ|ਐਲਰਜੀ)/i.test(historyTextAll);
 
     const hasFamilyHistory = historyItems.some(h => (h.section || '').includes('family') || (h.field_name || '').includes('family')) ||
-      /(family history|parents or siblings|hereditary|परिवार|कुटुंब|குடும்ப|বংশগত|পরিবার|కుటుంబం|ವಂಶಪಾರಂಪರ್ಯ|ਪਰਿਵਾਰ)/i.test(historyTextAll);
+      /(family|hereditary|family history|parents or siblings|genetic|परिवार|कुटुंब|குடும்ப|বংশগত|পরিবার|కుటుంబం|ವಂಶಪಾರಂಪರ್ಯ|ਪਰਿਵਾਰ)/i.test(historyTextAll);
 
     const mandatoryDomainsMet = hasPastIllness && hasAllergies && hasFamilyHistory;
-    const isCompleted = Boolean((aiResponse.is_intake_complete && turnCount >= 10 && mandatoryDomainsMet) || turnCount >= 12);
+    let isCompleted = Boolean(
+      turnCount >= 12 ||
+      aiResponse.is_intake_complete ||
+      aiResponse.section === 'completed' ||
+      aiResponse.field_name === 'intake_completed' ||
+      (turnCount >= 10 && mandatoryDomainsMet)
+    );
 
     // 8. Auto-update live draft summary asynchronously in the background so the patient is NOT blocked!
     (async () => {
@@ -429,7 +417,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       gu: ['હા / Yes', 'ના / No', 'ખબર નથી / Not sure'],
       kn: ['ಹೌದು / Yes', 'ಇಲ್ಲ / No', 'ಗೊತ್ತಿಲ್ಲ / Not sure'],
       ml: ['അതെ / Yes', 'അല്ല / No', 'ഉറപ്പില്ല / Not sure'],
-      pa: ['ਹਾਂ / Yes', 'ਨਹੀਂ / No', 'ਪਤਾ ਨਹੀਂ / Not sure']
+      pa: ['ਹਾਂ / Yes', 'ਨહીં / No', 'ਪਤਾ ਨਹੀਂ / Not sure']
     };
 
     const LOCALIZED_DEFAULT_QUESTIONS: Record<string, string> = {
@@ -475,7 +463,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       ? ((aiResponse.question_en || rawLocQ || 'Please describe your symptoms and when they started.').replace(/[\u0900-\u0D7F]/g, '').trim())
       : (rawLocQ || aiResponse.question_en || defaultFallbackQ);
 
-    const nextQuestion = isCompleted ? null : {
+    let nextQuestion = isCompleted ? null : {
       id: `q_${aiResponse.field_name || Date.now()}`,
       question_localized: cleanLocalizedQ,
       question_en: aiResponse.question_en || cleanLocalizedQ,
@@ -484,6 +472,42 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       framework_stage: aiResponse.current_framework_stage || 'socrates',
       options: finalOptions
     };
+
+    // Server-Side Anti-Repetition Guardrail:
+    // If the next question repeats any past question in history, pick the next unasked domain or complete
+    if (nextQuestion && !isCompleted) {
+      const qEnNorm = (nextQuestion.question_en || '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, ' ').trim();
+      const qLocNorm = (nextQuestion.question_localized || '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, ' ').trim();
+
+      const isRepeated = historyItems.some(h => {
+        const past = (h.question || '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, ' ').trim();
+        if (past.length < 15) return false;
+        return (qEnNorm.length >= 15 && (past.includes(qEnNorm) || qEnNorm.includes(past))) ||
+               (qLocNorm.length >= 15 && (past.includes(qLocNorm) || qLocNorm.includes(past)));
+      });
+
+      if (isRepeated) {
+        console.warn('[Converse Guardrail] Detected duplicate question from AI:', nextQuestion.question_en);
+        if (turnCount >= 10) {
+          isCompleted = true;
+          nextQuestion = null;
+        } else {
+          let overrideDomain: 'past_history' | 'allergies' | 'family_history' | 'medications' | undefined;
+          if (!hasPastIllness) overrideDomain = 'past_history';
+          else if (!hasAllergies) overrideDomain = 'allergies';
+          else if (!hasFamilyHistory) overrideDomain = 'family_history';
+          else overrideDomain = 'medications';
+
+          const fallback = getStructuredClinicalQuestion(turnCount + 1, language, session?.patient_name || undefined, historyItems[0]?.answer || '', overrideDomain);
+          nextQuestion.question_localized = fallback.question_localized;
+          nextQuestion.question_en = fallback.question_en;
+          nextQuestion.options = fallback.options;
+          nextQuestion.section = fallback.section;
+          nextQuestion.field_name = fallback.field_name;
+          nextQuestion.framework_stage = fallback.current_framework_stage;
+        }
+      }
+    }
 
     // Allocate appropriate specialist based on clinical mode, age, diagnosis, and symptoms
     const allocatedDoctor = allocateDoctorAndRoom({

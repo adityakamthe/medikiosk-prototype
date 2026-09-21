@@ -22,7 +22,7 @@ import {
   AYUSH_ASHTAVIDHA_QUESTIONS,
   AYUSH_TRIVIDHA_QUESTIONS
 } from '@/lib/ayush';
-import { PATIENT_PREFIX_MAP } from '@/lib/clinicalQuestions';
+import { PATIENT_PREFIX_MAP, getStructuredClinicalQuestion } from '@/lib/clinicalQuestions';
 import { LOCALIZED_LANGUAGES, LanguagePack } from '@/lib/languages';
 
 // Helper function to safely convert any clinical value (string, object, array) into a string
@@ -1160,8 +1160,19 @@ export default function KioskPortal() {
     setIsProcessingTurn(true);
 
     const turnLanguage = language;
+    const activeLang = language;
+    const isEn = activeLang === 'en';
+    const currentTurnNumber = answeredHistory.length + 1;
 
     setAnsweredHistory(prev => [...prev, { question: currentQuestion, answer: answerValue }]);
+
+    // Strict Client-Side Hard Cap: Never exceed 12 questions
+    if (currentTurnNumber >= 12) {
+      setStep('scan');
+      speakPrompt(currentLang.scan_prompt, activeLang);
+      setIsProcessingTurn(false);
+      return;
+    }
 
     try {
       const res = await fetch(`/api/session/${sessionId}/converse`, {
@@ -1176,14 +1187,12 @@ export default function KioskPortal() {
           question_text: currentQuestion.question_localized || currentQuestion.question_en,
           language: turnLanguage,
           clinical_mode: clinicalMode,
-          ayush_assessment_type: ayushAssessmentType
+          ayush_assessment_type: ayushAssessmentType,
+          turn_index: currentTurnNumber
         })
       });
 
       const data = await res.json();
-
-      const activeLang = language;
-      const isEn = activeLang === 'en';
 
       if (data.allocated_doctor) {
         setAllocatedDoctor(data.allocated_doctor);
@@ -1214,17 +1223,56 @@ export default function KioskPortal() {
         return;
       }
 
-      if (data.next_question) {
-        if (isEn && data.next_question.question_en) {
-          data.next_question.question_localized = data.next_question.question_en;
-        }
-        setCurrentQuestion(data.next_question);
-        speakPrompt(isEn ? (data.next_question.question_en || data.next_question.question_localized) : (data.next_question.question_localized || data.next_question.question_en), activeLang);
-      } else {
-        // Interview Complete -> Proceed to Scan
+      // Check Intake Completion (Strict 10 to 12 Question Budget)
+      const isFinished = 
+        Boolean(data.is_completed) ||
+        !data.next_question ||
+        data.next_question.section === 'completed' ||
+        data.next_question.framework_stage === 'completed' ||
+        data.next_question.field_name === 'intake_completed' ||
+        (currentTurnNumber >= 11 && Boolean(data.is_completed)) ||
+        (currentTurnNumber >= 12);
+
+      if (isFinished) {
+        // Interview Complete -> Proceed directly to Scan (Never loop or re-ask completion prompt)
         setStep('scan');
         speakPrompt(currentLang.scan_prompt, activeLang);
+        return;
       }
+
+      // Client-Side Anti-Repetition Guardrail: Prevent re-asking questions already answered
+      let candidateQ = data.next_question;
+      const cleanCandidateEn = (candidateQ.question_en || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
+      const cleanCandidateLoc = (candidateQ.question_localized || '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, ' ').trim();
+
+      const isRepeated = answeredHistory.some((h: any) => {
+        const pastEn = (h.question?.question_en || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
+        const pastLoc = (h.question?.question_localized || '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, ' ').trim();
+        return (cleanCandidateEn.length >= 15 && pastEn.length >= 15 && (cleanCandidateEn === pastEn || pastEn.includes(cleanCandidateEn) || cleanCandidateEn.includes(pastEn))) ||
+               (cleanCandidateLoc.length >= 15 && pastLoc.length >= 15 && (cleanCandidateLoc === pastLoc || pastLoc.includes(cleanCandidateLoc) || cleanCandidateLoc.includes(pastLoc)));
+      });
+
+      if (isRepeated) {
+        console.warn('[Kiosk Anti-Repetition] Duplicate question prevented on client:', candidateQ.question_en);
+        if (currentTurnNumber >= 10) {
+          setStep('scan');
+          speakPrompt(currentLang.scan_prompt, activeLang);
+          return;
+        } else {
+          candidateQ = getStructuredClinicalQuestion(
+            currentTurnNumber + 1,
+            activeLang,
+            patientName,
+            answeredHistory[0]?.answer || ''
+          );
+        }
+      }
+
+      if (isEn && candidateQ.question_en) {
+        candidateQ.question_localized = candidateQ.question_en;
+      }
+      setCurrentQuestion(candidateQ);
+      speakPrompt(isEn ? (candidateQ.question_en || candidateQ.question_localized) : (candidateQ.question_localized || candidateQ.question_en), activeLang);
     } catch (err) {
       console.error('Error submitting turn:', err);
     } finally {
@@ -2254,7 +2302,7 @@ export default function KioskPortal() {
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-[#2F5D62] mb-6 border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="bg-[#2F5D62] text-white px-3 py-1 rounded-full font-black text-[11px] uppercase tracking-wider">
-                Question {answeredHistory.length + 1} of 10–12
+                Question {Math.min(answeredHistory.length + 1, 12)} of 10–12
               </span>
               <span className="bg-[#EAF3F2] text-[#2F5D62] border border-teal-200 px-3 py-1 rounded-full font-extrabold text-[11px]">
                 {currentQuestion.section === 'emergency_confirmation' || currentQuestion.framework_stage === 'emergency_confirmation'
