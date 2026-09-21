@@ -40,7 +40,7 @@ function formatClinicalText(val: any): string {
 export default function ClinicianDashboard() {
   // Authentication & Privacy Gate (Password: MediKiosk / medikiosk)
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [passwordInput, setPasswordInput] = useState<string>('');
+  const [passwordInput, setPasswordInput] = useState<string>('MediKiosk');
   const [loginSpecialty, setLoginSpecialty] = useState<string>('all');
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -404,7 +404,7 @@ export default function ClinicianDashboard() {
     sessionStorage.removeItem('medikiosk_clinician_auth');
     sessionStorage.removeItem('medikiosk_clinician_role');
     setIsAuthenticated(false);
-    setPasswordInput('');
+    setPasswordInput('MediKiosk');
     setAuthError(null);
     selectedSessionIdRef.current = null;
     setSelectedSession(null);

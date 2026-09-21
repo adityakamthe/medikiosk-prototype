@@ -181,6 +181,9 @@ export default function PatientPortalPage() {
     setPatient(null);
     setSessions([]);
     setSelectedSession(null);
+    setPinInput('1234');
+    setIdentifierInput('91-8822-1144-5566');
+    setAuthError(null);
   };
 
   const loadPatientRecords = async (patientRef: string, abhaId: string, queueId: string) => {

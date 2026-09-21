@@ -65,7 +65,17 @@ export default function HospitalLoginPage() {
     try {
       const stored = localStorage.getItem('medikiosk_hospital');
       if (stored) {
-        setActiveHospital(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        setActiveHospital(parsed);
+        if (parsed.id === 'aiia') {
+          setSelectedHospitalId('aiia');
+          setHospitalCode('aiia-ayush');
+          setPassword('ayush@2026');
+        } else if (parsed.id === 'aiims') {
+          setSelectedHospitalId('aiims');
+          setHospitalCode('aiims-delhi');
+          setPassword('aiims@2026');
+        }
       }
     } catch {}
   }, []);
