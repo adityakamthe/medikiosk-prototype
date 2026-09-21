@@ -8,7 +8,7 @@ import {
   ShieldCheck, Download, Info, RefreshCw, FileText, Lock, Unlock,
   ChevronDown, Printer, Save, Trash2, Activity,
   Camera, Play, Pause, Square, RotateCw, ZoomIn, ZoomOut, X,
-  Copy, Check, Pill
+  Copy, Check, Pill, Sparkles, Volume2
 } from '@/components/Icons';
 import { computeDashavidhaPariksha } from '@/lib/ayush';
 import { generateTextualClinicalReport } from '@/lib/fhir';
@@ -106,7 +106,15 @@ export default function ClinicianDashboard() {
   // Doctor English Audio Briefing State (Spoken Clinical Briefing)
   const [isBriefingPlaying, setIsBriefingPlaying] = useState<boolean>(false);
   const [isLoadingBriefing, setIsLoadingBriefing] = useState<boolean>(false);
+  const [briefingLoadingStep, setBriefingLoadingStep] = useState<string>('');
   const [briefingSpeed, setBriefingSpeed] = useState<number>(1);
+  const [aiBriefingData, setAiBriefingData] = useState<{
+    briefing_text: string;
+    key_points: string[];
+    duration_est_seconds: number;
+    engine: string;
+  } | null>(null);
+  const [isBriefingCardExpanded, setIsBriefingCardExpanded] = useState<boolean>(false);
   const briefingAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // Scanned Document Cross-Check Side-by-Side Drawer State
@@ -176,22 +184,62 @@ export default function ClinicianDashboard() {
     return briefing;
   };
 
-  // Play / Pause English Audio Briefing
-  const handleToggleDoctorBriefing = async () => {
-    if (isBriefingPlaying && briefingAudioRef.current) {
+  // Play / Pause / Synthesize AI English Audio Briefing
+  const handleToggleDoctorBriefing = async (forceRefresh: boolean = false) => {
+    if (!selectedSession) return;
+
+    if (!forceRefresh && isBriefingPlaying && briefingAudioRef.current) {
       briefingAudioRef.current.pause();
       setIsBriefingPlaying(false);
       return;
     }
-    if (briefingAudioRef.current && briefingAudioRef.current.src) {
+
+    if (!forceRefresh && briefingAudioRef.current && briefingAudioRef.current.src) {
       briefingAudioRef.current.playbackRate = briefingSpeed;
       await briefingAudioRef.current.play();
       setIsBriefingPlaying(true);
       return;
     }
+
+    if (briefingAudioRef.current) {
+      briefingAudioRef.current.pause();
+      briefingAudioRef.current = null;
+    }
+
     setIsLoadingBriefing(true);
+    setBriefingLoadingStep('AI Summarizing Case...');
     try {
-      const briefingText = generateEnglishClinicalBriefing();
+      let briefingText = aiBriefingData?.briefing_text;
+
+      // Fetch AI-summarized clinical handover if not already available or if doctor requested re-summarize
+      if (!briefingText || forceRefresh) {
+        try {
+          const res = await fetch(
+            `/api/clinician/session/${selectedSession.id}/briefing${forceRefresh ? '?refresh=true' : ''}`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.briefing_text) {
+              briefingText = data.briefing_text;
+              setAiBriefingData({
+                briefing_text: data.briefing_text,
+                key_points: data.key_points || [],
+                duration_est_seconds: data.duration_est_seconds || 30,
+                engine: data.engine || 'groq-mistral-ai'
+              });
+            }
+          }
+        } catch (apiErr) {
+          console.warn('AI Briefing API notice, using deterministic summarizer:', apiErr);
+        }
+      }
+
+      // Resilient fallback if network/API was interrupted
+      if (!briefingText) {
+        briefingText = generateEnglishClinicalBriefing();
+      }
+
+      setBriefingLoadingStep('Synthesizing Spoken Audio...');
       const res = await fetch(`/api/tts?text=${encodeURIComponent(briefingText)}&lang=en`);
       if (!res.ok) throw new Error('Failed to fetch briefing audio');
       const blob = await res.blob();
@@ -205,8 +253,10 @@ export default function ClinicianDashboard() {
       setIsBriefingPlaying(true);
     } catch (err) {
       console.error('Doctor audio briefing error:', err);
+      setIsBriefingPlaying(false);
     } finally {
       setIsLoadingBriefing(false);
+      setBriefingLoadingStep('');
     }
   };
 
@@ -233,6 +283,19 @@ export default function ClinicianDashboard() {
       if (data.success) {
         setSessionDetail(data);
         setIsAttested(data.session?.status === 'attested');
+        const precomputed = data.latest_draft?.clinical_audio_briefing || data.latest_draft?.clinician_summary?.clinical_audio_briefing;
+        if (precomputed) {
+          setAiBriefingData({
+            briefing_text: precomputed,
+            key_points: [
+              `Patient: ${data.session?.patient_name || data.session?.patient_ref || 'Patient'}${data.session?.age ? ` (${data.session.age}y)` : ''}`,
+              `Chief Complaint: ${data.latest_draft?.clinician_summary?.chief_complaint || 'Intake recorded'}`,
+              `Clinical Status: Intake complete and verified for examination`
+            ],
+            duration_est_seconds: Math.max(20, Math.round(precomputed.split(/\s+/).length / 2.3)),
+            engine: 'precomputed-draft'
+          });
+        }
       }
 
       // Fetch Module B Timeline and Clinical Safety data
@@ -423,6 +486,8 @@ export default function ClinicianDashboard() {
     setSelectedSession(session);
     handleStopDoctorBriefing();
     briefingAudioRef.current = null;
+    setAiBriefingData(null);
+    setIsBriefingCardExpanded(false);
     setSectionActions({});
     setEditedValues({});
     setFhirBundle(null);
@@ -1371,7 +1436,7 @@ export default function ClinicianDashboard() {
                       <div className="flex items-center gap-3">
                         <button
                           type="button"
-                          onClick={handleToggleDoctorBriefing}
+                          onClick={() => handleToggleDoctorBriefing(false)}
                           disabled={isLoadingBriefing}
                           className={`px-4 py-2 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-sm active:scale-95 ${
                             isBriefingPlaying ? 'bg-amber-400 text-slate-950 hover:bg-amber-300' : 'bg-[#004643] text-white hover:bg-teal-700 border border-teal-400/40'
@@ -1385,8 +1450,10 @@ export default function ClinicianDashboard() {
                             <Play className="w-4 h-4" />
                           )}
                           <span className="flex items-center gap-1.5">
-                            <span>{isLoadingBriefing ? 'Synthesizing Briefing...' : isBriefingPlaying ? 'Pause Briefing' : '🎙️ Listen to Clinical Briefing'}</span>
-                            <span className="px-1.5 py-0.5 rounded-full bg-teal-400/25 text-teal-300 text-[10px] font-mono font-bold">30-45s</span>
+                            <span>{isLoadingBriefing ? (briefingLoadingStep || 'Synthesizing Briefing...') : isBriefingPlaying ? 'Pause Briefing' : '🎙️ Listen to Clinical Briefing'}</span>
+                            <span className="px-1.5 py-0.5 rounded-full bg-teal-400/25 text-teal-300 text-[10px] font-mono font-bold">
+                              {aiBriefingData?.duration_est_seconds ? `~${aiBriefingData.duration_est_seconds}s` : '30-45s'}
+                            </span>
                           </span>
                         </button>
 
@@ -1407,9 +1474,26 @@ export default function ClinicianDashboard() {
                             <span className="w-1 h-5 bg-teal-300 rounded-full animate-pulse" />
                             <span className="w-1 h-2.5 bg-emerald-400 rounded-full animate-bounce" />
                             <span className="w-1 h-4 bg-teal-400 rounded-full animate-pulse" />
-                            <span className="text-[10px] font-mono font-bold text-teal-300 ml-1">Spoken Briefing (30-45s)</span>
+                            <span className="text-[10px] font-mono font-bold text-teal-300 ml-1">Spoken Handover</span>
                           </div>
                         )}
+
+                        <button
+                          type="button"
+                          onClick={() => setIsBriefingCardExpanded(!isBriefingCardExpanded)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all cursor-pointer shadow-sm ${
+                            isBriefingCardExpanded
+                              ? 'bg-teal-500/30 text-teal-200 border-teal-400/60'
+                              : 'bg-slate-800 hover:bg-slate-700 text-teal-300 border-teal-500/30'
+                          }`}
+                          title="View concise AI clinical briefing summary"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                          <span>{isBriefingCardExpanded ? 'Hide AI Summary' : 'View AI Summary'}</span>
+                          {aiBriefingData && (
+                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                          )}
+                        </button>
                       </div>
 
                       <div className="flex items-center gap-2">
@@ -1441,6 +1525,81 @@ export default function ClinicianDashboard() {
                         )}
                       </div>
                     </div>
+
+                    {/* EXPANDABLE AI CLINICAL BRIEFING CARD */}
+                    {isBriefingCardExpanded && (
+                      <div className="no-print mb-5 bg-gradient-to-br from-slate-900 via-slate-900 to-teal-950 border border-teal-500/40 rounded-2xl p-4 shadow-xl text-white animate-fadeIn">
+                        <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-3 mb-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-2 rounded-xl bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                              <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                                <span>AI Spoken Clinical Handover</span>
+                                <span className="px-2 py-0.5 rounded-full bg-teal-400/20 text-teal-300 text-[10px] font-mono">
+                                  {aiBriefingData?.engine === 'groq-mistral-ai' ? '⚡ Groq LPU / Mistral AI' : 'Deterministic Summarizer'}
+                                </span>
+                                <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 text-[10px] font-mono">
+                                  ~{aiBriefingData?.duration_est_seconds || 30}s spoken
+                                </span>
+                              </h4>
+                              <p className="text-[11px] text-slate-400 mt-0.5">
+                                Intelligently synthesized high-yield summary for attending physician — omits redundant questionnaire details.
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleDoctorBriefing(true)}
+                              disabled={isLoadingBriefing}
+                              className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-300 text-xs font-bold flex items-center gap-1.5 border border-slate-700 transition-all cursor-pointer shadow-sm"
+                              title="Re-summarize with AI"
+                            >
+                              <RefreshCw className={`w-3.5 h-3.5 ${isLoadingBriefing ? 'animate-spin' : ''}`} />
+                              <span>Re-summarize</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setIsBriefingCardExpanded(false)}
+                              className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Spoken Script Box */}
+                        <div className="bg-slate-950/80 rounded-xl p-3.5 border border-slate-800 mb-3">
+                          <div className="text-[10px] uppercase font-extrabold text-teal-400 mb-1.5 flex items-center gap-1.5 tracking-wider">
+                            <Volume2 className="w-3.5 h-3.5" />
+                            <span>Audio Briefing Spoken Script</span>
+                          </div>
+                          <p className="text-xs text-slate-200 leading-relaxed font-sans italic">
+                            &ldquo;{aiBriefingData?.briefing_text || generateEnglishClinicalBriefing()}&rdquo;
+                          </p>
+                        </div>
+
+                        {/* Key High-Yield Highlights */}
+                        {aiBriefingData?.key_points && aiBriefingData.key_points.length > 0 && (
+                          <div>
+                            <div className="text-[10px] uppercase font-extrabold text-slate-400 mb-2 tracking-wider">
+                              Key Clinical Takeaways (At-a-Glance)
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {aiBriefingData.key_points.map((pt, idx) => (
+                                <div key={idx} className="bg-slate-800/70 rounded-xl px-3 py-2 border border-slate-700/70 text-xs flex items-start gap-2">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-teal-400 mt-1.5 flex-shrink-0" />
+                                  <span className="text-slate-200 font-medium">{pt}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* TEMPLATE A: PURE ALLOPATHIC ONE-PAGE CLINICAL SHEET */}
                     {!isAyurveda ? (
@@ -1987,7 +2146,7 @@ export default function ClinicianDashboard() {
                       <div className="flex items-center gap-3">
                         <button
                           type="button"
-                          onClick={handleToggleDoctorBriefing}
+                          onClick={() => handleToggleDoctorBriefing(false)}
                           disabled={isLoadingBriefing}
                           className={`px-4 py-2 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-sm active:scale-95 ${
                             isBriefingPlaying ? 'bg-amber-400 text-slate-950 hover:bg-amber-300' : 'bg-[#004643] text-white hover:bg-teal-700 border border-teal-400/40'
@@ -2001,8 +2160,10 @@ export default function ClinicianDashboard() {
                             <Play className="w-4 h-4" />
                           )}
                           <span className="flex items-center gap-1.5">
-                            <span>{isLoadingBriefing ? 'Synthesizing Briefing...' : isBriefingPlaying ? 'Pause Briefing' : '🎙️ Listen to Clinical Briefing'}</span>
-                            <span className="px-1.5 py-0.5 rounded-full bg-teal-400/25 text-teal-300 text-[10px] font-mono font-bold">30-45s</span>
+                            <span>{isLoadingBriefing ? (briefingLoadingStep || 'Synthesizing Briefing...') : isBriefingPlaying ? 'Pause Briefing' : '🎙️ Listen to Clinical Briefing'}</span>
+                            <span className="px-1.5 py-0.5 rounded-full bg-teal-400/25 text-teal-300 text-[10px] font-mono font-bold">
+                              {aiBriefingData?.duration_est_seconds ? `~${aiBriefingData.duration_est_seconds}s` : '30-45s'}
+                            </span>
                           </span>
                         </button>
 
@@ -2023,9 +2184,30 @@ export default function ClinicianDashboard() {
                             <span className="w-1 h-5 bg-teal-300 rounded-full animate-pulse" />
                             <span className="w-1 h-2.5 bg-emerald-400 rounded-full animate-bounce" />
                             <span className="w-1 h-4 bg-teal-400 rounded-full animate-pulse" />
-                            <span className="text-[10px] font-mono font-bold text-teal-300 ml-1">Spoken Briefing (30-45s)</span>
+                            <span className="text-[10px] font-mono font-bold text-teal-300 ml-1">Spoken Handover</span>
                           </div>
                         )}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsBriefingCardExpanded(true);
+                            const el = document.getElementById('one-page-clinical-sheet');
+                            if (el) el.scrollIntoView({ behavior: 'smooth' });
+                          }}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all cursor-pointer shadow-sm ${
+                            isBriefingCardExpanded
+                              ? 'bg-teal-500/30 text-teal-200 border-teal-400/60'
+                              : 'bg-slate-800 hover:bg-slate-700 text-teal-300 border-teal-500/30'
+                          }`}
+                          title="View concise AI clinical briefing summary"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                          <span>View AI Summary</span>
+                          {aiBriefingData && (
+                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                          )}
+                        </button>
                       </div>
 
                       <div className="flex items-center gap-2">

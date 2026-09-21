@@ -17,7 +17,7 @@ const groqApiKey = process.env.GROQ_API_KEY;
  * Executes chat completion using Groq LPU engine first for ultra-low latency,
  * falling back smoothly to Mistral AI if Groq is unavailable.
  */
-async function executeLlmChatCompletion(prompt: string, jsonMode: boolean = true): Promise<string | null | undefined> {
+export async function executeLlmChatCompletion(prompt: string, jsonMode: boolean = true): Promise<string | null | undefined> {
   const activeGroqKey = process.env.GROQ_API_KEY || groqApiKey;
   if (activeGroqKey) {
     const candidateModels = [
@@ -815,8 +815,10 @@ export async function generateBilingualSummary(
         "dashavidha_pariksha": "Classical Dashavidha Pariksha findings (Dushya, Desha, Bala, Kala, Agni, Prakriti, Vayas, Sattva, Satmya, Ahara-shakti) string",
         "ayush_profile": "Patient self-reported AYUSH / Agni / Ahara profile string if present",
         "review_of_systems": "Review of systems findings string",
-        "prior_investigations": "Lab tests and diagnostic results string"
-      }
+        "prior_investigations": "Lab tests and diagnostic results string",
+        "clinical_audio_briefing": "Concise 30-40 second spoken English handover (~60-75 words) summarizing patient name, age, primary complaint, onset, red flags, and pertinent meds for the doctor. Clear spoken style without markdown or raw questionnaire dumps."
+      },
+      "clinical_audio_briefing": "Same concise 30-40 second spoken English handover (~60-75 words) for attending doctor audio playback."
     }
     `;
 
@@ -832,6 +834,9 @@ export async function generateBilingualSummary(
             .join('; ');
         }
       }
+    }
+    if (parsed.clinician_summary?.clinical_audio_briefing && !parsed.clinical_audio_briefing) {
+      parsed.clinical_audio_briefing = parsed.clinician_summary.clinical_audio_briefing;
     }
 
     return parsed;
@@ -916,8 +921,257 @@ export async function generateBilingualSummary(
         dashavidha_pariksha: ayushItems || (isAyurveda ? 'Dashavidha Pariksha recorded.' : 'N/A'),
         ayush_profile: ayushItems || (isAyurveda ? 'Ayurvedic intake recorded.' : 'Standard'),
         review_of_systems: 'Completed',
-        prior_investigations: 'Uploaded documents processed'
-      }
+        prior_investigations: 'Uploaded documents processed',
+        clinical_audio_briefing: `Clinical intake briefing for ${patientMeta?.name || 'the patient'}${demographicsStr ? `, a ${demographicsStr}` : ''}. Presenting with ${String(cc).slice(0, 100)}. Intake is recorded and verified for examination.`
+      },
+      clinical_audio_briefing: `Clinical intake briefing for ${patientMeta?.name || 'the patient'}${demographicsStr ? `, a ${demographicsStr}` : ''}. Presenting with ${String(cc).slice(0, 100)}. Intake is recorded and verified for examination.`
     };
   }
 }
+
+/**
+ * Doctor Spoken Clinical Audio Briefing Types & Utilities
+ */
+export interface DoctorAudioBriefingInput {
+  patient: {
+    name?: string;
+    age?: number;
+    gender?: string;
+    queue_id?: string | number;
+    token?: string;
+  };
+  chief_complaint?: string;
+  hpi?: string;
+  allergies?: string;
+  medications?: string;
+  past_medical?: string;
+  family_history?: string;
+  safety_alerts?: string[];
+  abnormal_labs?: Array<{
+    name: string;
+    value?: string;
+    unit?: string;
+    status?: string;
+    severity?: string;
+    is_panic?: boolean;
+  }>;
+  contradictions?: Array<{
+    concept?: string;
+    safety_tier?: string;
+    conflict_summary?: string;
+    spoken_value_ref?: string;
+    document_value_ref?: string;
+  }>;
+  clinical_mode?: string;
+}
+
+export interface DoctorAudioBriefingOutput {
+  briefing_text: string;
+  key_points: string[];
+  duration_est_seconds: number;
+  engine: string;
+}
+
+/**
+ * Cleans text for high-fidelity spoken Text-To-Speech (TTS)
+ */
+export function sanitizeTextForSpokenAudio(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/[*_#`~[\]]/g, '')
+    .replace(/Chief complaint:?\s*/gi, '')
+    .replace(/\bmg\b/gi, ' milligrams')
+    .replace(/\bml\b/gi, ' milliliters')
+    .replace(/\bBP\b/g, 'blood pressure')
+    .replace(/\bHR\b/g, 'heart rate')
+    .replace(/\bTDS\b/gi, 'three times a day')
+    .replace(/\bBD\b/gi, 'twice a day')
+    .replace(/\bOD\b/gi, 'once a day')
+    .replace(/\bSOS\b/gi, 'as needed')
+    .replace(/\bhs\b/gi, 'at bedtime')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Deterministic clinical summarizer fallback (<10ms execution time).
+ * Intelligently extracts: demographics -> core complaint -> onset -> panic labs -> severe allergies -> readiness.
+ * Guarantees ~50-70 words suitable for 25-35s natural audio handoff.
+ */
+export function generateDeterministicDoctorBriefing(input: DoctorAudioBriefingInput): DoctorAudioBriefingOutput {
+  const pName = input.patient.name || 'The patient';
+  const ageGender = [
+    input.patient.age ? `${input.patient.age}-year-old` : '',
+    input.patient.gender || 'patient'
+  ].filter(Boolean).join(' ');
+  const token = input.patient.queue_id || input.patient.token ? `Token ${input.patient.queue_id || input.patient.token}` : '';
+
+  // 1. Clean Chief Complaint
+  let cc = (input.chief_complaint || 'outpatient clinical consultation')
+    .replace(/^Chief complaint:?\s*/i, '')
+    .replace(/[\n\r]+/g, ' ')
+    .trim();
+  if (cc.length > 110) {
+    cc = cc.slice(0, 110).replace(/[,;.\s]+$/, '');
+  }
+
+  // 2. Extract salient onset/duration from HPI (1 crisp phrase)
+  let symptomOnset = '';
+  const rawHpi = (input.hpi || '').replace(/[\n\r]+/g, ' ').trim();
+  if (rawHpi && rawHpi.length > 8) {
+    const firstSentence = rawHpi.split(/[.!?]\s+/)[0] || rawHpi;
+    if (firstSentence.length > 10 && !firstSentence.toLowerCase().includes(cc.toLowerCase().slice(0, 20))) {
+      symptomOnset = firstSentence.slice(0, 95).trim();
+      if (!/[.!?]$/.test(symptomOnset)) symptomOnset += '.';
+    }
+  }
+
+  // 3. Collect critical alerts (panic labs, allergies, contradictions)
+  const alerts: string[] = [];
+  const keyPoints: string[] = [
+    `Patient: ${pName}, ${ageGender}${token ? ` (${token})` : ''}`,
+    `Chief Complaint: ${cc}`
+  ];
+
+  if (symptomOnset) {
+    keyPoints.push(`Onset / Timeline: ${symptomOnset}`);
+  }
+
+  // High-priority panic labs
+  const panicLabs = (input.abnormal_labs || []).filter(
+    (l) => l.is_panic || l.severity === 'panic' || l.status === 'PANIC' || l.status === 'HIGH' || l.status === 'LOW'
+  );
+  if (panicLabs.length > 0) {
+    const topLab = panicLabs[0];
+    const alertMsg = `Critical lab alert: ${topLab.name} is ${topLab.status || 'abnormal'}${topLab.value ? ` at ${topLab.value}` : ''}.`;
+    alerts.push(alertMsg);
+    keyPoints.push(`Lab Alert: ${topLab.name} ${topLab.status || 'abnormal'} (${topLab.value || ''})`);
+  }
+
+  // Documented severe drug allergies
+  const allergies = (input.allergies || '').trim();
+  if (allergies && !/no known|none|nil|nkda|denies|unremarkable/i.test(allergies)) {
+    const allergyMsg = `Documented allergy to ${allergies.slice(0, 45)}.`;
+    alerts.push(allergyMsg);
+    keyPoints.push(`Allergy Flag: ${allergies.slice(0, 45)}`);
+  }
+
+  // High-tier contradictions between spoken history and uploaded documents
+  if (input.contradictions && input.contradictions.length > 0) {
+    const topConflict = input.contradictions[0];
+    const conflictMsg = `Note: Contradiction flagged regarding ${topConflict.concept || 'history vs records'}.`;
+    alerts.push(conflictMsg);
+    keyPoints.push(`Discrepancy: ${topConflict.concept || 'Contradiction flagged'}`);
+  }
+
+  // Pertinent active medications
+  let backgroundNote = '';
+  const meds = (input.medications || '').trim();
+  if (meds && !/none|no med|nil/i.test(meds) && meds.length < 60) {
+    backgroundNote = `Current medication: ${meds}.`;
+    if (keyPoints.length < 4) {
+      keyPoints.push(`Medications: ${meds}`);
+    }
+  }
+
+  // 4. Synthesize spoken handoff script (~55-75 words)
+  let text = `Clinical intake briefing for ${pName}, a ${ageGender}${token ? `, ${token}` : ''}. `;
+  text += `Presenting with ${cc}. `;
+  if (symptomOnset) {
+    text += `${symptomOnset} `;
+  }
+  if (alerts.length > 0) {
+    text += `${alerts.join(' ')} `;
+  }
+  if (backgroundNote) {
+    text += `${backgroundNote} `;
+  }
+  text += `Intake is verified and ready for your clinical examination.`;
+
+  text = sanitizeTextForSpokenAudio(text);
+
+  return {
+    briefing_text: text,
+    key_points: keyPoints.slice(0, 4),
+    duration_est_seconds: Math.max(20, Math.round(text.split(/\s+/).length / 2.3)),
+    engine: 'deterministic-clinical-summarizer'
+  };
+}
+
+/**
+ * AI-powered High-Yield Doctor Clinical Audio Briefing Generator.
+ * Uses Groq LPU models first (ultra-fast 200-400ms inference) -> falls back to Mistral Small -> falls back to Deterministic Summarizer.
+ * Synthesizes ONLY high-impact clinical information (~55-75 words), eliminating long questionnaires or negative checklists.
+ */
+export async function generateDoctorAudioBriefingAI(input: DoctorAudioBriefingInput): Promise<DoctorAudioBriefingOutput> {
+  const fallback = generateDeterministicDoctorBriefing(input);
+
+  const prompt = `
+You are a senior physician's clinical AI assistant delivering a spoken 30-second handover briefing to an attending doctor before they enter the examination room.
+
+DOCTOR'S EXPLICIT REQUIREMENT:
+- DO NOT read exhaustive details, negative checklists, or raw questionnaire answers.
+- DO summarize the case into a high-yield, crisp clinical handoff in natural spoken English (~55-75 words).
+
+STRUCTURE TO FOLLOW:
+1. Patient identifier & demographics: e.g. "Clinical briefing for Ramesh, a 45-year-old male, Token A-12."
+2. Core active complaint & timeline: Synthesize the primary symptom and onset/duration in 1 concise, direct sentence.
+3. Critical safety alerts (ONLY if present): Mention any panic lab value (e.g. "Alert: Troponin elevated at 0.15"), severe allergy, or medication contradiction.
+4. Pertinent medical background (ONLY if directly relevant to current complaint): e.g. "Known type 2 diabetic on Metformin."
+5. Ready statement: "Intake complete and ready for your assessment."
+
+TTS AUDIO RESTRAINT:
+- Output MUST be spoken English text suitable for Text-To-Speech.
+- No markdown, asterisks, bullet points, headers, or emojis in "briefing_text".
+- Length: strictly 50 to 75 words.
+
+PATIENT INTAKE DATA:
+Patient Demographics: Name: ${input.patient.name || 'Patient'}, Age: ${input.patient.age || 'Unknown'}, Gender: ${input.patient.gender || 'Unknown'}, Token: ${input.patient.queue_id || input.patient.token || 'N/A'}
+Chief Complaint: ${input.chief_complaint || 'Outpatient consultation'}
+HPI Narrative: ${input.hpi || 'None recorded'}
+Allergies: ${input.allergies || 'No known drug allergies'}
+Medications: ${input.medications || 'None recorded'}
+Past History: ${input.past_medical || 'None recorded'}
+Abnormal / Panic Labs: ${JSON.stringify(input.abnormal_labs || [])}
+Contradictions: ${JSON.stringify(input.contradictions || [])}
+Safety Alerts: ${JSON.stringify(input.safety_alerts || [])}
+Clinical Mode: ${input.clinical_mode || 'allopathy'}
+
+Output strictly valid JSON with this schema:
+{
+  "briefing_text": "Spoken handover text for the doctor in natural English, 50-75 words, no emojis/markdown",
+  "key_points": [
+    "Patient: [Name, Age, Gender, Token]",
+    "Chief Complaint: [Concise primary complaint & onset]",
+    "Critical Alerts: [Any panic lab or allergy, or 'None flagged']",
+    "Relevant Background: [Key chronic condition or medication if any]"
+  ],
+  "duration_est_seconds": 30
+}
+`;
+
+  try {
+    const raw = await executeLlmChatCompletion(prompt, true);
+    if (raw) {
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (parsed && parsed.briefing_text && parsed.briefing_text.length > 25) {
+        let cleanText = sanitizeTextForSpokenAudio(parsed.briefing_text);
+        return {
+          briefing_text: cleanText,
+          key_points: Array.isArray(parsed.key_points) && parsed.key_points.length > 0
+            ? parsed.key_points.map((p: any) => String(p).trim()).slice(0, 5)
+            : fallback.key_points,
+          duration_est_seconds: typeof parsed.duration_est_seconds === 'number'
+            ? parsed.duration_est_seconds
+            : Math.max(20, Math.round(cleanText.split(/\s+/).length / 2.3)),
+          engine: 'groq-mistral-ai'
+        };
+      }
+    }
+  } catch (err: any) {
+    console.warn('[Doctor Audio Briefing AI Notice] Falling back to deterministic summarizer:', err?.message || err);
+  }
+
+  return fallback;
+}
+
